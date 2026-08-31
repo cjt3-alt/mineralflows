@@ -1,0 +1,46 @@
+{
+  "generated_at": "2026-08-31T00:00:00Z",
+  "schema_version": "1.0.0",
+  "sources": [
+    {
+      "id": "seed-facilities",
+      "name": "Hand-authored seed facilities",
+      "url": null,
+      "vintage": "2026",
+      "retrieved_at": "2026-08-31",
+      "coverage": "30 real mines, smelters and refineries across copper, lithium, cobalt and rare earths. Coordinates are approximate. Replaced by the ICMM Global Mining Dataset and IEA extracts once the ETL runs."
+    },
+    {
+      "id": "seed-flows",
+      "name": "Hand-authored seed trade flows",
+      "url": null,
+      "vintage": "2024",
+      "retrieved_at": "2026-08-31",
+      "coverage": "28 country-to-country flows for 2024, on a contained-metal basis. Replaced by the ADB-WTO TiCM bilateral trade database once the ETL runs."
+    },
+    {
+      "id": "seed-prices",
+      "name": "Indicative annual average prices",
+      "url": "https://www.worldbank.org/en/research/commodity-markets",
+      "vintage": "2023-2024",
+      "retrieved_at": "2026-08-31",
+      "coverage": "One average price per mineral per year, used to derive estimated flow values. Order-of-magnitude only. Replaced by the World Bank Pink Sheet once the ETL runs."
+    },
+    {
+      "id": "seed-centroids",
+      "name": "Representative country centroids",
+      "url": null,
+      "vintage": "2026",
+      "retrieved_at": "2026-08-31",
+      "coverage": "26 countries. Hand-picked representative land points used as arc endpoints, not computed polygon centroids. Replaced by a public centroid dataset once the ETL runs."
+    },
+    {
+      "id": "usgs-nmic",
+      "name": "USGS National Minerals Information Center",
+      "url": "https://www.usgs.gov/centers/national-minerals-information-center",
+      "vintage": "2025",
+      "retrieved_at": "2026-08-31",
+      "coverage": "Commodity background cited on individual seed facility records. Not yet machine-extracted."
+    }
+  ]
+}
