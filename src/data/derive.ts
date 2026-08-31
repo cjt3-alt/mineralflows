@@ -187,9 +187,9 @@ export interface PointDatum {
  * there are more of them and they cluster.
  */
 const STAGE_RADIUS: Record<Stage, number> = {
-  mine: 0.26,
-  process: 0.38,
-  refine: 0.5,
+  mine: 0.45,
+  process: 0.6,
+  refine: 0.8,
 }
 
 /**

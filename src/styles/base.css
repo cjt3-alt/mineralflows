@@ -1,7 +1,21 @@
 @import 'tailwindcss';
+@import './tokens.css';
 
-/* Phase 0 only. The real palette lands in src/styles/tokens.css in phase 3,
-   alongside the token plan. Nothing here is meant to survive that. */
+@theme {
+  --color-void: var(--mf-void);
+  --color-surface: var(--mf-surface);
+  --color-surface-raised: var(--mf-surface-raised);
+  --color-line: var(--mf-line);
+  --color-line-strong: var(--mf-line-strong);
+  --color-muted: var(--mf-muted);
+  --color-dim: var(--mf-text-dim);
+  --color-ink: var(--mf-text);
+  --color-alert: var(--mf-alert);
+
+  --font-sans: var(--mf-font-sans);
+  --font-mono: var(--mf-font-mono);
+}
+
 html,
 body,
 #root {
@@ -9,12 +23,35 @@ body,
 }
 
 body {
-  background: #07090c;
-  color: #e6ebf0;
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    sans-serif;
+  margin: 0;
+  background: var(--mf-void);
+  color: var(--mf-text);
+  font-family: var(--mf-font-sans);
+  font-size: var(--mf-text-sm);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Keyboard focus is always visible, and always the same shape. */
+:focus-visible {
+  outline: 1px solid var(--mf-text);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* globe.gl injects its own tooltip element (float-tooltip-kap, from the kapsule
+   tooltip helper); bring it into the palette rather than letting the library's
+   default white box land on a black page. */
+.float-tooltip-kap {
+  font-family: var(--mf-font-mono) !important;
+  font-size: var(--mf-text-xs) !important;
+  color: var(--mf-text) !important;
+  background: var(--mf-surface-raised) !important;
+  border: 1px solid var(--mf-line-strong);
+  border-radius: var(--mf-radius);
+  padding: 0.25rem 0.5rem !important;
+  letter-spacing: 0.01em;
 }

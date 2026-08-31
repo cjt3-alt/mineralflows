@@ -1,0 +1,77 @@
+/*
+ * MineralFlows design tokens
+ * ==========================
+ *
+ * The rule this palette exists to enforce: the interface chrome has no accent
+ * colour of its own. Every saturated pixel on screen is a mineral, coming from
+ * minerals.json. Borders, labels, panels and bars are all drawn from a single
+ * cool near-monochrome ramp, so the only thing competing for attention is the
+ * data. That is what keeps this from reading as generic-dark-dashboard, where
+ * a house blue or teal is sprayed across buttons, links and focus rings.
+ *
+ * Ramp (6 values, dark to light):
+ *   void    #05070a  page ground, and the globe backdrop
+ *   surface #0b0f16  bars and panels, one step off the ground
+ *   line    #1a2331  hairline borders and dividers, never a fill
+ *   muted   #66738a  secondary text, units, inactive controls
+ *   text    #d8e1ee  primary text
+ *   alert   #ff5f56  errors, and the low-confidence marker only
+ *
+ * Type: IBM Plex Sans for prose and interface text, IBM Plex Mono for anything
+ * that is a measurement — values, tonnages, coordinates, ISO codes, HS codes,
+ * source ids, dates. One family, two roles, so the register shift reads as
+ * meaningful rather than decorative. Plex was drawn for engineering
+ * documentation, which is the voice this wants.
+ *
+ * Scale is small and tight; this is an instrument, not a landing page.
+ */
+
+:root {
+  /* Ramp */
+  --mf-void: #05070a;
+  --mf-surface: #0b0f16;
+  --mf-line: #1a2331;
+  --mf-muted: #66738a;
+  --mf-text: #d8e1ee;
+  --mf-alert: #ff5f56;
+
+  /* Derived, still from the ramp — no new hues */
+  --mf-surface-raised: #10151e;
+  --mf-line-strong: #26334a;
+  --mf-text-dim: #96a3b8;
+
+  /* Type */
+  --mf-font-sans:
+    'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mf-font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+
+  --mf-text-2xs: 0.625rem; /* 10px — axis ticks, dense mono labels */
+  --mf-text-xs: 0.6875rem; /* 11px — mono data labels, badges */
+  --mf-text-sm: 0.8125rem; /* 13px — interface default */
+  --mf-text-base: 0.9375rem; /* 15px — panel body */
+  --mf-text-lg: 1.125rem; /* 18px — panel headings */
+  --mf-text-xl: 1.5rem; /* 24px — wordmark, the largest thing here */
+
+  /* Spacing rhythm */
+  --mf-gap-1: 0.25rem;
+  --mf-gap-2: 0.5rem;
+  --mf-gap-3: 0.75rem;
+  --mf-gap-4: 1rem;
+  --mf-gap-6: 1.5rem;
+
+  /* Chrome geometry. Radii stay small; nothing here is a soft card. */
+  --mf-radius: 2px;
+  --mf-radius-lg: 3px;
+  --mf-rail-width: 13rem;
+  --mf-panel-width: 22rem;
+  --mf-bar-height: 3rem;
+
+  /* Motion. Only ever in response to an action. */
+  --mf-transition: 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mf-transition: 0ms;
+  }
+}
