@@ -1,5 +1,5 @@
 import type { Dataset } from './load.ts'
-import type { Confidence, FacilityFeature, Flow, Mineral, Stage } from './schema.ts'
+import { STAGES, type Confidence, type FacilityFeature, type Flow, type Mineral, type Stage } from './schema.ts'
 
 /**
  * Everything between the validated dataset and what the globe draws: filtering,
@@ -21,6 +21,37 @@ export interface Filters {
 }
 
 export const EMPTY_FILTERS: Filters = { mineralIds: [], stages: [] }
+
+/**
+ * Filters round-trip through the query string so a view is shareable. Empty
+ * groups are omitted rather than written as empty params, so the default view
+ * has a clean URL.
+ */
+export function filtersToSearchParams(filters: Filters): URLSearchParams {
+  const params = new URLSearchParams()
+  if (filters.mineralIds.length > 0) params.set('minerals', filters.mineralIds.join(','))
+  if (filters.stages.length > 0) params.set('stages', filters.stages.join(','))
+  return params
+}
+
+/**
+ * Unknown ids are dropped rather than trusted: a stale or hand-edited link
+ * should degrade to a broader view, never to an empty globe or a crash.
+ */
+export function filtersFromSearchParams(
+  params: URLSearchParams,
+  knownMineralIds: readonly string[],
+): Filters {
+  const split = (value: string | null): string[] =>
+    value === null ? [] : value.split(',').map((s) => s.trim()).filter(Boolean)
+
+  return {
+    mineralIds: split(params.get('minerals')).filter((id) => knownMineralIds.includes(id)),
+    stages: split(params.get('stages')).filter((s): s is Stage =>
+      (STAGES as readonly string[]).includes(s),
+    ),
+  }
+}
 
 function matchesMineral(filters: Filters, mineralIds: readonly string[]): boolean {
   if (filters.mineralIds.length === 0) return true
@@ -143,16 +174,21 @@ export function arcAltitude(distanceDegrees: number): number {
 }
 
 /**
- * Square-root width scale. Copper flows are an order of magnitude larger than
- * rare earth flows; a linear scale renders everything else as a hairline.
+ * Where a value sits on the scale, from 0 to 1. Square root, because copper
+ * flows are an order of magnitude larger than rare earth flows and a linear
+ * scale renders everything else as a hairline.
+ *
+ * The legend reads this too, so the swatch widths and the arc widths cannot
+ * drift apart.
  */
+export function valueScaleFraction(valueUsd: number | null, maxValueUsd: number): number {
+  if (!(maxValueUsd > 0) || valueUsd === null || valueUsd <= 0) return 0
+  return Math.min(1, Math.sqrt(valueUsd / maxValueUsd))
+}
+
 export function makeWidthScale(maxValueUsd: number): (valueUsd: number | null) => number {
-  if (!(maxValueUsd > 0)) return () => ARC_WIDTH_MIN
-  return (valueUsd) => {
-    if (valueUsd === null || valueUsd <= 0) return ARC_WIDTH_MIN
-    const t = Math.min(1, Math.sqrt(valueUsd / maxValueUsd))
-    return ARC_WIDTH_MIN + (ARC_WIDTH_MAX - ARC_WIDTH_MIN) * t
-  }
+  return (valueUsd) =>
+    ARC_WIDTH_MIN + (ARC_WIDTH_MAX - ARC_WIDTH_MIN) * valueScaleFraction(valueUsd, maxValueUsd)
 }
 
 /* --------------------------------------------------------------- globe data */
@@ -303,6 +339,14 @@ export function formatUsd(value: number | null): string {
   if (abs >= 1e6) return '$' + (value / 1e6).toFixed(0) + 'M'
   if (abs >= 1e3) return '$' + (value / 1e3).toFixed(0) + 'k'
   return '$' + value.toFixed(0)
+}
+
+/**
+ * Exact dollars, for figures where rounding to "$9k" would destroy the meaning
+ * — a per-tonne price above all, where the significant digits are the point.
+ */
+export function formatUsdExact(value: number): string {
+  return '$' + Math.round(value).toLocaleString('en-US')
 }
 
 /** Tonnes with thousands separators: 1600000 -> "1,600,000 t". */
