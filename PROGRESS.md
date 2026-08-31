@@ -2,7 +2,7 @@
 
 Working log for the MineralFlows scaffold build. Updated at the end of every phase.
 
-**Last updated:** 2026-08-31, end of phase 1.
+**Last updated:** 2026-08-31, end of phase 3.
 
 ## Phases
 
@@ -10,8 +10,8 @@ Working log for the MineralFlows scaffold build. Updated at the end of every pha
 | ----- | -------------------------------------------------------- | -------------- |
 | 0     | Repo, tooling, CI, deploy target                          | ✅ complete    |
 | 1     | Data contract: types, schema validation, seed data, loader | ✅ complete    |
-| 2     | Globe canvas: points, arcs, bloom, interaction             | ⬜ not started |
-| 3     | Dashboard shell: top bar, filter rail, detail panel, legend | ⬜ not started |
+| 2     | Globe canvas: points, arcs, bloom, interaction             | ✅ complete    |
+| 3     | Dashboard shell: top bar, filter rail, detail panel, legend | ✅ complete    |
 | 4     | ETL skeleton and refresh workflow                          | ⬜ not started |
 | 5     | Polish: responsive, keyboard, reduced motion, states, README | ⬜ not started |
 
@@ -22,13 +22,16 @@ Repo is live at <https://github.com/cjt3-alt/mineralflows>, deployed to
 push to `main` and is green.
 
 The data contract is written and the seed dataset validates against it: 4 minerals, 30 facilities,
-28 flows, 8 prices, 26 countries. 43 tests pass.
+28 flows, 8 prices, 26 countries. The app runs: globe with glowing arcs and points, mineral and
+stage filters, a working detail panel, a legend, and shareable URLs. 62 tests pass; typecheck,
+lint and build are clean.
 
 ### Next step
 
-Phase 2: build `src/components/GlobeCanvas.tsx`. Presentational only — props in, callbacks out, no
-filter state and no data fetching. It consumes `PointDatum[]` and `ArcDatum[]` from `derive.ts`,
-which already exist and are tested.
+Phase 4: the ETL skeleton. Create `etl/pipeline.py` plus one module per source under
+`etl/sources/`, and `.github/workflows/refresh-data.yml`. Copy (do not move) the files from
+`./mineral-flows-data` into `etl/raw/manual/<source>/`. The pipeline must run end to end with every
+manual source missing and still write valid files.
 
 ## Assumptions and deferred items
 
@@ -80,6 +83,37 @@ Decisions made without asking, listed so they can be reversed cheaply.
   semi-fabrication, so copper semis and alloys sit under `refine` as inactive codes.
 - **ICMM and IEA source URLs are not yet recorded.** Both block automated fetches, so rather than
   guess a URL I left them out of `meta.json` until phase 4, where the ETL needs them anyway.
+
+**From phases 2 and 3**
+
+- **globe.gl's built-in graticule is replaced with our own.** The library draws it light grey, which
+  clears any useful bloom threshold and makes the grid the brightest thing on screen. Ours is dark
+  enough to stay under it.
+- **`world-atlas` and `topojson-client` added as dependencies.** A landmass outline needs land
+  geometry, and no runtime API calls are allowed. `land-110m.json` is 55 KB of public-domain Natural
+  Earth data, bundled at build time.
+- **`jsdom` and Testing Library added** so the detail panel's honesty rules are covered by tests
+  rather than by a manual click.
+- **`chunkSizeWarningLimit` raised to 3000 kB.** three.js plus globe.gl is ~2.2 MB and all of it is
+  needed on first paint, so the default would warn on every build forever.
+- **Multi-mineral facilities take the colour of their lowest `sort_order` visible mineral.** The
+  detail panel lists all of them, so nothing is hidden by the choice; only the dot has to pick one.
+- **Design tokens landed in phase 2, not 3**, because the globe was the first thing that needed real
+  colours.
+
+### Verification note
+
+The globe cannot be screenshotted from the automated browser pane while the pane is not being
+composited: `document.visibilityState` reports "visible" but zero animation frames fire, so
+three.js's render loop never runs and the canvas stays black while the DOM chrome paints normally.
+This is an artifact of the tooling, not the app. The globe was confirmed rendering in screenshots
+taken while the pane was displayed, including the full phase 3 shell. **Worth one manual look in a
+real browser** (`npm run dev`) to confirm nothing regressed since.
+
+Click-to-open-detail-panel was verified as far as the environment allows: globe.gl hit-testing was
+confirmed working (an arc tooltip resolved to "MDG → JPN"), and the panel itself is covered by
+tests. The click-through path from a point to an open panel has not been exercised end to end in a
+real browser.
 
 ## Blockers
 
