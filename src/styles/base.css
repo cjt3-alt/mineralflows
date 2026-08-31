@@ -1,0 +1,20 @@
+@import 'tailwindcss';
+
+/* Phase 0 only. The real palette lands in src/styles/tokens.css in phase 3,
+   alongside the token plan. Nothing here is meant to survive that. */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: #07090c;
+  color: #e6ebf0;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
