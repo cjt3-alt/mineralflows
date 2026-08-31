@@ -2,7 +2,8 @@
 
 Working log for the MineralFlows scaffold build. Updated at the end of every phase.
 
-**Last updated:** 2026-08-31, end of phase 3.
+**Last updated:** 2026-08-31. Phases 0–3 complete and deployed. Stopped cleanly at the phase 3/4
+boundary at your request; phase 4 has had reconnaissance only, and no ETL code exists yet.
 
 ## Phases
 
@@ -28,10 +29,47 @@ lint and build are clean.
 
 ### Next step
 
-Phase 4: the ETL skeleton. Create `etl/pipeline.py` plus one module per source under
-`etl/sources/`, and `.github/workflows/refresh-data.yml`. Copy (do not move) the files from
-`./mineral-flows-data` into `etl/raw/manual/<source>/`. The pipeline must run end to end with every
-manual source missing and still write valid files.
+**Phase 4: the ETL skeleton.** Nothing has been written yet — the phase stopped after
+reconnaissance, so the repo contains no `etl/` directory. To build:
+
+1. `etl/pipeline.py` (orchestrator), `etl/sources/` (one module per source, uniform interface),
+   `etl/raw/auto/` (gitignored) and `etl/raw/manual/` (committed), `etl/README.md`.
+2. `.github/workflows/refresh-data.yml` — monthly cron plus `workflow_dispatch`, opens a PR if
+   `public/data/` changed rather than committing to `main`. Needs `contents: write` and
+   `pull-requests: write`.
+3. Copy — do not move — the files from `./mineral-flows-data` into `etl/raw/manual/<source>/`.
+4. `python etl/pipeline.py` must run end to end with every manual source absent and still write
+   valid files.
+
+**Unresolved design question to settle first:** if the pipeline writes `public/data/` from sources
+alone, a run with no manual files would wipe the seed dataset and break the app. The intended answer
+is to treat the seed data as a *fallback rather than a layer*: for each output file, if any real
+source produced rows, the seed rows for that file are dropped entirely; otherwise the seed rows are
+used. Layering them would double-count, because TiCM flows carry different ids than seed flows.
+
+### Phase 4 reconnaissance already done (do not repeat)
+
+Python deps are installed: pandas 3.0.5, requests 2.34.2, openpyxl 3.1.5, ruff 0.16.5.
+
+Findings from reading `./mineral-flows-data` (nothing was copied or modified):
+
+- **TiCM CSV columns**: `reporter, partner, flow, aggregate_product, hs_code, hs_description, year,
+  value`. `flow` is `Import` or `Export`, from the reporter's perspective.
+- **Values are raw USD, not thousands.** Verified against a known pair: Chile → China under 260300
+  reads `21012301030.14`, i.e. $21.0 bn, which matches reality.
+- **Each CSV holds many HS codes, not the one in its filename.** The filename names only the
+  headline code. `ticm-copper-740100-2024.csv` contains 42 distinct codes spanning 7401–7412.
+- **Your note 4 is confirmed**: `280530`, `284610` and `284690` each appear in three separate files
+  (copper-740100, rare-earths, lithium-batteries). Deduping on
+  `reporter+partner+flow+hs_code+year` is essential or rare earths will be triple counted.
+- **Aggregate rows are present** with `partner` of `World` and `European Union`, in every file
+  checked. These must be filtered out, as must aggregate reporters.
+- **Both directions exist for the same pair.** Chile → China appears as `Export 21012301030.14` and
+  also as `Import 2554.32`. A direction convention has to be picked — cleanest is to take `Export`
+  rows with reporter as origin and partner as destination, and decide deliberately whether to
+  backfill from mirrored `Import` rows where exports are missing.
+- **ICMM and IEA URLs still need pinning down** for `meta.json`; both block automated fetches, so
+  read them off the files or the site by hand rather than guessing.
 
 ## Assumptions and deferred items
 
@@ -123,8 +161,23 @@ None.
 
 Paste this into a fresh session started in the repo root:
 
-> Read PROGRESS.md and PROMPT.md, then continue the MineralFlows build from the next incomplete
-> phase. Work through the remaining phases in order without stopping for confirmation between them;
-> only stop if you hit a genuine blocker. Commit incrementally with clear messages tied to the
-> phase, and update PROGRESS.md as each phase completes. Note that `PROMPT.md` and
-> `mineral-flows-data/` are gitignored but present on disk.
+> Read PROGRESS.md and PROMPT.md, then continue the MineralFlows build from phase 4 (ETL skeleton
+> and refresh workflow), followed by phase 5 (polish). Phases 0–3 are complete, committed, and
+> deployed — do not redo them. Work through the remaining phases in order without stopping for
+> confirmation between them; only stop if you hit a genuine blocker. Commit incrementally with clear
+> messages tied to the phase, and update PROGRESS.md as each phase completes.
+>
+> Before writing ETL code, read the "Phase 4 reconnaissance already done" section of PROGRESS.md —
+> the TiCM file layout, value units, HS-code overlap and aggregate-row problems are already
+> established, and the seed-data-as-fallback design question is written up there and needs settling
+> first. Note that `PROMPT.md` and `mineral-flows-data/` are gitignored but present on disk, and
+> that Python deps (pandas, requests, openpyxl, ruff) are already installed.
+
+## How to check the app locally
+
+```bash
+npm run dev
+```
+
+The globe cannot be verified from an automated browser pane (see the verification note above), so
+this is worth one manual look. `npm run build && npm run preview` checks the production bundle.
