@@ -2,74 +2,57 @@
 
 Working log for the MineralFlows scaffold build. Updated at the end of every phase.
 
-**Last updated:** 2026-08-31. Phases 0–3 complete and deployed. Stopped cleanly at the phase 3/4
-boundary at your request; phase 4 has had reconnaissance only, and no ETL code exists yet.
+**Last updated:** 2026-08-31. All six phases complete. The app, the data contract, the ETL, both
+workflows and the polish pass are done and committed.
 
 ## Phases
 
-| Phase | Scope                                                    | Status         |
-| ----- | -------------------------------------------------------- | -------------- |
-| 0     | Repo, tooling, CI, deploy target                          | ✅ complete    |
-| 1     | Data contract: types, schema validation, seed data, loader | ✅ complete    |
-| 2     | Globe canvas: points, arcs, bloom, interaction             | ✅ complete    |
-| 3     | Dashboard shell: top bar, filter rail, detail panel, legend | ✅ complete    |
-| 4     | ETL skeleton and refresh workflow                          | ⬜ not started |
-| 5     | Polish: responsive, keyboard, reduced motion, states, README | ⬜ not started |
+| Phase | Scope                                                        | Status      |
+| ----- | ------------------------------------------------------------ | ----------- |
+| 0     | Repo, tooling, CI, deploy target                             | ✅ complete |
+| 1     | Data contract: types, schema validation, seed data, loader   | ✅ complete |
+| 2     | Globe canvas: points, arcs, bloom, interaction               | ✅ complete |
+| 3     | Dashboard shell: top bar, filter rail, detail panel, legend  | ✅ complete |
+| 4     | ETL skeleton and refresh workflow                            | ✅ complete |
+| 5     | Polish: responsive, keyboard, reduced motion, states, README | ✅ complete |
 
 ## Where things stand
 
-Repo is live at <https://github.com/cjt3-alt/mineralflows>, deployed to
-<https://cjt3-alt.github.io/mineralflows/>. CI runs typecheck, lint, test, build, deploy on every
-push to `main` and is green.
+Repo is at <https://github.com/cjt3-alt/mineralflows>, deployed to
+<https://cjt3-alt.github.io/mineralflows/>.
 
-The data contract is written and the seed dataset validates against it: 4 minerals, 30 facilities,
-28 flows, 8 prices, 26 countries. The app runs: globe with glowing arcs and points, mineral and
-stage filters, a working detail panel, a legend, and shareable URLs. 62 tests pass; typecheck,
-lint and build are clean.
+The app runs on the seed dataset: 4 minerals, 30 facilities, 28 flows, 8 prices, 17 country
+centroids. Globe with glowing arcs and points, mineral and stage filters, working detail panel,
+legend, shareable URLs, and a keyboard path through the globe. 63 vitest tests and 43 ETL test
+assertions pass; typecheck, eslint, ruff and the production build are clean, and the built bundle
+was confirmed working from `npm run preview`.
 
-### Next step
+The ETL reads six real sources and runs end to end in every combination of `--offline` and
+`--no-manual`. A full run with everything reachable produces 1,364 facilities and 2,000 flows and
+was verified to validate against the app's own schema — but that output is **not** what is
+committed. See the next section.
 
-**Phase 4: the ETL skeleton.** Nothing has been written yet — the phase stopped after
-reconnaissance, so the repo contains no `etl/` directory. To build:
+### Deliberate: `public/data/` is still the seed dataset
 
-1. `etl/pipeline.py` (orchestrator), `etl/sources/` (one module per source, uniform interface),
-   `etl/raw/auto/` (gitignored) and `etl/raw/manual/` (committed), `etl/README.md`.
-2. `.github/workflows/refresh-data.yml` — monthly cron plus `workflow_dispatch`, opens a PR if
-   `public/data/` changed rather than committing to `main`. Needs `contents: write` and
-   `pull-requests: write`.
-3. Copy — do not move — the files from `./mineral-flows-data` into `etl/raw/manual/<source>/`.
-4. `python etl/pipeline.py` must run end to end with every manual source absent and still write
-   valid files.
+`public/data/` is exactly what `python etl/pipeline.py --offline --no-manual` writes, and
+`deploy.yml` checks that on every push. Swapping thirty checkable facilities for thirteen hundred
+and twenty-eight flows for two thousand is a change worth reading a diff for, and `refresh-data.yml`
+exists to deliver it as a pull request. The brief also scoped this session as a scaffold rather than
+a data project.
 
-**Unresolved design question to settle first:** if the pipeline writes `public/data/` from sources
-alone, a run with no manual files would wipe the seed dataset and break the app. The intended answer
-is to treat the seed data as a *fallback rather than a layer*: for each output file, if any real
-source produced rows, the seed rows for that file are dropped entirely; otherwise the seed rows are
-used. Layering them would double-count, because TiCM flows carry different ids than seed flows.
+**To ship the real data:** run `refresh-data.yml` via `workflow_dispatch` and merge the PR it opens.
+Or locally, `python etl/pipeline.py && npm test`, then commit.
 
-### Phase 4 reconnaissance already done (do not repeat)
+### Verification note
 
-Python deps are installed: pandas 3.0.5, requests 2.34.2, openpyxl 3.1.5, ruff 0.16.5.
+The globe was confirmed rendering in the automated browser pane this session, at desktop, tablet
+and mobile viewport sizes, in both the dev server and the production preview. The earlier note about
+a black canvas turned out to be a pane-compositing artifact that does not always occur. The
+keyboard path was exercised end to end: focus the globe, arrow to a flow, Enter, and the detail
+panel opens with the estimated-value warning.
 
-Findings from reading `./mineral-flows-data` (nothing was copied or modified):
-
-- **TiCM CSV columns**: `reporter, partner, flow, aggregate_product, hs_code, hs_description, year,
-  value`. `flow` is `Import` or `Export`, from the reporter's perspective.
-- **Values are raw USD, not thousands.** Verified against a known pair: Chile → China under 260300
-  reads `21012301030.14`, i.e. $21.0 bn, which matches reality.
-- **Each CSV holds many HS codes, not the one in its filename.** The filename names only the
-  headline code. `ticm-copper-740100-2024.csv` contains 42 distinct codes spanning 7401–7412.
-- **Your note 4 is confirmed**: `280530`, `284610` and `284690` each appear in three separate files
-  (copper-740100, rare-earths, lithium-batteries). Deduping on
-  `reporter+partner+flow+hs_code+year` is essential or rare earths will be triple counted.
-- **Aggregate rows are present** with `partner` of `World` and `European Union`, in every file
-  checked. These must be filtered out, as must aggregate reporters.
-- **Both directions exist for the same pair.** Chile → China appears as `Export 21012301030.14` and
-  also as `Import 2554.32`. A direction convention has to be picked — cleanest is to take `Export`
-  rows with reporter as origin and partner as destination, and decide deliberately whether to
-  backfill from mirrored `Import` rows where exports are missing.
-- **ICMM and IEA URLs still need pinning down** for `meta.json`; both block automated fetches, so
-  read them off the files or the site by hand rather than guessing.
+Not exercised in a real browser: `prefers-reduced-motion` (the pane cannot emulate it) and a real
+touch device.
 
 ## Assumptions and deferred items
 
@@ -81,97 +64,102 @@ Decisions made without asking, listed so they can be reversed cheaply.
   `typescript >=4.8.4 <6.1.0`; TS 7 would leave linting unsupported. Revisit when typescript-eslint
   ships TS 7 support.
 - **Vite `base` is `./`, not `/`.** A relative base serves correctly from the `github.io` project
-  path, the apex domain, and a plain file server. An absolute `/` would 404 every asset at the
-  `github.io` URL, which is where the site lives until DNS is cut over.
-- **No `public/CNAME`.** Per instruction: Pages ignores it when publishing from Actions, so the
-  custom domain goes in repo settings instead.
-- **`PROMPT.md` and `mineral-flows-data/` are gitignored.** The brief is not mine to publish to a
-  public repo, and the 36 MB of raw sources stay unversioned until phase 4 copies what it needs
-  into `etl/raw/manual/`. One-line reversal in `.gitignore` if either call is wrong.
-- **Pages was enabled via the API** (`build_type: workflow`) after you approved it. The custom
-  domain and DNS remain manual; records are in the README.
-- **`refresh-data.yml` deferred to phase 4.** It cannot do anything without `etl/pipeline.py`, so
-  committing it now would mean a workflow that fails if dispatched.
+  path, the apex domain, and a plain file server.
+- **No `public/CNAME`.** Pages ignores it when publishing from Actions, so the custom domain goes in
+  repo settings instead.
+- **`PROMPT.md` and `mineral-flows-data/` are gitignored.** The brief is not mine to publish, and
+  the raw staging directory is superseded by `etl/raw/manual/`.
+- **Pages was enabled via the API** (`build_type: workflow`). Custom domain and DNS remain manual.
 
 **From phase 1**
 
-- **`minerals.json` carries both `hs_codes` and `trade_codes`.** The contract specified
-  `hs_codes: string[]`; your note required an explicit HS-code-to-stage map with inactive codes
-  retained. `trade_codes` is the authoritative structure, `hs_codes` is the flat list of active
-  codes. A schema refinement fails validation if the two ever disagree, so the redundancy cannot
-  silently drift.
-- **Flow volumes are on a contained-metal basis** — LCE for lithium, REO for rare earths — so that
-  `volume x price` produces a sane number. Spodumene concentrate tonnage against a carbonate price
-  would overstate lithium by roughly 8x. The ETL must normalise the same way in phase 4.
-- **Seed flows are tagged `source: "seed"`, except estimated ones which are tagged
-  `source: "estimated"`.** The brief asked for both; `estimated` wins where they collide because
-  that is the label the UI must never lose.
+- **`minerals.json` carries both `hs_codes` and `trade_codes`**, with a schema refinement that fails
+  if they disagree, so the redundancy cannot silently drift.
+- **Flow volumes are on a contained-metal basis** — LCE for lithium, REO for rare earths. Phase 4
+  had to convert USGS lithium production by 5.323 to match; see `etl/config/production_basis.json`.
 - **Three low-confidence facilities**, not two: Kolwezi artisanal district, Ganzhou separation
-  cluster, Kachin State REE district. All three are genuinely poorly documented in public sources,
-  which is the point.
-- **Rare earths have no mine-stage trade code or flow.** Deliberate, per your note. A test asserts
-  it, and `filterFlows` matches on *either* arc endpoint so a refine-only mineral does not vanish.
-- **Facility `source_url` points at USGS NMIC commodity pages** (verified 200, they block plain
-  curl but serve a browser UA). Low-confidence facilities have `source_url: null`. No URL was
-  invented.
-- **Country centroids are hand-picked representative land points**, not computed polygon centroids.
-  Malaysia uses a peninsular point rather than its true centroid, which falls in the sea. Recorded
-  as source `seed-centroids` in `meta.json`; phase 4 swaps in a public dataset.
-- **A "no fabrication stage" gap.** The three-stage taxonomy (mine/process/refine) has no slot for
-  semi-fabrication, so copper semis and alloys sit under `refine` as inactive codes.
-- **ICMM and IEA source URLs are not yet recorded.** Both block automated fetches, so rather than
-  guess a URL I left them out of `meta.json` until phase 4, where the ETL needs them anyway.
+  cluster, Kachin State REE district.
+- **Rare earths have no mine-stage trade code or flow.** Deliberate. `filterFlows` matches on either
+  arc endpoint so a refine-only mineral does not vanish.
+- **A "no fabrication stage" gap.** The three-stage taxonomy has no slot for semi-fabrication, so
+  copper semis and alloys sit under `refine` as inactive codes.
 
 **From phases 2 and 3**
 
-- **globe.gl's built-in graticule is replaced with our own.** The library draws it light grey, which
-  clears any useful bloom threshold and makes the grid the brightest thing on screen. Ours is dark
-  enough to stay under it.
-- **`world-atlas` and `topojson-client` added as dependencies.** A landmass outline needs land
-  geometry, and no runtime API calls are allowed. `land-110m.json` is 55 KB of public-domain Natural
-  Earth data, bundled at build time.
-- **`jsdom` and Testing Library added** so the detail panel's honesty rules are covered by tests
-  rather than by a manual click.
+- **globe.gl's built-in graticule is replaced with our own**, dark enough to stay under the bloom
+  threshold.
+- **`world-atlas` and `topojson-client` added** for the landmass outline: 55 KB of public-domain
+  Natural Earth data bundled at build time.
 - **`chunkSizeWarningLimit` raised to 3000 kB.** three.js plus globe.gl is ~2.2 MB and all of it is
-  needed on first paint, so the default would warn on every build forever.
+  needed on first paint.
 - **Multi-mineral facilities take the colour of their lowest `sort_order` visible mineral.** The
-  detail panel lists all of them, so nothing is hidden by the choice; only the dot has to pick one.
-- **Design tokens landed in phase 2, not 3**, because the globe was the first thing that needed real
-  colours.
+  detail panel lists all of them.
 
-### Verification note
+**From phase 4**
 
-The globe cannot be screenshotted from the automated browser pane while the pane is not being
-composited: `document.visibilityState` reports "visible" but zero animation frames fire, so
-three.js's render loop never runs and the canvas stays black while the DOM chrome paints normally.
-This is an artifact of the tooling, not the app. The globe was confirmed rendering in screenshots
-taken while the pane was displayed, including the full phase 3 shell. **Worth one manual look in a
-real browser** (`npm run dev`) to confirm nothing regressed since.
+- **Seed data is a fallback, not a layer.** Facilities and flows fall back at the whole-table level
+  because a seed row and a real row can be the same mine with two ids; prices and centroids merge on
+  their natural keys because no single price source covers all four minerals. Written up in
+  `etl/sources/seed.py` and `etl/README.md`.
+- **`etl/seed/flows.json` stores estimated flows with `value_usd: null`**, derived by the pipeline
+  on every run, so the estimated-value path is live code rather than a frozen number. A test asserts
+  no stored value ever appears there.
+- **Country coordinates are World Bank capital cities, not polygon centroids.** Official, versioned,
+  no-auth. Australia's arcs land on Canberra. Four places the list omits (TWN, GUF, MSR, VAT) are
+  hand-added in `etl/config/extra_countries.json`.
+- **`countries.json` is pruned to what the other files reference** — 17 rows on the seed path, 138
+  on a full run, instead of 217.
+- **The country resolver refuses to guess.** Unmatched names are counted, reported, and dropped, not
+  fuzzy-matched.
+- **Exports define flow direction in TiCM.** Import rows only fill pairs with no export row, and
+  those flows are marked low confidence.
+- **TiCM flows are capped at the top 500 per mineral by value**, per mineral so copper cannot crowd
+  out rare earths.
+- **NdPr oxide is the rare-earth price proxy.** The least comfortable call in the pipeline: there is
+  no published mixed-REO basket price, and the alternative series is cheap cerium-lanthanum
+  mischmetal. Reasoned in `etl/config/usgs_price_series.json`; every value derived from it is tagged
+  estimated.
+- **UN Comtrade is wired in but inert.** Its API needs a subscription key an unattended workflow
+  cannot hold. It reports a skip on every run rather than pretending to be implemented.
+- **The IEA and USGS production figures write to no output file.** The contract has no production
+  table. They feed the cross-check that flags a flow larger than its origin's output.
+- **The ICMM and IEA workbooks are CC BY 4.0 and committed.** The TiCM extracts' redistribution
+  terms have not been checked — flagged in the README as a manual step before the repo goes public.
+- **A multi-stage ICMM site becomes one facility per stage** at the same coordinates, because
+  collapsing it would make the stage filter lie about what is there.
+- **`contract.py` mirrors `schema.ts` by hand.** `refresh-data.yml` runs the app's own test suite
+  over freshly written files, which is what catches the two drifting apart. It already caught one:
+  zod's ISO datetime rejects `+00:00` and requires `Z`.
 
-Click-to-open-detail-panel was verified as far as the environment allows: globe.gl hit-testing was
-confirmed working (an arc tooltip resolved to "MDG → JPN"), and the panel itself is covered by
-tests. The click-through path from a point to an open panel has not been exercised end to end in a
-real browser.
+**From phase 5**
+
+- **The globe is keyboard-operable.** A WebGL canvas is otherwise unreachable, which would leave the
+  detail panel — the only place source, confidence and estimate warnings appear — openable by mouse
+  alone. The keyboard cursor is separate state from the selection, so moving it does not pull focus
+  into the panel.
+- **`--mf-muted` raised from `#66738a` to `#707d95`.** The old value was 4.2:1 on the page ground,
+  under AA for the 10–11px sizes it is mostly used at. The new one is 4.9:1.
+- **Camera altitude is computed from the viewport aspect** rather than fixed at 2.4, because
+  globe.gl's field of view is vertical and a tall phone viewport crops the sphere at any fixed
+  altitude.
+- **Below 768px the rail becomes a strip and the panel a sheet.** Both are variants of the same
+  components, chosen by the shell; nothing is hidden on a small screen.
+- **A `mineralflows-preview` entry was added to `.claude/launch.json`** so the production bundle can
+  be checked in the browser without a shell server.
 
 ## Blockers
 
 None.
 
-## Resume instruction
+## What is left, if you want more
 
-Paste this into a fresh session started in the repo root:
+Not in the brief, so not built:
 
-> Read PROGRESS.md and PROMPT.md, then continue the MineralFlows build from phase 4 (ETL skeleton
-> and refresh workflow), followed by phase 5 (polish). Phases 0–3 are complete, committed, and
-> deployed — do not redo them. Work through the remaining phases in order without stopping for
-> confirmation between them; only stop if you hit a genuine blocker. Commit incrementally with clear
-> messages tied to the phase, and update PROGRESS.md as each phase completes.
->
-> Before writing ETL code, read the "Phase 4 reconnaissance already done" section of PROGRESS.md —
-> the TiCM file layout, value units, HS-code overlap and aggregate-row problems are already
-> established, and the seed-data-as-fallback design question is written up there and needs settling
-> first. Note that `PROMPT.md` and `mineral-flows-data/` are gitignored but present on disk, and
-> that Python deps (pandas, requests, openpyxl, ruff) are already installed.
+- Ship the real ETL output (see the deliberate note above).
+- Year, region and confidence filters. `FilterRail` and the `Filters` type were built with the seam
+  for them.
+- A production table in the contract, which would give the USGS and IEA extracts somewhere to land.
+- Comtrade, if a key is ever available to a workflow.
 
 ## How to check the app locally
 
@@ -179,5 +167,4 @@ Paste this into a fresh session started in the repo root:
 npm run dev
 ```
 
-The globe cannot be verified from an automated browser pane (see the verification note above), so
-this is worth one manual look. `npm run build && npm run preview` checks the production bundle.
+`npm run build && npm run preview` checks the production bundle.

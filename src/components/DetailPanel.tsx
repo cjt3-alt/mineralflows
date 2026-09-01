@@ -25,6 +25,12 @@ export interface DetailPanelProps {
   mineralsById: ReadonlyMap<string, Mineral>
   countries: Record<string, Country>
   onClose: () => void
+  /**
+   * `sheet` is the narrow-viewport layout: the same content, over the globe
+   * from the bottom edge rather than beside it in a column there is no room
+   * for. Content and behaviour are identical either way.
+   */
+  variant?: 'panel' | 'sheet'
 }
 
 type BadgeTone = 'neutral' | 'warn'
@@ -196,7 +202,13 @@ function FlowDetail({
   )
 }
 
-export function DetailPanel({ selection, mineralsById, countries, onClose }: DetailPanelProps) {
+export function DetailPanel({
+  selection,
+  mineralsById,
+  countries,
+  onClose,
+  variant = 'panel',
+}: DetailPanelProps) {
   const panelRef = useRef<HTMLElement>(null)
   const returnFocusTo = useRef<Element | null>(null)
 
@@ -221,13 +233,19 @@ export function DetailPanel({ selection, mineralsById, countries, onClose }: Det
 
   if (selection === null) return null
 
+  const sheet = variant === 'sheet'
+
   return (
     <aside
       ref={panelRef}
       tabIndex={-1}
       aria-label="Detail"
-      className="w-88 shrink-0 overflow-y-auto border-l border-line bg-surface p-4"
-      style={{ width: 'var(--mf-panel-width)' }}
+      className={
+        sheet
+          ? 'absolute inset-x-0 bottom-0 z-10 max-h-[70%] overflow-y-auto border-t border-line bg-surface p-4'
+          : 'shrink-0 overflow-y-auto border-l border-line bg-surface p-4'
+      }
+      style={sheet ? undefined : { width: 'var(--mf-panel-width)' }}
     >
       <div className="mb-3 flex justify-end">
         <button

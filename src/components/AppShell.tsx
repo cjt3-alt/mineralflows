@@ -159,7 +159,7 @@ export function AppShell() {
 
   if (state.status === 'loading') {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full items-center justify-center" role="status">
         <p className="font-mono text-xs text-muted">Loading supply chain data…</p>
       </div>
     )
@@ -167,16 +167,24 @@ export function AppShell() {
 
   if (state.status === 'error') {
     return (
-      <div className="flex h-full items-center justify-center px-6">
+      <div className="flex h-full items-center justify-center px-6" role="alert">
         <div className="max-w-md">
           <h1 className="text-lg text-ink">The data files did not load.</h1>
           <p className="mt-2 text-sm text-dim">
             The app reads flat files from the same origin, so this is usually a missing or malformed
-            file rather than a network problem. Reload to try again.
+            file rather than a network problem. The message below names the file and the record.
           </p>
           <pre className="mt-4 overflow-x-auto border border-line bg-surface p-3 font-mono text-2xs whitespace-pre-wrap text-alert">
             {state.error.message}
           </pre>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-4 border border-line-strong px-3 py-1.5 text-xs text-ink hover:border-dim"
+            style={{ borderRadius: 'var(--mf-radius)' }}
+          >
+            Try again
+          </button>
         </div>
       </div>
     )
@@ -185,8 +193,42 @@ export function AppShell() {
   const { dataset: data } = state
   const nothingVisible = view.points.length === 0 && view.arcs.length === 0
 
+  /**
+   * Below 768px there is no room for a 13rem rail, a globe and a 22rem panel
+   * side by side, so the same three components take their narrow forms: the
+   * rail becomes a strip under the top bar, and the panel becomes a sheet over
+   * the globe. Nothing is hidden or removed on small screens.
+   */
+  const rail = (
+    <FilterRail
+      variant={isSmall ? 'strip' : 'rail'}
+      selectedStages={filters.stages}
+      onToggleStage={onToggleStage}
+      onClearStages={onClearStages}
+      facilityCounts={view.facilityCounts}
+      visibleFacilityCount={view.points.length}
+      visibleFlowCount={view.arcs.length}
+    />
+  )
+  const panel = (
+    <DetailPanel
+      variant={isSmall ? 'sheet' : 'panel'}
+      selection={visibleSelection}
+      mineralsById={data.mineralsById}
+      countries={data.countries}
+      onClose={onClose}
+    />
+  )
+
   return (
     <div className="flex h-full flex-col">
+      <a
+        href="#globe"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-20 focus:border focus:border-line-strong focus:bg-surface focus:px-2 focus:py-1 focus:text-xs focus:text-ink"
+      >
+        Skip to the globe
+      </a>
+
       <TopBar
         minerals={data.activeMinerals}
         selectedMineralIds={filters.mineralIds}
@@ -194,17 +236,12 @@ export function AppShell() {
         onClearMinerals={onClearMinerals}
       />
 
-      <div className="flex min-h-0 flex-1">
-        <FilterRail
-          selectedStages={filters.stages}
-          onToggleStage={onToggleStage}
-          onClearStages={onClearStages}
-          facilityCounts={view.facilityCounts}
-          visibleFacilityCount={view.points.length}
-          visibleFlowCount={view.arcs.length}
-        />
+      {isSmall && rail}
 
-        <main className="relative min-w-0 flex-1">
+      <div className="flex min-h-0 flex-1">
+        {!isSmall && rail}
+
+        <main id="globe" tabIndex={-1} className="relative min-w-0 flex-1">
           <GlobeCanvas
             points={view.points}
             arcs={view.arcs}
@@ -233,17 +270,15 @@ export function AppShell() {
               </div>
             </div>
           )}
+
+          {isSmall && panel}
         </main>
 
-        <DetailPanel
-          selection={visibleSelection}
-          mineralsById={data.mineralsById}
-          countries={data.countries}
-          onClose={onClose}
-        />
+        {!isSmall && panel}
       </div>
 
       <LegendBar
+        compact={isSmall}
         maxValueUsd={view.maxValueUsd}
         truncated={view.truncated}
         shownArcCount={view.arcs.length}

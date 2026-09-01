@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import Globe, { type GlobeMethods } from 'react-globe.gl'
 import {
   BufferGeometry,
@@ -19,6 +19,14 @@ import type { ArcDatum, PointDatum } from '../data/derive.ts'
  * The globe, and nothing else. Props in, callbacks out: it holds no filter
  * state, fetches nothing, and knows nothing about minerals beyond the colours
  * already baked into the data it is handed.
+ *
+ * One piece of state does live here: the keyboard cursor. A WebGL canvas is
+ * unreachable by keyboard, which would leave the detail panel — the only place
+ * a source, a confidence rating or an estimated-value warning is shown —
+ * openable by mouse alone. So the canvas takes focus, arrow keys walk the
+ * visible sites and flows, and Enter opens the one under the cursor. The cursor
+ * is separate from the selection on purpose: moving it must not pull focus into
+ * the panel, or the next arrow key would go somewhere else.
  */
 
 export interface GlobeCanvasProps {
@@ -76,6 +84,26 @@ const landPolygons: LandPolygon[] = (() => {
   return polygons
 })()
 
+/**
+ * globe.gl's camera has a 50 degree *vertical* field of view, so a tall narrow
+ * viewport crops the globe at the sides however far back a fixed altitude puts
+ * the camera. This works out how far back it has to be for the sphere to fit
+ * the narrower axis, which keeps the whole globe on screen on a phone without
+ * shrinking it to a dot on a desktop.
+ */
+const CAMERA_FOV_DEGREES = 50
+const DEFAULT_ALTITUDE = 2.4
+
+function framingAltitude(width: number, height: number): number {
+  if (width === 0 || height === 0) return DEFAULT_ALTITUDE
+  const halfVertical = ((CAMERA_FOV_DEGREES / 2) * Math.PI) / 180
+  const halfHorizontal = Math.atan(Math.tan(halfVertical) * (width / height))
+  const half = Math.min(halfVertical, halfHorizontal)
+  // Distance in globe radii at which the sphere exactly fills that axis, plus a
+  // margin so the arcs, which stand off the surface, are not clipped either.
+  return Math.max(DEFAULT_ALTITUDE, (1 / Math.sin(half)) * 1.25 - 1)
+}
+
 const GLOBE_COLOR = '#080b11'
 const LAND_STROKE = '#3d5273'
 const GRATICULE_COLOR = '#182335'
@@ -119,6 +147,8 @@ export function GlobeCanvas({
   const globeRef = useRef<GlobeMethods | undefined>(undefined)
   const containerRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
+  const [cursor, setCursor] = useState(0)
+  const [keyboardActive, setKeyboardActive] = useState(false)
 
   // The globe needs pixel dimensions, so it measures its own box rather than
   // making the shell responsible for layout arithmetic.
@@ -135,6 +165,33 @@ export function GlobeCanvas({
   }, [])
 
   const globeMaterial = useMemo(() => makeGlobeMaterial(), [])
+
+  /**
+   * What the arrow keys walk. Flows come first because they are the larger
+   * story and are already sorted by value; sites follow in the order the
+   * filters produced them. Rebuilt whenever the filters change, which is why
+   * the cursor is clamped rather than remembered by identity.
+   */
+  const walk = useMemo(
+    () => [
+      ...arcs.map((arc) => ({ kind: 'flow' as const, arc })),
+      ...points.map((point) => ({ kind: 'facility' as const, point })),
+    ],
+    [arcs, points],
+  )
+
+  const index = walk.length === 0 ? 0 : Math.min(cursor, walk.length - 1)
+  const current = walk[index]
+
+  /** The cursor is drawn like a selection so it is visible at all, but only once
+   *  the keyboard has been used — a mouse user should never see it. */
+  const cursorId =
+    keyboardActive && current !== undefined
+      ? current.kind === 'facility'
+        ? current.point.id
+        : current.arc.id
+      : null
+
 
   /**
    * Own graticule rather than globe.gl's `showGraticules`. The built-in one is
@@ -214,22 +271,35 @@ export function GlobeCanvas({
   useEffect(() => {
     const globe = globeRef.current
     if (!globe || size.width === 0) return
-    globe.pointOfView({ lat: 12, lng: 24, altitude: 2.4 }, reducedMotion ? 0 : 1400)
+    globe.pointOfView(
+      { lat: 12, lng: 24, altitude: framingAltitude(size.width, size.height) },
+      reducedMotion ? 0 : 1400,
+    )
     const controls = globe.controls()
     controls.enablePan = false
     controls.minDistance = 180
     controls.maxDistance = 600
     // Deliberately no autoRotate: motion answers user action, not idle time.
     controls.autoRotate = false
-  }, [reducedMotion, size.width])
+  }, [reducedMotion, size.width, size.height])
+
+  /**
+   * Highlighted means selected or under the keyboard cursor. Both get the same
+   * treatment: there is only ever one of each, and they are usually the same
+   * thing, so a second visual language would be noise.
+   */
+  const highlighted = useCallback(
+    (id: string) => id === selectedId || id === cursorId,
+    [selectedId, cursorId],
+  )
 
   const pointColor = useCallback(
     (datum: object) => {
       const point = datum as PointDatum
       if (point.confidence === 'low') return withAlpha(point.color, 0.38)
-      return point.id === selectedId ? '#ffffff' : point.color
+      return highlighted(point.id) ? '#ffffff' : point.color
     },
-    [selectedId],
+    [highlighted],
   )
 
   const pointAltitude = useCallback((datum: object) => {
@@ -242,28 +312,28 @@ export function GlobeCanvas({
   const pointRadius = useCallback(
     (datum: object) => {
       const point = datum as PointDatum
-      return point.id === selectedId ? point.radius * 1.5 : point.radius
+      return highlighted(point.id) ? point.radius * 1.5 : point.radius
     },
-    [selectedId],
+    [highlighted],
   )
 
   const arcColor = useCallback(
     (datum: object) => {
       const arc = datum as ArcDatum
-      if (arc.id === selectedId) return ['#ffffff', arc.color]
+      if (highlighted(arc.id)) return ['#ffffff', arc.color]
       const head = arc.confidence === 'low' ? 0.22 : 0.85
       const tail = arc.confidence === 'low' ? 0.05 : 0.15
       return [withAlpha(arc.color, tail), withAlpha(arc.color, head)]
     },
-    [selectedId],
+    [highlighted],
   )
 
   const arcStroke = useCallback(
     (datum: object) => {
       const arc = datum as ArcDatum
-      return arc.id === selectedId ? arc.width * 1.8 : arc.width
+      return highlighted(arc.id) ? arc.width * 1.8 : arc.width
     },
-    [selectedId],
+    [highlighted],
   )
 
   /**
@@ -290,6 +360,71 @@ export function GlobeCanvas({
     [reducedMotion],
   )
 
+  const describe = useCallback((item: (typeof walk)[number]): string => {
+    if (item.kind === 'facility') {
+      const p = item.point.facility.properties
+      return `${p.name}, ${p.stage}, ${p.country_iso3}${
+        p.confidence === 'low' ? ', low confidence' : ''
+      }`
+    }
+    const { flow } = item.arc
+    return `${flow.from_iso3} to ${flow.to_iso3}, ${flow.mineral_id}, ${flow.stage_from} to ${flow.stage_to}`
+  }, [])
+
+  /** Fly the camera to whatever the cursor lands on, so it is actually on screen. */
+  useEffect(() => {
+    const globe = globeRef.current
+    if (!globe || !keyboardActive || current === undefined) return
+    const lat = current.kind === 'facility' ? current.point.lat : current.arc.startLat
+    const lng = current.kind === 'facility' ? current.point.lng : current.arc.startLng
+    globe.pointOfView(
+      { lat, lng, altitude: framingAltitude(size.width, size.height) * 0.85 },
+      reducedMotion ? 0 : 600,
+    )
+  }, [current, keyboardActive, reducedMotion, size.width, size.height])
+
+  const onKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (walk.length === 0) return
+      const step = (delta: number) => {
+        event.preventDefault()
+        setKeyboardActive(true)
+        setCursor((c) => (Math.min(c, walk.length - 1) + delta + walk.length) % walk.length)
+      }
+
+      switch (event.key) {
+        case 'ArrowRight':
+        case 'ArrowDown':
+          return step(1)
+        case 'ArrowLeft':
+        case 'ArrowUp':
+          return step(-1)
+        case 'Home':
+          event.preventDefault()
+          setKeyboardActive(true)
+          return setCursor(0)
+        case 'End':
+          event.preventDefault()
+          setKeyboardActive(true)
+          return setCursor(walk.length - 1)
+        case 'Enter':
+        case ' ':
+          if (current === undefined) return
+          event.preventDefault()
+          setKeyboardActive(true)
+          return current.kind === 'facility'
+            ? onSelectPoint(current.point)
+            : onSelectArc(current.arc)
+        case 'Escape':
+          setKeyboardActive(false)
+          return onClearSelection()
+        default:
+          return
+      }
+    },
+    [walk, current, onSelectPoint, onSelectArc, onClearSelection],
+  )
+
   const pointLabel = useCallback((datum: object) => {
     const point = datum as PointDatum
     return point.facility.properties.name
@@ -301,7 +436,15 @@ export function GlobeCanvas({
   }, [])
 
   return (
-    <div ref={containerRef} className="relative h-full w-full overflow-hidden">
+    <div
+      ref={containerRef}
+      role="application"
+      aria-label="Globe. Arrow keys move between flows and sites, Enter opens detail."
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+      onBlur={() => setKeyboardActive(false)}
+      className="relative h-full w-full overflow-hidden"
+    >
       {size.width > 0 && (
         <Globe
           ref={globeRef}
@@ -349,6 +492,19 @@ export function GlobeCanvas({
           onGlobeClick={() => onClearSelection()}
         />
       )}
+
+      {/* Only while the keyboard is driving. A mouse user never sees either of
+          these, and a screen reader hears the cursor move without them. */}
+      {keyboardActive && (
+        <p className="pointer-events-none absolute bottom-2 left-2 font-mono text-2xs text-muted">
+          {walk.length === 0
+            ? 'Nothing to step through'
+            : `${index + 1} of ${walk.length} · arrows move · enter opens · esc clears`}
+        </p>
+      )}
+      <p aria-live="polite" className="sr-only">
+        {keyboardActive && current !== undefined ? describe(current) : ''}
+      </p>
     </div>
   )
 }

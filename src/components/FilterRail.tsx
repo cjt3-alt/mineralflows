@@ -4,6 +4,11 @@ import { STAGES, type Stage } from '../data/schema.ts'
 /**
  * Stage filter today; year, region and confidence are coming. `FilterGroup` is
  * the seam for that: a new group is a new block here, not a new layout.
+ *
+ * Two presentations of the same controls. A 13rem column alongside a globe and
+ * a detail panel does not fit a phone, so on a narrow viewport the rail becomes
+ * a single horizontal strip under the top bar. Which one to draw is the shell's
+ * call, but how each one looks is this component's business.
  */
 
 export interface FilterRailProps {
@@ -15,12 +20,42 @@ export interface FilterRailProps {
   facilityCounts: Record<Stage, number>
   visibleFacilityCount: number
   visibleFlowCount: number
+  /** `strip` is the narrow-viewport layout: one horizontal row, no side column. */
+  variant?: 'rail' | 'strip'
 }
 
 const STAGE_LABELS: Record<Stage, string> = {
   mine: 'Mine',
   process: 'Process',
   refine: 'Refine',
+}
+
+function StageChip({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string
+  count?: number
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={
+        'flex shrink-0 items-center gap-1.5 border px-2 py-1 text-xs ' +
+        (active ? 'border-line-strong text-ink' : 'border-line text-muted')
+      }
+      style={{ borderRadius: 'var(--mf-radius)' }}
+    >
+      {label}
+      {count !== undefined && <span className="font-mono text-2xs text-muted">{count}</span>}
+    </button>
+  )
 }
 
 function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
@@ -39,13 +74,39 @@ export function FilterRail({
   facilityCounts,
   visibleFacilityCount,
   visibleFlowCount,
+  variant = 'rail',
 }: FilterRailProps) {
   const showingAll = selectedStages.length === 0
+
+  if (variant === 'strip') {
+    return (
+      <nav
+        aria-label="Filters"
+        className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-line px-3 py-2"
+      >
+        <span className="shrink-0 text-2xs text-muted">Stage</span>
+        <StageChip label="All" active={showingAll} onClick={onClearStages} />
+        {STAGES.map((stage) => (
+          <StageChip
+            key={stage}
+            label={STAGE_LABELS[stage]}
+            count={facilityCounts[stage]}
+            active={selectedStages.includes(stage)}
+            onClick={() => onToggleStage(stage)}
+          />
+        ))}
+        <span className="ml-auto shrink-0 pl-2 font-mono text-2xs text-muted">
+          {visibleFacilityCount} sites · {visibleFlowCount} flows
+        </span>
+      </nav>
+    )
+  }
 
   return (
     <nav
       aria-label="Filters"
-      className="flex w-52 shrink-0 flex-col overflow-y-auto border-r border-line"
+      className="flex shrink-0 flex-col overflow-y-auto border-r border-line"
+      style={{ width: 'var(--mf-rail-width)' }}
     >
       <FilterGroup label="Stage">
         <ul className="flex flex-col gap-0.5">

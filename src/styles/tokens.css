@@ -13,7 +13,7 @@
  *   void    #05070a  page ground, and the globe backdrop
  *   surface #0b0f16  bars and panels, one step off the ground
  *   line    #1a2331  hairline borders and dividers, never a fill
- *   muted   #66738a  secondary text, units, inactive controls
+ *   muted   #707d95  secondary text, units, inactive controls
  *   text    #d8e1ee  primary text
  *   alert   #ff5f56  errors, and the low-confidence marker only
  *
@@ -31,7 +31,10 @@
   --mf-void: #05070a;
   --mf-surface: #0b0f16;
   --mf-line: #1a2331;
-  --mf-muted: #66738a;
+  /* Raised from #66738a: that sat at 4.2:1 on the page ground, which is under
+     AA for the 10 and 11px sizes this colour is mostly used at. #707d95 is
+     4.9:1 on the ground and 4.6:1 on a surface, and still reads as secondary. */
+  --mf-muted: #707d95;
   --mf-text: #d8e1ee;
   --mf-alert: #ff5f56;
 

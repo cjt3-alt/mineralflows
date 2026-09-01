@@ -16,6 +16,12 @@ export interface LegendBarProps {
   /** True when any visible flow value came from volume x price. */
   hasEstimatedValues: boolean
   meta: Meta
+  /**
+   * Narrow viewports fold the per-source vintages behind a disclosure. Six
+   * sources laid out flat can eat a third of a phone screen, and the scale is
+   * what has to stay visible; the vintages are a lookup.
+   */
+  compact?: boolean
 }
 
 /** Swatch widths use the same scale as the globe, via valueScaleFraction. */
@@ -37,6 +43,22 @@ function Swatch({ valueUsd, maxValueUsd }: { valueUsd: number; maxValueUsd: numb
   )
 }
 
+/**
+ * One entry per source, with its own vintage. Sources genuinely update on
+ * different cadences, so a single build date would be the dishonest version.
+ */
+function Vintages({ meta }: { meta: Meta }) {
+  return (
+    <>
+      {meta.sources.map((source) => (
+        <span key={source.id} className="font-mono text-2xs text-muted" title={source.coverage}>
+          {source.id} <span className="text-dim">{source.vintage}</span>
+        </span>
+      ))}
+    </>
+  )
+}
+
 export function LegendBar({
   maxValueUsd,
   truncated,
@@ -44,6 +66,7 @@ export function LegendBar({
   totalArcCount,
   hasEstimatedValues,
   meta,
+  compact = false,
 }: LegendBarProps) {
   // Three reference points across the square-root scale, not evenly spaced in
   // dollars, because the scale is not linear.
@@ -82,14 +105,21 @@ export function LegendBar({
         </p>
       )}
 
-      <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1">
-        <span className="text-xs text-muted">Data vintage</span>
-        {meta.sources.map((source) => (
-          <span key={source.id} className="font-mono text-2xs text-muted" title={source.coverage}>
-            {source.id} <span className="text-dim">{source.vintage}</span>
-          </span>
-        ))}
-      </div>
+      {compact ? (
+        <details className="ml-auto w-full">
+          <summary className="cursor-pointer text-xs text-muted">
+            Data vintage ({meta.sources.length} sources)
+          </summary>
+          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+            <Vintages meta={meta} />
+          </div>
+        </details>
+      ) : (
+        <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="text-xs text-muted">Data vintage</span>
+          <Vintages meta={meta} />
+        </div>
+      )}
     </footer>
   )
 }
