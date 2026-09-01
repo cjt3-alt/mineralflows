@@ -156,13 +156,47 @@ These cannot be done from code and are yours to do in the browser.
 2. **Repo settings → Pages → Custom domain: `mineralflows.com`**, then tick **Enforce HTTPS** once
    the certificate is issued (up to an hour after DNS resolves).
 3. **Add the DNS records below** at your registrar, before step 2.
-4. **Decide whether the raw TiCM extracts stay in the repo.** ADB-WTO permit non-commercial
-   redistribution with attribution, which this project is and does. But TiCM aggregates UN Comtrade
-   data, and its terms require third-party data to keep to that provider's own limits — Comtrade
-   restricts bulk redistribution, and 24 MB of un-aggregated bilateral rows in a public repo is
-   arguably that. The derived `flows.json` is not affected: it is aggregated, capped, and credited.
-   If you want the raw files out, delete `etl/raw/manual/adb-wto-ticm/` and gitignore it; the
-   pipeline already handles that source being absent, and it takes ~24 MB off every clone.
+4. **Take the raw TiCM extracts out, once real trade data is shipping.** See below — this one is
+   deferred on purpose, not forgotten.
+
+#### Before this runs on real data: the raw TiCM extracts
+
+`etl/raw/manual/adb-wto-ticm/` holds 24 MB of raw bilateral trade CSVs, about 130,000 rows straight
+out of critmin.org. **They are committed deliberately for now**, while the app runs on seed data and
+the project is not being shown to anyone. Leaving them there is what keeps the monthly refresh able
+to produce real flows without a human in the loop.
+
+The reason to revisit it later is not the ADB-WTO licence, which permits exactly this: non-commercial
+reuse with attribution. It is the clause underneath. TiCM is a middleman — most of these numbers
+originate with UN Comtrade — and its terms require third-party data to keep to that provider's own
+limits. Comtrade allows querying and publishing findings; it restricts mirroring the database
+wholesale. A public repo anyone can clone, holding 130,000 unmodified rows, looks more like mirroring
+than using.
+
+**What is unaffected either way:** the derived `flows.json` the app loads. It is at most 2,000 rows,
+summed across HS codes into one flow per mineral, country pair and stage, capped by value, and
+credited. Nobody could reconstruct Comtrade from it. That is a published finding, which every party
+here permits.
+
+So the trigger is not a date, it is a state: **when this repo stops being a private scratch project.**
+Whichever of these comes first —
+
+- real trade data has shipped to `public/data/` and the site is showing it,
+- the repo is being shown to anyone outside the project, or
+- anything here starts earning money, which needs clearance from ADB and the WTO regardless.
+
+Then do this, in this order, because the order is what preserves the data:
+
+1. Run `refresh-data.yml` while the CSVs are still present, and merge the PR it opens. Real
+   facilities and real flows land in `public/data/`, aggregated and credited.
+2. `git rm -r --cached etl/raw/manual/adb-wto-ticm/` and add that path to `.gitignore`.
+3. If the repo has been public and you want the files gone from history rather than just from `main`,
+   that is a history rewrite — `git filter-repo` or a fresh repo. Probably overkill unless someone
+   asks.
+
+Nothing breaks when they go. The pipeline reports a skip naming the path it looked in and falls back
+to seed flows, which is tested. The cost is that refreshing trade data becomes a manual re-download
+from critmin.org rather than something the monthly workflow can do on its own.
 
 There is deliberately no `public/CNAME`. When Pages publishes from Actions rather than from a
 branch it ignores `CNAME` in the artifact — the custom domain lives in repo settings, which is what

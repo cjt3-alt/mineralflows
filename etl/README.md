@@ -113,9 +113,14 @@ redistribution needs clearance from ADB and the WTO.
 The wrinkle is third-party data. TiCM integrates UN Comtrade, ITC and TDM, and its terms require
 extracts of that data to keep to those providers' own limits; Comtrade restricts bulk
 redistribution. The derived `flows.json` is comfortably clear of that — it is aggregated across HS
-codes, capped, and credited. The 24 MB of raw bilateral rows committed here is the part worth a
-second look. Deleting `raw/manual/adb-wto-ticm/` and gitignoring it costs nothing but a re-drop
-before the next local run; the pipeline already handles that source being absent.
+codes, capped, and credited. The 24 MB of raw bilateral rows committed here is the part that is not.
+
+**These files stay for now, deliberately.** The app runs on seed data, the project is not being shown
+to anyone, and keeping them is what lets the monthly refresh produce real flows unattended. The
+README's "Before this runs on real data" section has the trigger for revisiting that and the order to
+do it in. Short version: ship the derived data first, then `git rm -r --cached` this directory and
+gitignore it. The pipeline already handles the source being absent, so nothing breaks — trade
+refreshes just become a manual re-download.
 
 The ICMM and IEA workbooks are CC BY 4.0 and carry no such restriction.
 

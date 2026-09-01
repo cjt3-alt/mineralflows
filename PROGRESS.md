@@ -123,8 +123,13 @@ Decisions made without asking, listed so they can be reversed cheaply.
   cannot hold. It reports a skip on every run rather than pretending to be implemented.
 - **The IEA and USGS production figures write to no output file.** The contract has no production
   table. They feed the cross-check that flags a flow larger than its origin's output.
-- **The ICMM and IEA workbooks are CC BY 4.0 and committed.** The TiCM extracts' redistribution
-  terms have not been checked — flagged in the README as a manual step before the repo goes public.
+- **The ICMM and IEA workbooks are CC BY 4.0 and committed.** So are the TiCM extracts, now
+  deliberately rather than by default: ADB-WTO permit non-commercial reuse with attribution, but
+  TiCM's third-party clause hands Comtrade's own bulk-redistribution limits through to us, and 24 MB
+  of raw bilateral rows is arguably bulk. Kept for now because the app is on seed data and the
+  project is not being shown to anyone, and because they are what lets the monthly refresh produce
+  real flows unattended. The README's "Before this runs on real data" section has the trigger for
+  taking them out and the order to do it in. The derived `flows.json` is unaffected either way.
 - **A multi-stage ICMM site becomes one facility per stage** at the same coordinates, because
   collapsing it would make the stage filter lie about what is there.
 - **`contract.py` mirrors `schema.ts` by hand.** `refresh-data.yml` runs the app's own test suite
