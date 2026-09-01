@@ -105,10 +105,19 @@ There is also a cap: the top 500 flows per mineral by value. TiCM 2024 aggregate
 thousand country pairs, and this is a static site that fetches the whole file before it can draw
 anything. The cap is per mineral so copper cannot crowd rare earths out of the file.
 
-**One thing to confirm before this repo goes public:** the ICMM and IEA workbooks are CC BY 4.0 and
-are safe to redistribute. The TiCM extracts' terms have not been checked. If critmin.org does not
-permit redistribution, delete `raw/manual/adb-wto-ticm/` and add it to `.gitignore`; the pipeline
-already handles that source being absent.
+**On redistributing these extracts.** ADB-WTO permit non-commercial reuse with attribution, and
+require the source to be credited wherever the data is reproduced — including in a visualisation,
+which is why `meta.json` carries the full source name and the legend bar surfaces it. Commercial
+redistribution needs clearance from ADB and the WTO.
+
+The wrinkle is third-party data. TiCM integrates UN Comtrade, ITC and TDM, and its terms require
+extracts of that data to keep to those providers' own limits; Comtrade restricts bulk
+redistribution. The derived `flows.json` is comfortably clear of that — it is aggregated across HS
+codes, capped, and credited. The 24 MB of raw bilateral rows committed here is the part worth a
+second look. Deleting `raw/manual/adb-wto-ticm/` and gitignoring it costs nothing but a re-drop
+before the next local run; the pipeline already handles that source being absent.
+
+The ICMM and IEA workbooks are CC BY 4.0 and carry no such restriction.
 
 ### IEA Critical Minerals Data Explorer — `raw/manual/iea-critical-minerals/`
 

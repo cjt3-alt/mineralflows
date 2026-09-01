@@ -156,11 +156,13 @@ These cannot be done from code and are yours to do in the browser.
 2. **Repo settings → Pages → Custom domain: `mineralflows.com`**, then tick **Enforce HTTPS** once
    the certificate is issued (up to an hour after DNS resolves).
 3. **Add the DNS records below** at your registrar, before step 2.
-4. **Confirm the TiCM redistribution terms** before making this repo public. The ICMM and IEA
-   workbooks under `etl/raw/manual/` are CC BY 4.0 and safe to commit. The ADB-WTO TiCM extracts'
-   terms have not been checked. If critmin.org does not permit redistribution, delete
-   `etl/raw/manual/adb-wto-ticm/` and gitignore it; the pipeline already handles that source being
-   absent.
+4. **Decide whether the raw TiCM extracts stay in the repo.** ADB-WTO permit non-commercial
+   redistribution with attribution, which this project is and does. But TiCM aggregates UN Comtrade
+   data, and its terms require third-party data to keep to that provider's own limits — Comtrade
+   restricts bulk redistribution, and 24 MB of un-aggregated bilateral rows in a public repo is
+   arguably that. The derived `flows.json` is not affected: it is aggregated, capped, and credited.
+   If you want the raw files out, delete `etl/raw/manual/adb-wto-ticm/` and gitignore it; the
+   pipeline already handles that source being absent, and it takes ~24 MB off every clone.
 
 There is deliberately no `public/CNAME`. When Pages publishes from Actions rather than from a
 branch it ignores `CNAME` in the artifact — the custom domain lives in repo settings, which is what
@@ -212,10 +214,17 @@ component branches on a mineral id, and no source module knows what copper is.
 | [World Bank Pink Sheet](https://www.worldbank.org/en/research/commodity-markets) | CC BY 4.0 | Copper prices |
 | [USGS Mineral Commodity Summaries](https://www.usgs.gov/centers/national-minerals-information-center) | Public domain | Prices and country production |
 | [ICMM Global Mining Dataset](https://www.icmm.com/en-gb/research/social-performance/2025/global-mining-dataset) | CC BY 4.0 | Facilities |
-| [ADB-WTO TiCM](https://critmin.org) | see step 4 above | Bilateral trade flows |
+| [ADB-WTO TiCM](https://critmin.org) | Non-commercial reuse with attribution | Bilateral trade flows |
 | [IEA Critical Minerals Data Explorer](https://www.iea.org/data-and-statistics/data-tools/critical-minerals-data-explorer) | CC BY 4.0 | Mine-versus-refine supply |
 | [Natural Earth via world-atlas](https://github.com/topojson/world-atlas) | Public domain | Landmass outlines |
 
 ## Licence
 
-MIT. The data files carry the licences of their sources, listed above and in `meta.json`.
+MIT, for the code. The data files carry the licences of their sources, listed above and recorded per
+source in `meta.json`, which is what the legend bar reads.
+
+Trade flows are derived from the **ADB-WTO Trade in Critical Minerals Database**
+(<https://critmin.org>), reused here for non-commercial public research. Facility records are from
+the **ICMM Global Mining Dataset** (CC BY 4.0) and production figures from the **IEA Critical
+Minerals Data Explorer** (CC BY 4.0). Reusing anything from this repository commercially means
+clearing it with those publishers first, not with me.

@@ -51,7 +51,14 @@ function Vintages({ meta }: { meta: Meta }) {
   return (
     <>
       {meta.sources.map((source) => (
-        <span key={source.id} className="font-mono text-2xs text-muted" title={source.coverage}>
+        // The id is what fits; the full name is the actual credit, so it rides
+        // in the tooltip. Several sources require attribution wherever their
+        // data is reproduced, and a trade map is a reproduction.
+        <span
+          key={source.id}
+          className="font-mono text-2xs text-muted"
+          title={source.name + ' — ' + source.coverage}
+        >
           {source.id} <span className="text-dim">{source.vintage}</span>
         </span>
       ))}
