@@ -29,7 +29,7 @@ a number baked into a file.
 from __future__ import annotations
 
 import json
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
 from contract import ETL_ROOT
@@ -42,12 +42,15 @@ SEED_DIR = ETL_ROOT / "seed"
 NAME = "Hand-authored seed dataset"
 
 
+#: The day this dataset was hand-authored, which is the only honest answer to
+#: "when was it retrieved". It was a constant taken from file mtime until CI
+#: pointed out the obvious: a fresh clone stamps every file with the checkout
+#: time, so the same seed reported a different provenance date on every machine.
+AUTHORED_ON = date(2026, 8, 31)
+
+
 def _load(name: str) -> object:
     return json.loads((SEED_DIR / name).read_text(encoding="utf-8"))
-
-
-def _mtime(name: str) -> date:
-    return datetime.fromtimestamp((SEED_DIR / name).stat().st_mtime).date()
 
 
 def extract(ctx: ExtractContext) -> SourceResult:
@@ -61,7 +64,7 @@ def extract(ctx: ExtractContext) -> SourceResult:
         name=NAME,
         url=None,
         vintage=str(ctx.year),
-        retrieved_at=_mtime("flows.json"),
+        retrieved_at=AUTHORED_ON,
         coverage=(
             f"{len(facilities)} facilities, {len(flows)} flows, {len(prices)} prices and "
             f"{len(countries)} country centroids, hand-authored to prove the data contract "

@@ -24,13 +24,20 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date, datetime
 from pathlib import Path
 
 import openpyxl
 
 from contract import ETL_ROOT
-from sources.base import MANUAL, ExtractContext, SourceResult, find_manual, manual_dir, skipped
+from sources.base import (
+    MANUAL,
+    ExtractContext,
+    SourceResult,
+    drop_date,
+    find_manual,
+    manual_dir,
+    skipped,
+)
 
 SOURCE_ID = "iea-critical-minerals"
 KIND = MANUAL
@@ -159,7 +166,7 @@ def _read(path: Path, ctx: ExtractContext, coverage_stub: str) -> SourceResult:
         name=NAME,
         url=URL,
         vintage=str(used_year),
-        retrieved_at=_file_date(path),
+        retrieved_at=drop_date(path),
         coverage=(
             f"{len(production)} country-stage figures for {used_year}, read in {unit_text}. "
             + coverage_stub
@@ -218,7 +225,3 @@ def _value_column(blocks: list[dict[int, int]], label_column: int, year: int) ->
         block[year] for block in blocks if year in block and min(block.values()) > label_column
     ]
     return min(candidates) if candidates else None
-
-
-def _file_date(path: Path) -> date:
-    return datetime.fromtimestamp(path.stat().st_mtime).date()

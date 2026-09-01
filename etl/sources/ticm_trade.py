@@ -31,13 +31,18 @@ report.
 
 from __future__ import annotations
 
-from datetime import date, datetime
-from pathlib import Path
-
 import pandas as pd
 
 from contract import NEXT_STAGE
-from sources.base import MANUAL, ExtractContext, SourceResult, find_manual, manual_dir, skipped
+from sources.base import (
+    MANUAL,
+    ExtractContext,
+    SourceResult,
+    drop_date,
+    find_manual,
+    manual_dir,
+    skipped,
+)
 
 SOURCE_ID = "adb-wto-ticm"
 KIND = MANUAL
@@ -190,7 +195,7 @@ def extract(
         name=NAME,
         url=URL,
         vintage=str(ctx.year),
-        retrieved_at=max(_file_date(p) for p in paths),
+        retrieved_at=max(drop_date(p) for p in paths),
         coverage=(
             f"{len(kept)} flows for {ctx.year}, the largest {flows_per_mineral} per mineral by "
             f"value out of {len(flows)} found. {coverage_stub} Direction follows the exporter's "
@@ -247,7 +252,3 @@ def _cap_per_mineral(flows: list[dict], limit: int) -> tuple[list[dict], int]:
         dropped += max(0, len(ranked) - limit)
     kept.sort(key=lambda f: f["value_usd"] or 0, reverse=True)
     return kept, dropped
-
-
-def _file_date(path: Path) -> date:
-    return datetime.fromtimestamp(path.stat().st_mtime).date()

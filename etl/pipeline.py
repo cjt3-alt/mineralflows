@@ -398,6 +398,46 @@ def build(ctx: ExtractContext, reporter: Reporter) -> Dataset:
     )
 
 
+def check_against_disk(dataset: Dataset, output_dir: Path, reporter: Reporter) -> bool:
+    """Would writing this dataset change anything already committed?
+
+    `git diff --exit-code` cannot answer that, because `generated_at` is a
+    timestamp and moves on every run by design. So the comparison happens here,
+    on the payloads, with that one field held constant. Everything else has to
+    match byte for byte: `public/data/` is generated, and CI asserting so is what
+    stops it drifting into a hand-edited file nobody can reproduce.
+    """
+    import json
+
+    payloads = {
+        "minerals.json": dataset.minerals,
+        "facilities.geojson": dataset.as_feature_collection(),
+        "flows.json": dataset.flows,
+        "prices.json": dataset.prices,
+        "countries.json": dataset.countries,
+        "meta.json": dataset.meta,
+    }
+
+    differences: list[str] = []
+    for name, payload in payloads.items():
+        path = output_dir / name
+        if not path.is_file():
+            differences.append(f"{name} does not exist yet")
+            continue
+        on_disk = json.loads(path.read_text(encoding="utf-8"))
+        if name == "meta.json" and isinstance(on_disk, dict):
+            payload = {**payload, "generated_at": on_disk.get("generated_at")}
+        if json.dumps(on_disk, sort_keys=True) != json.dumps(payload, sort_keys=True):
+            differences.append(f"{name} differs from what this run would write")
+
+    if differences:
+        for difference in differences:
+            reporter.warn(difference)
+        return False
+    reporter.line(f"{len(payloads)} files match what is committed, ignoring generated_at")
+    return True
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -410,6 +450,11 @@ def main(argv: list[str] | None = None) -> int:
         help="ignore etl/raw/manual, to exercise the seed fallback",
     )
     parser.add_argument("--dry-run", action="store_true", help="validate and report, write nothing")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="exit non-zero if the run would change public/data (ignoring generated_at)",
+    )
     parser.add_argument("--year", type=int, default=2024, help="trade year to extract")
     parser.add_argument(
         "--output", type=Path, default=OUTPUT_DIR, help="where to write the data files"
@@ -433,7 +478,19 @@ def main(argv: list[str] | None = None) -> int:
 
     reporter.section("Output")
     try:
-        if args.dry_run:
+        if args.check:
+            dataset.validate()
+            if not check_against_disk(dataset, args.output, reporter):
+                print(
+                    "",
+                    "FAILED",
+                    "public/data is not what this run produces. Run the pipeline "
+                    "without --check and commit the result.",
+                    sep="\n",
+                    file=sys.stderr,
+                )
+                return 1
+        elif args.dry_run:
             dataset.validate()
             reporter.line("dry run: the dataset is valid and nothing was written")
         else:

@@ -25,13 +25,21 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
 import openpyxl
 
 from contract import ETL_ROOT, slugify
-from sources.base import MANUAL, ExtractContext, SourceResult, find_manual, manual_dir, skipped
+from sources.base import (
+    MANUAL,
+    ExtractContext,
+    SourceResult,
+    drop_date,
+    find_manual,
+    manual_dir,
+    skipped,
+)
 
 SOURCE_ID = "icmm"
 KIND = MANUAL
@@ -215,7 +223,7 @@ def _read(path: Path, ctx: ExtractContext, coverage_stub: str) -> SourceResult:
         name=NAME,
         url=URL,
         vintage=version,
-        retrieved_at=_file_date(path),
+        retrieved_at=drop_date(path),
         coverage=(
             f"{len(features)} facility records across {len(seen_ids)} site-stages, of which "
             f"{low} are low confidence. {coverage_stub} A site that does more than one thing "
@@ -229,8 +237,3 @@ def _read(path: Path, ctx: ExtractContext, coverage_stub: str) -> SourceResult:
 def _version_from(filename: str, sheet_name: str) -> str:
     match = re.search(r"v?(\d+[\.-]\d+)", sheet_name) or re.search(r"(\d+-\d+)\.xlsx$", filename)
     return "v" + match.group(1).replace("-", ".") if match else "unknown version"
-
-
-def _file_date(path: Path) -> date:
-    """When the human dropped the file in, which is the honest retrieval date."""
-    return datetime.fromtimestamp(path.stat().st_mtime).date()

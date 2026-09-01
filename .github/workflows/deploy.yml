@@ -70,13 +70,17 @@ jobs:
       - name: Test
         run: python etl/test_pipeline.py
 
-      - name: Run offline with no manual sources
+      - name: Check the committed data is reproducible
         # The bare-runner case: no network, no drops. It still has to produce a
-        # valid dataset, and it still has to leave public/data unchanged, because
-        # what is committed there is exactly what this run writes.
-        run: |
-          python etl/pipeline.py --offline --no-manual
-          git diff --exit-code -- public/data
+        # valid dataset, and that dataset still has to match what is committed,
+        # because public/data is generated and should not drift into something
+        # hand-edited that nobody can reproduce.
+        #
+        # --check rather than `git diff --exit-code`, because meta.json carries a
+        # generated_at timestamp that moves on every run by design. The pipeline
+        # compares the payloads with that one field held constant; a plain diff
+        # could never go green.
+        run: python etl/pipeline.py --offline --no-manual --check
 
   deploy:
     needs: [build, etl]

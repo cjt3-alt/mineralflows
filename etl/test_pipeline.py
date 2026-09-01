@@ -309,6 +309,46 @@ def test_the_offline_run_reproduces_the_seed_dataset() -> None:
         check("no unreferenced country is shipped", set(countries) == referenced)
 
 
+def test_check_mode_notices_a_difference() -> None:
+    """CI leans on --check, so it has to fail when it should and pass when it should not."""
+    run = lambda *extra: pipeline.main(["--offline", "--no-manual", *extra])  # noqa: E731
+
+    with tempfile.TemporaryDirectory() as directory:
+        output = Path(directory)
+        check("a run to a fresh directory succeeds", run("--output", directory) == 0)
+        check(
+            "--check passes against that run",
+            run("--check", "--output", directory) == 0,
+        )
+
+        # generated_at is a timestamp and moves every run by design. If --check
+        # did not ignore it, CI could never go green.
+        meta_path = output / "meta.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        meta["generated_at"] = "2000-01-01T00:00:00Z"
+        meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        check("--check ignores generated_at", run("--check", "--output", directory) == 0)
+
+        flows_path = output / "flows.json"
+        flows = json.loads(flows_path.read_text(encoding="utf-8"))
+        flows[0]["value_usd"] = 1.0
+        flows_path.write_text(json.dumps(flows, indent=2), encoding="utf-8")
+        check("--check fails on an edited data file", run("--check", "--output", directory) == 1)
+
+
+def test_provenance_dates_do_not_depend_on_the_filesystem() -> None:
+    """A fresh clone stamps every file with the checkout time.
+
+    This is the bug that turned CI red: the seed reported a different
+    retrieved_at on every machine, so no reproducibility check could pass.
+    """
+    ctx = context()
+    check(
+        "the seed's retrieved_at is a constant, not a file mtime",
+        seed_source.extract(ctx).retrieved_at == seed_source.AUTHORED_ON,
+    )
+
+
 def test_validation_rejects_a_bad_record() -> None:
     try:
         contract.validate_flows(

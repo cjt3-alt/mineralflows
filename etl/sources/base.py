@@ -18,8 +18,9 @@ Two kinds of source, treated differently on purpose:
 from __future__ import annotations
 
 import json
+import subprocess
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Protocol
 
@@ -167,6 +168,32 @@ def production_basis(source_id: str) -> dict[str, float]:
     """
     config = json.loads(BASIS_FILE.read_text(encoding="utf-8"))["factors"]
     return {k: float(v) for k, v in config.get(source_id, {}).items()}
+
+
+def drop_date(path: Path) -> date:
+    """When a human put this file here, as best it can be established.
+
+    Not the modification time. A fresh `git clone` stamps every file with the
+    time of the clone, so mtime would have `meta.json` claim a five-year-old
+    extract was retrieved this morning. The commit date is the date it was
+    actually dropped in; mtime is the fallback for a file that is not committed
+    yet, which is exactly the case where mtime is right.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%cs", "--", str(path)],
+            cwd=path.parent,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        stamp = result.stdout.strip()
+        if result.returncode == 0 and stamp:
+            return date.fromisoformat(stamp)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        pass
+    return datetime.fromtimestamp(path.stat().st_mtime).date()
 
 
 def cache_path(source_id: str, filename: str) -> Path:
