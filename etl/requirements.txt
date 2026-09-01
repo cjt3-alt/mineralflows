@@ -1,0 +1,7 @@
+# Resolved against PyPI on 2026-08-31, not pinned from memory.
+# Minimum bounds rather than exact pins: the pipeline reads published data files,
+# and a patch release of pandas is not what breaks it.
+pandas>=3.0.5
+requests>=2.34.2
+openpyxl>=3.1.5
+ruff>=0.16.5

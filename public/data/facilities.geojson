@@ -3,11 +3,19 @@
   "features": [
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [-69.0667, -24.2667] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -69.0667,
+          -24.2667
+        ]
+      },
       "properties": {
         "id": "escondida",
         "name": "Escondida",
-        "mineral_ids": ["copper"],
+        "mineral_ids": [
+          "copper"
+        ],
         "stage": "mine",
         "country_iso3": "CHL",
         "operator": "BHP",
@@ -20,11 +28,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [-68.6833, -20.9833] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -68.6833,
+          -20.9833
+        ]
+      },
       "properties": {
         "id": "collahuasi",
         "name": "Collahuasi",
-        "mineral_ids": ["copper"],
+        "mineral_ids": [
+          "copper"
+        ],
         "stage": "mine",
         "country_iso3": "CHL",
         "operator": "Anglo American and Glencore",
@@ -37,11 +53,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [-70.35, -34.0833] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -70.35,
+          -34.0833
+        ]
+      },
       "properties": {
         "id": "el-teniente",
         "name": "El Teniente",
-        "mineral_ids": ["copper"],
+        "mineral_ids": [
+          "copper"
+        ],
         "stage": "mine",
         "country_iso3": "CHL",
         "operator": "Codelco",
@@ -54,11 +78,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [137.1136, -4.0533] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          137.1136,
+          -4.0533
+        ]
+      },
       "properties": {
         "id": "grasberg",
         "name": "Grasberg",
-        "mineral_ids": ["copper"],
+        "mineral_ids": [
+          "copper"
+        ],
         "stage": "mine",
         "country_iso3": "IDN",
         "operator": "Freeport Indonesia",
@@ -71,11 +103,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [-109.3653, 33.0781] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -109.3653,
+          33.0781
+        ]
+      },
       "properties": {
         "id": "morenci",
         "name": "Morenci",
-        "mineral_ids": ["copper"],
+        "mineral_ids": [
+          "copper"
+        ],
         "stage": "mine",
         "country_iso3": "USA",
         "operator": "Freeport-McMoRan",
@@ -88,11 +128,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [25.4167, -10.75] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          25.4167,
+          -10.75
+        ]
+      },
       "properties": {
         "id": "kamoa-kakula",
         "name": "Kamoa-Kakula",
-        "mineral_ids": ["copper"],
+        "mineral_ids": [
+          "copper"
+        ],
         "stage": "mine",
         "country_iso3": "COD",
         "operator": "Ivanhoe Mines and Zijin Mining",
@@ -105,11 +153,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [-71.5936, -16.5344] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.5936,
+          -16.5344
+        ]
+      },
       "properties": {
         "id": "cerro-verde",
         "name": "Cerro Verde",
-        "mineral_ids": ["copper"],
+        "mineral_ids": [
+          "copper"
+        ],
         "stage": "mine",
         "country_iso3": "PER",
         "operator": "Freeport-McMoRan",
@@ -122,11 +178,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [-77.06, -9.54] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.06,
+          -9.54
+        ]
+      },
       "properties": {
         "id": "antamina",
         "name": "Antamina",
-        "mineral_ids": ["copper"],
+        "mineral_ids": [
+          "copper"
+        ],
         "stage": "mine",
         "country_iso3": "PER",
         "operator": "BHP, Glencore and Teck",
@@ -139,11 +203,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [-71.3375, -17.6394] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.3375,
+          -17.6394
+        ]
+      },
       "properties": {
         "id": "ilo-smelter",
         "name": "Ilo smelter",
-        "mineral_ids": ["copper"],
+        "mineral_ids": [
+          "copper"
+        ],
         "stage": "process",
         "country_iso3": "PER",
         "operator": "Southern Copper",
@@ -156,11 +228,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [-68.9, -22.3167] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -68.9,
+          -22.3167
+        ]
+      },
       "properties": {
         "id": "chuquicamata-refinery",
         "name": "Chuquicamata smelter and refinery",
-        "mineral_ids": ["copper"],
+        "mineral_ids": [
+          "copper"
+        ],
         "stage": "refine",
         "country_iso3": "CHL",
         "operator": "Codelco",
@@ -173,11 +253,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [117.2094, 28.2861] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.2094,
+          28.2861
+        ]
+      },
       "properties": {
         "id": "guixi-smelter",
         "name": "Guixi smelter and refinery",
-        "mineral_ids": ["copper"],
+        "mineral_ids": [
+          "copper"
+        ],
         "stage": "refine",
         "country_iso3": "CHN",
         "operator": "Jiangxi Copper",
@@ -190,11 +278,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [10.0167, 53.5167] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.0167,
+          53.5167
+        ]
+      },
       "properties": {
         "id": "aurubis-hamburg",
         "name": "Aurubis Hamburg refinery",
-        "mineral_ids": ["copper"],
+        "mineral_ids": [
+          "copper"
+        ],
         "stage": "refine",
         "country_iso3": "DEU",
         "operator": "Aurubis",
@@ -207,11 +303,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [116.0617, -33.8639] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          116.0617,
+          -33.8639
+        ]
+      },
       "properties": {
         "id": "greenbushes",
         "name": "Greenbushes",
-        "mineral_ids": ["lithium"],
+        "mineral_ids": [
+          "lithium"
+        ],
         "stage": "mine",
         "country_iso3": "AUS",
         "operator": "Talison Lithium",
@@ -224,11 +328,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [118.9, -20.95] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.9,
+          -20.95
+        ]
+      },
       "properties": {
         "id": "pilgangoora",
         "name": "Pilgangoora",
-        "mineral_ids": ["lithium"],
+        "mineral_ids": [
+          "lithium"
+        ],
         "stage": "mine",
         "country_iso3": "AUS",
         "operator": "Pilbara Minerals",
@@ -241,11 +353,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [-68.2, -23.5] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -68.2,
+          -23.5
+        ]
+      },
       "properties": {
         "id": "salar-de-atacama",
         "name": "Salar de Atacama",
-        "mineral_ids": ["lithium"],
+        "mineral_ids": [
+          "lithium"
+        ],
         "stage": "mine",
         "country_iso3": "CHL",
         "operator": "SQM and Albemarle",
@@ -258,11 +378,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [-66.9, -25.4] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -66.9,
+          -25.4
+        ]
+      },
       "properties": {
         "id": "salar-del-hombre-muerto",
         "name": "Salar del Hombre Muerto",
-        "mineral_ids": ["lithium"],
+        "mineral_ids": [
+          "lithium"
+        ],
         "stage": "mine",
         "country_iso3": "ARG",
         "operator": "Arcadium Lithium",
@@ -275,11 +403,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [115.7667, -32.2333] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          115.7667,
+          -32.2333
+        ]
+      },
       "properties": {
         "id": "kwinana-lithium-refinery",
         "name": "Kwinana lithium hydroxide refinery",
-        "mineral_ids": ["lithium"],
+        "mineral_ids": [
+          "lithium"
+        ],
         "stage": "refine",
         "country_iso3": "AUS",
         "operator": "Tianqi Lithium and IGO",
@@ -292,11 +428,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [114.9167, 27.8167] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          114.9167,
+          27.8167
+        ]
+      },
       "properties": {
         "id": "ganfeng-xinyu",
         "name": "Ganfeng Xinyu lithium plant",
-        "mineral_ids": ["lithium"],
+        "mineral_ids": [
+          "lithium"
+        ],
         "stage": "refine",
         "country_iso3": "CHN",
         "operator": "Ganfeng Lithium",
@@ -309,11 +453,20 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [25.9, -10.75] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          25.9,
+          -10.75
+        ]
+      },
       "properties": {
         "id": "mutanda",
         "name": "Mutanda",
-        "mineral_ids": ["copper", "cobalt"],
+        "mineral_ids": [
+          "copper",
+          "cobalt"
+        ],
         "stage": "mine",
         "country_iso3": "COD",
         "operator": "Glencore",
@@ -326,11 +479,20 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [26.2, -10.6] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          26.2,
+          -10.6
+        ]
+      },
       "properties": {
         "id": "tenke-fungurume",
         "name": "Tenke Fungurume",
-        "mineral_ids": ["copper", "cobalt"],
+        "mineral_ids": [
+          "copper",
+          "cobalt"
+        ],
         "stage": "mine",
         "country_iso3": "COD",
         "operator": "CMOC",
@@ -343,11 +505,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [25.47, -10.72] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          25.47,
+          -10.72
+        ]
+      },
       "properties": {
         "id": "kolwezi-artisanal",
         "name": "Kolwezi artisanal cobalt district",
-        "mineral_ids": ["cobalt"],
+        "mineral_ids": [
+          "cobalt"
+        ],
         "stage": "mine",
         "country_iso3": "COD",
         "operator": null,
@@ -360,11 +530,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [120.5647, 30.63] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.5647,
+          30.63
+        ]
+      },
       "properties": {
         "id": "huayou-tongxiang",
         "name": "Huayou Cobalt Tongxiang refinery",
-        "mineral_ids": ["cobalt"],
+        "mineral_ids": [
+          "cobalt"
+        ],
         "stage": "refine",
         "country_iso3": "CHN",
         "operator": "Zhejiang Huayou Cobalt",
@@ -377,11 +555,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [23.1333, 63.8333] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          23.1333,
+          63.8333
+        ]
+      },
       "properties": {
         "id": "kokkola-refinery",
         "name": "Kokkola cobalt refinery",
-        "mineral_ids": ["cobalt"],
+        "mineral_ids": [
+          "cobalt"
+        ],
         "stage": "refine",
         "country_iso3": "FIN",
         "operator": "Umicore",
@@ -394,11 +580,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [48.3, -18.83] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          48.3,
+          -18.83
+        ]
+      },
       "properties": {
         "id": "ambatovy",
         "name": "Ambatovy",
-        "mineral_ids": ["cobalt"],
+        "mineral_ids": [
+          "cobalt"
+        ],
         "stage": "process",
         "country_iso3": "MDG",
         "operator": "Sherritt International",
@@ -411,11 +605,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [109.9667, 41.7667] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          109.9667,
+          41.7667
+        ]
+      },
       "properties": {
         "id": "bayan-obo",
         "name": "Bayan Obo",
-        "mineral_ids": ["rare-earths"],
+        "mineral_ids": [
+          "rare-earths"
+        ],
         "stage": "mine",
         "country_iso3": "CHN",
         "operator": "China Northern Rare Earth Group",
@@ -428,11 +630,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [-115.5328, 35.4783] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -115.5328,
+          35.4783
+        ]
+      },
       "properties": {
         "id": "mountain-pass",
         "name": "Mountain Pass",
-        "mineral_ids": ["rare-earths"],
+        "mineral_ids": [
+          "rare-earths"
+        ],
         "stage": "mine",
         "country_iso3": "USA",
         "operator": "MP Materials",
@@ -445,11 +655,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [122.55, -28.8611] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.55,
+          -28.8611
+        ]
+      },
       "properties": {
         "id": "mount-weld",
         "name": "Mount Weld",
-        "mineral_ids": ["rare-earths"],
+        "mineral_ids": [
+          "rare-earths"
+        ],
         "stage": "mine",
         "country_iso3": "AUS",
         "operator": "Lynas Rare Earths",
@@ -462,11 +680,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [103.4333, 3.95] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          103.4333,
+          3.95
+        ]
+      },
       "properties": {
         "id": "lynas-kuantan",
         "name": "Lynas Advanced Materials Plant, Kuantan",
-        "mineral_ids": ["rare-earths"],
+        "mineral_ids": [
+          "rare-earths"
+        ],
         "stage": "refine",
         "country_iso3": "MYS",
         "operator": "Lynas Rare Earths",
@@ -479,11 +705,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [114.9333, 25.8333] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          114.9333,
+          25.8333
+        ]
+      },
       "properties": {
         "id": "ganzhou-separation-cluster",
         "name": "Ganzhou rare earth separation cluster",
-        "mineral_ids": ["rare-earths"],
+        "mineral_ids": [
+          "rare-earths"
+        ],
         "stage": "refine",
         "country_iso3": "CHN",
         "operator": null,
@@ -496,11 +730,19 @@
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [97.5, 25.9] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          97.5,
+          25.9
+        ]
+      },
       "properties": {
         "id": "kachin-heavy-ree",
         "name": "Kachin State heavy rare earth district",
-        "mineral_ids": ["rare-earths"],
+        "mineral_ids": [
+          "rare-earths"
+        ],
         "stage": "mine",
         "country_iso3": "MMR",
         "operator": null,

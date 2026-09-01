@@ -1,46 +1,38 @@
 {
-  "generated_at": "2026-08-31T00:00:00Z",
+  "generated_at": "2026-09-01T03:30:51Z",
   "schema_version": "1.0.0",
   "sources": [
     {
-      "id": "seed-facilities",
-      "name": "Hand-authored seed facilities",
+      "id": "seed-countries",
+      "name": "Hand-authored seed dataset: countries",
       "url": null,
       "vintage": "2026",
       "retrieved_at": "2026-08-31",
-      "coverage": "30 real mines, smelters and refineries across copper, lithium, cobalt and rare earths. Coordinates are approximate. Replaced by the ICMM Global Mining Dataset and IEA extracts once the ETL runs."
+      "coverage": "Hand-picked representative country points, used where no country list covers an ISO3 code the data references."
+    },
+    {
+      "id": "seed-facilities",
+      "name": "Hand-authored seed dataset: facilities",
+      "url": null,
+      "vintage": "2026",
+      "retrieved_at": "2026-08-31",
+      "coverage": "Hand-authored facilities: real mines, smelters and refineries with approximate coordinates, standing in until a facility source is dropped in."
     },
     {
       "id": "seed-flows",
-      "name": "Hand-authored seed trade flows",
+      "name": "Hand-authored seed dataset: flows",
       "url": null,
       "vintage": "2024",
       "retrieved_at": "2026-08-31",
-      "coverage": "28 country-to-country flows for 2024, on a contained-metal basis. Replaced by the ADB-WTO TiCM bilateral trade database once the ETL runs."
+      "coverage": "Hand-authored country-to-country flows on a contained-metal basis, standing in until a bilateral trade extract is dropped in."
     },
     {
       "id": "seed-prices",
-      "name": "Indicative annual average prices",
-      "url": "https://www.worldbank.org/en/research/commodity-markets",
+      "name": "Hand-authored seed dataset: prices",
+      "url": null,
       "vintage": "2023-2024",
       "retrieved_at": "2026-08-31",
-      "coverage": "One average price per mineral per year, used to derive estimated flow values. Order-of-magnitude only. Replaced by the World Bank Pink Sheet once the ETL runs."
-    },
-    {
-      "id": "seed-centroids",
-      "name": "Representative country centroids",
-      "url": null,
-      "vintage": "2026",
-      "retrieved_at": "2026-08-31",
-      "coverage": "26 countries. Hand-picked representative land points used as arc endpoints, not computed polygon centroids. Replaced by a public centroid dataset once the ETL runs."
-    },
-    {
-      "id": "usgs-nmic",
-      "name": "USGS National Minerals Information Center",
-      "url": "https://www.usgs.gov/centers/national-minerals-information-center",
-      "vintage": "2025",
-      "retrieved_at": "2026-08-31",
-      "coverage": "Commodity background cited on individual seed facility records. Not yet machine-extracted."
+      "coverage": "Indicative annual average prices, order-of-magnitude only, used where no price source covers a mineral."
     }
   ]
 }

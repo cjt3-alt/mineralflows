@@ -1,0 +1,22 @@
+{
+  "_comment": [
+    "Production sources and trade flows do not always count the same substance, and the",
+    "difference is a factor of five for lithium. Flow volumes in this project are carried on",
+    "a contained-metal basis, expressed as lithium carbonate equivalent (LCE) for lithium and",
+    "rare-earth oxide (REO) for rare earths, so that volume x price produces a sane number.",
+    "The USGS reports lithium mine production as contained lithium, not LCE. Comparing the",
+    "two directly makes every lithium exporter look like it ships five times what it digs up.",
+    "",
+    "Each factor below converts that source's published figure into the basis flows use.",
+    "A mineral with no entry is already on the same basis and needs no conversion.",
+    "",
+    "lithium: 5.323 = the mass ratio of Li2CO3 to Li (73.89 / 13.88). The standard LCE",
+    "  conversion, published by the USGS itself in the lithium chapter.",
+    "The IEA is assumed to publish contained metal on the same basis as the USGS. That is",
+    "  stated rather than verified, and it only affects a warning threshold, never output."
+  ],
+  "factors": {
+    "usgs-nmic": { "lithium": 5.323 },
+    "iea-critical-minerals": { "lithium": 5.323 }
+  }
+}

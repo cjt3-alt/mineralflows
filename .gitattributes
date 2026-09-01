@@ -2,3 +2,6 @@
 *.png binary
 *.jpg binary
 *.xlsx binary
+
+# Raw source drops keep the bytes the publisher shipped: no line-ending rewriting.
+etl/raw/manual/** -text

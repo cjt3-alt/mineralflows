@@ -2,24 +2,112 @@
   {
     "id": "copper",
     "name": "Copper",
-    "hs_codes": ["260300", "740100", "740200", "740311", "740312", "740313", "740319"],
+    "hs_codes": [
+      "260300",
+      "740100",
+      "740200",
+      "740311",
+      "740312",
+      "740313",
+      "740319"
+    ],
     "trade_codes": [
-      { "hs_code": "260300", "stage": "mine", "label": "Copper ores and concentrates", "active": true },
-      { "hs_code": "740100", "stage": "process", "label": "Copper mattes; cement copper", "active": true },
-      { "hs_code": "740200", "stage": "process", "label": "Unrefined copper; copper anodes", "active": true },
-      { "hs_code": "740311", "stage": "refine", "label": "Refined copper cathodes", "active": true },
-      { "hs_code": "740312", "stage": "refine", "label": "Refined copper wire-bars", "active": true },
-      { "hs_code": "740313", "stage": "refine", "label": "Refined copper billets", "active": true },
-      { "hs_code": "740319", "stage": "refine", "label": "Refined copper, other unwrought", "active": true },
-      { "hs_code": "740321", "stage": "refine", "label": "Copper-zinc base alloys, unwrought", "active": false },
-      { "hs_code": "740322", "stage": "refine", "label": "Copper-tin base alloys, unwrought", "active": false },
-      { "hs_code": "740329", "stage": "refine", "label": "Other copper alloys, unwrought", "active": false },
-      { "hs_code": "740400", "stage": "refine", "label": "Copper waste and scrap", "active": false },
-      { "hs_code": "740710", "stage": "refine", "label": "Refined copper bars, rods and profiles", "active": false },
-      { "hs_code": "740811", "stage": "refine", "label": "Refined copper wire, cross-section over 6 mm", "active": false },
-      { "hs_code": "740911", "stage": "refine", "label": "Refined copper plates, sheets and strip, in coils", "active": false },
-      { "hs_code": "741110", "stage": "refine", "label": "Refined copper tubes and pipes", "active": false },
-      { "hs_code": "741210", "stage": "refine", "label": "Refined copper tube or pipe fittings", "active": false }
+      {
+        "hs_code": "260300",
+        "stage": "mine",
+        "label": "Copper ores and concentrates",
+        "active": true
+      },
+      {
+        "hs_code": "740100",
+        "stage": "process",
+        "label": "Copper mattes; cement copper",
+        "active": true
+      },
+      {
+        "hs_code": "740200",
+        "stage": "process",
+        "label": "Unrefined copper; copper anodes",
+        "active": true
+      },
+      {
+        "hs_code": "740311",
+        "stage": "refine",
+        "label": "Refined copper cathodes",
+        "active": true
+      },
+      {
+        "hs_code": "740312",
+        "stage": "refine",
+        "label": "Refined copper wire-bars",
+        "active": true
+      },
+      {
+        "hs_code": "740313",
+        "stage": "refine",
+        "label": "Refined copper billets",
+        "active": true
+      },
+      {
+        "hs_code": "740319",
+        "stage": "refine",
+        "label": "Refined copper, other unwrought",
+        "active": true
+      },
+      {
+        "hs_code": "740321",
+        "stage": "refine",
+        "label": "Copper-zinc base alloys, unwrought",
+        "active": false
+      },
+      {
+        "hs_code": "740322",
+        "stage": "refine",
+        "label": "Copper-tin base alloys, unwrought",
+        "active": false
+      },
+      {
+        "hs_code": "740329",
+        "stage": "refine",
+        "label": "Other copper alloys, unwrought",
+        "active": false
+      },
+      {
+        "hs_code": "740400",
+        "stage": "refine",
+        "label": "Copper waste and scrap",
+        "active": false
+      },
+      {
+        "hs_code": "740710",
+        "stage": "refine",
+        "label": "Refined copper bars, rods and profiles",
+        "active": false
+      },
+      {
+        "hs_code": "740811",
+        "stage": "refine",
+        "label": "Refined copper wire, cross-section over 6 mm",
+        "active": false
+      },
+      {
+        "hs_code": "740911",
+        "stage": "refine",
+        "label": "Refined copper plates, sheets and strip, in coils",
+        "active": false
+      },
+      {
+        "hs_code": "741110",
+        "stage": "refine",
+        "label": "Refined copper tubes and pipes",
+        "active": false
+      },
+      {
+        "hs_code": "741210",
+        "stage": "refine",
+        "label": "Refined copper tube or pipe fittings",
+        "active": false
+      }
     ],
     "usgs_commodity_code": "copper",
     "color": "#ff7a45",
@@ -30,14 +118,48 @@
   {
     "id": "lithium",
     "name": "Lithium",
-    "hs_codes": ["253090", "282520", "283691"],
+    "hs_codes": [
+      "253090",
+      "282520",
+      "283691"
+    ],
     "trade_codes": [
-      { "hs_code": "253090", "stage": "mine", "label": "Mineral substances not elsewhere specified, including spodumene concentrate", "active": true },
-      { "hs_code": "282520", "stage": "refine", "label": "Lithium oxide and hydroxide", "active": true },
-      { "hs_code": "283691", "stage": "refine", "label": "Lithium carbonate", "active": true },
-      { "hs_code": "290490", "stage": "refine", "label": "Sulphonated, nitrated or nitrosated hydrocarbon derivatives, reported alongside lithium chemicals", "active": false },
-      { "hs_code": "850650", "stage": "refine", "label": "Lithium primary cells and batteries", "active": false },
-      { "hs_code": "850760", "stage": "refine", "label": "Lithium-ion accumulators", "active": false }
+      {
+        "hs_code": "253090",
+        "stage": "mine",
+        "label": "Mineral substances not elsewhere specified, including spodumene concentrate",
+        "active": true
+      },
+      {
+        "hs_code": "282520",
+        "stage": "refine",
+        "label": "Lithium oxide and hydroxide",
+        "active": true
+      },
+      {
+        "hs_code": "283691",
+        "stage": "refine",
+        "label": "Lithium carbonate",
+        "active": true
+      },
+      {
+        "hs_code": "290490",
+        "stage": "refine",
+        "label": "Sulphonated, nitrated or nitrosated hydrocarbon derivatives, reported alongside lithium chemicals",
+        "active": false
+      },
+      {
+        "hs_code": "850650",
+        "stage": "refine",
+        "label": "Lithium primary cells and batteries",
+        "active": false
+      },
+      {
+        "hs_code": "850760",
+        "stage": "refine",
+        "label": "Lithium-ion accumulators",
+        "active": false
+      }
     ],
     "usgs_commodity_code": "lithium",
     "color": "#3fe0c5",
@@ -48,13 +170,41 @@
   {
     "id": "cobalt",
     "name": "Cobalt",
-    "hs_codes": ["260500", "282200"],
+    "hs_codes": [
+      "260500",
+      "282200"
+    ],
     "trade_codes": [
-      { "hs_code": "260500", "stage": "mine", "label": "Cobalt ores and concentrates", "active": true },
-      { "hs_code": "282200", "stage": "refine", "label": "Cobalt oxides and hydroxides; commercial cobalt oxides", "active": true },
-      { "hs_code": "810520", "stage": "refine", "label": "Cobalt mattes and intermediates; unwrought cobalt; powders", "active": false },
-      { "hs_code": "850650", "stage": "refine", "label": "Primary cells and batteries containing cobalt cathodes", "active": false },
-      { "hs_code": "850760", "stage": "refine", "label": "Lithium-ion accumulators with cobalt cathodes", "active": false }
+      {
+        "hs_code": "260500",
+        "stage": "mine",
+        "label": "Cobalt ores and concentrates",
+        "active": true
+      },
+      {
+        "hs_code": "282200",
+        "stage": "refine",
+        "label": "Cobalt oxides and hydroxides; commercial cobalt oxides",
+        "active": true
+      },
+      {
+        "hs_code": "810520",
+        "stage": "refine",
+        "label": "Cobalt mattes and intermediates; unwrought cobalt; powders",
+        "active": false
+      },
+      {
+        "hs_code": "850650",
+        "stage": "refine",
+        "label": "Primary cells and batteries containing cobalt cathodes",
+        "active": false
+      },
+      {
+        "hs_code": "850760",
+        "stage": "refine",
+        "label": "Lithium-ion accumulators with cobalt cathodes",
+        "active": false
+      }
     ],
     "usgs_commodity_code": "cobalt",
     "color": "#5b8cff",
@@ -65,12 +215,36 @@
   {
     "id": "rare-earths",
     "name": "Rare earths",
-    "hs_codes": ["280530", "284610", "284690"],
+    "hs_codes": [
+      "280530",
+      "284610",
+      "284690"
+    ],
     "trade_codes": [
-      { "hs_code": "280530", "stage": "refine", "label": "Rare-earth metals, scandium and yttrium, whether or not intermixed", "active": true },
-      { "hs_code": "284610", "stage": "refine", "label": "Cerium compounds", "active": true },
-      { "hs_code": "284690", "stage": "refine", "label": "Compounds of rare-earth metals, yttrium or scandium, other", "active": true },
-      { "hs_code": "850511", "stage": "refine", "label": "Permanent magnets of metal, including sintered neodymium-iron-boron", "active": false }
+      {
+        "hs_code": "280530",
+        "stage": "refine",
+        "label": "Rare-earth metals, scandium and yttrium, whether or not intermixed",
+        "active": true
+      },
+      {
+        "hs_code": "284610",
+        "stage": "refine",
+        "label": "Cerium compounds",
+        "active": true
+      },
+      {
+        "hs_code": "284690",
+        "stage": "refine",
+        "label": "Compounds of rare-earth metals, yttrium or scandium, other",
+        "active": true
+      },
+      {
+        "hs_code": "850511",
+        "stage": "refine",
+        "label": "Permanent magnets of metal, including sintered neodymium-iron-boron",
+        "active": false
+      }
     ],
     "usgs_commodity_code": "rare-earths",
     "color": "#c77dff",

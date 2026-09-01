@@ -1,0 +1,12 @@
+# Lint settings for the ETL only. The app is linted by eslint.
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+# BLE001: a source module catching a broad exception and reporting a skip is the
+# design, not an oversight. Each site says so at the point it happens.
+ignore = ["BLE001"]
+
+[lint.isort]
+known-first-party = ["contract", "countries", "pipeline", "sources"]

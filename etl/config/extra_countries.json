@@ -1,0 +1,16 @@
+{
+  "_comment": [
+    "Territories and states that appear as trading partners or facility locations in the raw",
+    "sources but are absent from the World Bank country list, which is where every other",
+    "centroid comes from. Coordinates are hand-picked representative points (the capital or",
+    "main settlement), consistent with the World Bank's own capital-city coordinates. They are",
+    "not computed polygon centroids. Four entries, added only because a real source row",
+    "referenced them; nothing here is speculative."
+  ],
+  "countries": [
+    { "iso3": "TWN", "name": "Taiwan, China", "lat": 25.033, "lon": 121.5654 },
+    { "iso3": "GUF", "name": "French Guiana", "lat": 4.9227, "lon": -52.3269 },
+    { "iso3": "MSR", "name": "Montserrat", "lat": 16.7928, "lon": -62.2106 },
+    { "iso3": "VAT", "name": "Holy See", "lat": 41.9029, "lon": 12.4534 }
+  ]
+}

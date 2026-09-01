@@ -46,8 +46,40 @@ jobs:
         with:
           path: dist
 
+  # The ETL is not built or deployed, but it writes the files the app loads, so a
+  # broken pipeline is a broken repo. Checked here rather than only in the
+  # monthly refresh, where a regression would sit unnoticed for weeks.
+  etl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: etl/requirements.txt
+
+      - run: pip install -r etl/requirements.txt
+
+      - name: Lint
+        run: |
+          python -m ruff check etl/
+          python -m ruff format --check etl/
+
+      - name: Test
+        run: python etl/test_pipeline.py
+
+      - name: Run offline with no manual sources
+        # The bare-runner case: no network, no drops. It still has to produce a
+        # valid dataset, and it still has to leave public/data unchanged, because
+        # what is committed there is exactly what this run writes.
+        run: |
+          python etl/pipeline.py --offline --no-manual
+          git diff --exit-code -- public/data
+
   deploy:
-    needs: build
+    needs: [build, etl]
     runs-on: ubuntu-latest
     environment:
       name: github-pages

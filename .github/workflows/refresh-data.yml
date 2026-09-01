@@ -1,0 +1,99 @@
+name: Refresh data
+
+# Runs the ETL and opens a pull request if public/data changed.
+#
+# A pull request rather than a push to main, deliberately. The sources this
+# pipeline reads are republished on their own schedules and occasionally change
+# shape; a silent auto-commit of a bad extract would deploy straight to the site
+# with nobody having looked at it. A PR gives a diff to read before it ships.
+#
+# The manual sources committed under etl/raw/manual are used as they stand. They
+# do not refresh on their own — see etl/README.md for when to replace them.
+
+on:
+  schedule:
+    # 06:00 UTC on the 3rd of each month. The World Bank publishes the Pink Sheet
+    # in the first days of the month and the USGS releases the Mineral Commodity
+    # Summaries in January, so the 3rd catches both without racing them.
+    - cron: '0 6 3 * *'
+  workflow_dispatch:
+    inputs:
+      year:
+        description: Trade year to extract
+        required: false
+        default: '2024'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: etl/requirements.txt
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install ETL dependencies
+        run: pip install -r etl/requirements.txt
+
+      - name: Lint the ETL
+        run: |
+          python -m ruff check etl/
+          python -m ruff format --check etl/
+
+      - name: Test the ETL
+        run: python etl/test_pipeline.py
+
+      - name: Run the pipeline
+        id: run
+        run: |
+          set -o pipefail
+          python etl/pipeline.py --year "${{ inputs.year || '2024' }}" 2>&1 | tee refresh.log
+
+      - name: Check the output against the app's own loader
+        # The pipeline validates against contract.py, which mirrors schema.ts.
+        # This runs the real schema over the real files, so a drift between the
+        # two mirrors is caught here rather than in the browser.
+        run: |
+          npm ci
+          npm test
+
+      - name: Write the run log into the summary and the PR body
+        if: always()
+        run: |
+          {
+            echo '### ETL run'
+            echo
+            echo '```'
+            cat refresh.log
+            echo '```'
+          } > pr-body.md
+          cat pr-body.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open a pull request if the data changed
+        # A PR rather than a push: the diff is the review. If nothing changed,
+        # this step opens nothing and the run ends quietly.
+        uses: peter-evans/create-pull-request@v7
+        with:
+          add-paths: public/data
+          branch: data/refresh
+          delete-branch: true
+          commit-message: Refresh public/data from the ETL
+          title: Refresh data
+          body-path: pr-body.md
+          labels: data

@@ -1,28 +1,87 @@
 {
-  "ARG": { "name": "Argentina", "lat": -38.4, "lon": -63.6 },
-  "AUS": { "name": "Australia", "lat": -25.3, "lon": 133.8 },
-  "BEL": { "name": "Belgium", "lat": 50.6, "lon": 4.6 },
-  "BRA": { "name": "Brazil", "lat": -10.8, "lon": -52.9 },
-  "CAN": { "name": "Canada", "lat": 61.1, "lon": -107.9 },
-  "CHL": { "name": "Chile", "lat": -35.7, "lon": -71.4 },
-  "CHN": { "name": "China", "lat": 35.0, "lon": 103.9 },
-  "COD": { "name": "Democratic Republic of the Congo", "lat": -2.9, "lon": 23.7 },
-  "DEU": { "name": "Germany", "lat": 51.1, "lon": 10.4 },
-  "ESP": { "name": "Spain", "lat": 40.2, "lon": -3.6 },
-  "FIN": { "name": "Finland", "lat": 64.5, "lon": 26.3 },
-  "GBR": { "name": "United Kingdom", "lat": 54.1, "lon": -2.9 },
-  "IDN": { "name": "Indonesia", "lat": -2.5, "lon": 117.9 },
-  "IND": { "name": "India", "lat": 22.9, "lon": 79.6 },
-  "JPN": { "name": "Japan", "lat": 37.6, "lon": 138.0 },
-  "KAZ": { "name": "Kazakhstan", "lat": 48.2, "lon": 67.3 },
-  "KOR": { "name": "South Korea", "lat": 36.4, "lon": 127.9 },
-  "MDG": { "name": "Madagascar", "lat": -19.4, "lon": 46.7 },
-  "MMR": { "name": "Myanmar", "lat": 21.2, "lon": 96.5 },
-  "MYS": { "name": "Malaysia", "lat": 4.2, "lon": 102.0 },
-  "NLD": { "name": "Netherlands", "lat": 52.2, "lon": 5.6 },
-  "PER": { "name": "Peru", "lat": -9.2, "lon": -75.0 },
-  "RUS": { "name": "Russia", "lat": 61.5, "lon": 96.7 },
-  "USA": { "name": "United States", "lat": 39.8, "lon": -98.6 },
-  "ZAF": { "name": "South Africa", "lat": -29.0, "lon": 25.1 },
-  "ZMB": { "name": "Zambia", "lat": -13.5, "lon": 27.9 }
+  "ARG": {
+    "name": "Argentina",
+    "lat": -38.4,
+    "lon": -63.6
+  },
+  "AUS": {
+    "name": "Australia",
+    "lat": -25.3,
+    "lon": 133.8
+  },
+  "BEL": {
+    "name": "Belgium",
+    "lat": 50.6,
+    "lon": 4.6
+  },
+  "CHL": {
+    "name": "Chile",
+    "lat": -35.7,
+    "lon": -71.4
+  },
+  "CHN": {
+    "name": "China",
+    "lat": 35.0,
+    "lon": 103.9
+  },
+  "COD": {
+    "name": "Democratic Republic of the Congo",
+    "lat": -2.9,
+    "lon": 23.7
+  },
+  "DEU": {
+    "name": "Germany",
+    "lat": 51.1,
+    "lon": 10.4
+  },
+  "FIN": {
+    "name": "Finland",
+    "lat": 64.5,
+    "lon": 26.3
+  },
+  "IDN": {
+    "name": "Indonesia",
+    "lat": -2.5,
+    "lon": 117.9
+  },
+  "JPN": {
+    "name": "Japan",
+    "lat": 37.6,
+    "lon": 138.0
+  },
+  "KOR": {
+    "name": "South Korea",
+    "lat": 36.4,
+    "lon": 127.9
+  },
+  "MDG": {
+    "name": "Madagascar",
+    "lat": -19.4,
+    "lon": 46.7
+  },
+  "MMR": {
+    "name": "Myanmar",
+    "lat": 21.2,
+    "lon": 96.5
+  },
+  "MYS": {
+    "name": "Malaysia",
+    "lat": 4.2,
+    "lon": 102.0
+  },
+  "PER": {
+    "name": "Peru",
+    "lat": -9.2,
+    "lon": -75.0
+  },
+  "USA": {
+    "name": "United States",
+    "lat": 39.8,
+    "lon": -98.6
+  },
+  "ZMB": {
+    "name": "Zambia",
+    "lat": -13.5,
+    "lon": 27.9
+  }
 }

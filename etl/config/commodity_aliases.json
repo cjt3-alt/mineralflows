@@ -1,0 +1,39 @@
+{
+  "_comment": [
+    "How each source spells our minerals. Sources that carry facility or production rows",
+    "name commodities in prose rather than in HS codes, and they do not agree with each",
+    "other: ICMM records rare earths as 'lanthanides', 'REE', 'monazite' or the name of a",
+    "single element, while the IEA calls the same group 'Magnet rare earth elements'.",
+    "",
+    "Tokens are matched case-insensitively against whole comma-, semicolon- or",
+    "slash-separated fragments of a source field, so 'ree' does not match 'greener'. The",
+    "mineral's own name from minerals.json is always matched too and does not need repeating",
+    "here. Adding a fifth mineral means adding a key here, not editing a source module.",
+    "",
+    "Note that ICMM's rare-earth coverage is thin: a handful of sites carry a rare-earth",
+    "token at all, because the dataset is built around large-scale operations reported by",
+    "ICMM members and most separation capacity is not."
+  ],
+  "tokens": {
+    "copper": ["copper", "cu"],
+    "lithium": ["lithium", "spodumene", "lithium carbonate", "petalite"],
+    "cobalt": ["cobalt"],
+    "rare-earths": [
+      "rare earth",
+      "rare earths",
+      "rare earth elements",
+      "magnet rare earth elements",
+      "ree",
+      "rees",
+      "lanthanides",
+      "lanthanum",
+      "cerium",
+      "neodymium",
+      "praseodymium",
+      "dysprosium",
+      "monazite",
+      "bastnaesite",
+      "xenotime"
+    ]
+  }
+}

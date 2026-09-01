@@ -1,0 +1,31 @@
+{
+  "_comment": [
+    "The USGS Mineral Commodity Summaries publish several price series per commodity per",
+    "year. Picking one is a judgement, so the judgement lives here rather than in code.",
+    "Each entry is an ordered list of substrings matched against the USGS Statistics_detail",
+    "field; the first match wins, so a preferred series can be listed ahead of a fallback.",
+    "A mineral with no entry gets no USGS price and falls back to another source or the seed.",
+    "Match is case-insensitive.",
+    "",
+    "copper: the LME grade A cash price is the international benchmark. The US producer",
+    "  price includes a domestic premium and would overstate the value of trade that never",
+    "  touches the United States.",
+    "cobalt: LME cash, for the same reason the US spot cathode price is not used.",
+    "lithium: battery-grade lithium carbonate. Flow volumes are carried on a contained-metal",
+    "  basis expressed as lithium carbonate equivalent, so a carbonate price is the one that",
+    "  matches the tonnage it multiplies.",
+    "rare-earths: NdPr oxide. This is the least comfortable choice on the list. There is no",
+    "  published price for a mixed rare-earth oxide basket, and the two USGS series are a",
+    "  cheap cerium-lanthanum mischmetal and an expensive NdPr oxide. NdPr is the series that",
+    "  drives the economics of the magnet supply chain this app is about, but using it as a",
+    "  basket proxy overstates the value of low-value rare-earth trade. Every value derived",
+    "  from it is written to flows.json tagged source: estimated, and the interface labels it",
+    "  as estimated wherever it appears."
+  ],
+  "series": {
+    "copper": ["London Metal Exchange, grade A, cash"],
+    "cobalt": ["London Metal Exchange (LME), cash"],
+    "lithium": ["battery-grade lithium carbonate"],
+    "rare-earths": ["Neodymium-praseodymium (NdPr) oxide"]
+  }
+}
