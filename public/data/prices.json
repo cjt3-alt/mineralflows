@@ -16,15 +16,15 @@
   {
     "mineral_id": "copper",
     "year": 2023,
-    "avg_price_usd_per_tonne": 8500,
-    "source": "seed",
+    "avg_price_usd_per_tonne": 8490.33,
+    "source": "worldbank-pinksheet",
     "source_url": "https://www.worldbank.org/en/research/commodity-markets"
   },
   {
     "mineral_id": "copper",
     "year": 2024,
-    "avg_price_usd_per_tonne": 9200,
-    "source": "seed",
+    "avg_price_usd_per_tonne": 9142.0,
+    "source": "worldbank-pinksheet",
     "source_url": "https://www.worldbank.org/en/research/commodity-markets"
   },
   {

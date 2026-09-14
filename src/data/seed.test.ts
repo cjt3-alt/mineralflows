@@ -46,8 +46,11 @@ describe('seed dataset', () => {
     expect(dataset.flows.length).toBeGreaterThan(0)
   })
 
-  it('covers all four v1 minerals, all active', () => {
-    expect(dataset.activeMinerals.map((m) => m.id)).toEqual([
+  // Scoped to copper only while the app is being critiqued on one mineral
+  // before the other three are switched back on in etl/config/minerals.json.
+  it('covers copper, the only currently active mineral', () => {
+    expect(dataset.activeMinerals.map((m) => m.id)).toEqual(['copper'])
+    expect(dataset.minerals.map((m) => m.id)).toEqual([
       'copper',
       'lithium',
       'cobalt',
@@ -103,8 +106,9 @@ describe('seed dataset', () => {
     expect(ree).toBeDefined()
     expect(ree!.trade_codes.some((c) => c.stage === 'mine')).toBe(false)
 
+    // Rare earths are switched off while the app is scoped to copper only, so
+    // public/data currently has none of its flows to check the stage on.
     const reeFlows = dataset.flows.filter((f) => f.mineral_id === 'rare-earths')
-    expect(reeFlows.length).toBeGreaterThan(0)
     for (const flow of reeFlows) {
       expect(flow.stage_from).toBe('refine')
       expect(flow.stage_to).toBe('refine')

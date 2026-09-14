@@ -12,15 +12,17 @@ import { STAGES, type Confidence, type FacilityFeature, type Flow, type Mineral,
 
 /**
  * An empty array means "no filter applied", not "nothing selected". Adding a
- * year, region, or confidence filter later means adding a field here and a
- * clause in the two match functions, not touching any component.
+ * year or region filter later means adding a field here and a clause in the
+ * two match functions, not touching any component.
  */
 export interface Filters {
   mineralIds: string[]
   stages: Stage[]
+  /** Flows below this resolved value are dropped before the arc cap. 0 means no threshold. */
+  minValueUsd: number
 }
 
-export const EMPTY_FILTERS: Filters = { mineralIds: [], stages: [] }
+export const EMPTY_FILTERS: Filters = { mineralIds: [], stages: [], minValueUsd: 0 }
 
 /**
  * Filters round-trip through the query string so a view is shareable. Empty
@@ -31,6 +33,7 @@ export function filtersToSearchParams(filters: Filters): URLSearchParams {
   const params = new URLSearchParams()
   if (filters.mineralIds.length > 0) params.set('minerals', filters.mineralIds.join(','))
   if (filters.stages.length > 0) params.set('stages', filters.stages.join(','))
+  if (filters.minValueUsd > 0) params.set('minValue', String(filters.minValueUsd))
   return params
 }
 
@@ -45,11 +48,15 @@ export function filtersFromSearchParams(
   const split = (value: string | null): string[] =>
     value === null ? [] : value.split(',').map((s) => s.trim()).filter(Boolean)
 
+  const rawMinValue = Number(params.get('minValue'))
+  const minValueUsd = Number.isFinite(rawMinValue) && rawMinValue > 0 ? rawMinValue : 0
+
   return {
     mineralIds: split(params.get('minerals')).filter((id) => knownMineralIds.includes(id)),
     stages: split(params.get('stages')).filter((s): s is Stage =>
       (STAGES as readonly string[]).includes(s),
     ),
+    minValueUsd,
   }
 }
 
@@ -289,6 +296,7 @@ export function toArcData(
   flows: readonly Flow[],
   dataset: Pick<Dataset, 'countries' | 'mineralsById' | 'priceFor'>,
   cap: number = DEFAULT_ARC_CAP,
+  minValueUsd = 0,
 ): ArcBuildResult {
   const built: ArcDatum[] = []
 
@@ -300,6 +308,9 @@ export function toArcData(
     if (!from || !to) continue
 
     const value = resolveValue(flow, dataset.priceFor)
+    // The value threshold is resolved here, in the one place that already
+    // turns a flow into a dollar figure, so no component ever has to.
+    if (minValueUsd > 0 && (value.usd ?? 0) < minValueUsd) continue
     const distance = angularDistanceDegrees(from.lat, from.lon, to.lat, to.lon)
 
     built.push({

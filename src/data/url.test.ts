@@ -18,8 +18,24 @@ describe('filter URL round-trip', () => {
   })
 
   it('round-trips minerals and stages', () => {
-    const filters: Filters = { mineralIds: ['copper', 'cobalt'], stages: ['mine', 'refine'] }
+    const filters: Filters = {
+      mineralIds: ['copper', 'cobalt'],
+      stages: ['mine', 'refine'],
+      minValueUsd: 0,
+    }
     expect(roundTrip(filters)).toEqual(filters)
+  })
+
+  it('round-trips a value threshold', () => {
+    const filters: Filters = { mineralIds: [], stages: [], minValueUsd: 5_000_000 }
+    expect(roundTrip(filters)).toEqual(filters)
+  })
+
+  it('ignores a junk or negative minValue rather than throwing', () => {
+    expect(filtersFromSearchParams(new URLSearchParams('minValue=banana'), KNOWN).minValueUsd).toBe(
+      0,
+    )
+    expect(filtersFromSearchParams(new URLSearchParams('minValue=-500'), KNOWN).minValueUsd).toBe(0)
   })
 
   it('reads an empty query as no filters, not as nothing selected', () => {
@@ -43,7 +59,11 @@ describe('filter URL round-trip', () => {
   })
 
   it('writes a query a person can read', () => {
-    const params = filtersToSearchParams({ mineralIds: ['rare-earths'], stages: ['refine'] })
+    const params = filtersToSearchParams({
+      mineralIds: ['rare-earths'],
+      stages: ['refine'],
+      minValueUsd: 0,
+    })
     expect(params.toString()).toBe('minerals=rare-earths&stages=refine')
   })
 })

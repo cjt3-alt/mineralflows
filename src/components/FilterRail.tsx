@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
+import { formatUsd, valueScaleFraction } from '../data/derive.ts'
 import { STAGES, type Stage } from '../data/schema.ts'
 
 /**
@@ -20,8 +21,77 @@ export interface FilterRailProps {
   facilityCounts: Record<Stage, number>
   visibleFacilityCount: number
   visibleFlowCount: number
+  /** 0 means no threshold: every flow that clears the other filters is showing. */
+  minValueUsd: number
+  /** The highest resolved value among flows the mineral/stage filters currently allow. */
+  maxValueUsd: number
+  onChangeMinValue: (minValueUsd: number) => void
+  onClearMinValue: () => void
   /** `strip` is the narrow-viewport layout: one horizontal row, no side column. */
   variant?: 'rail' | 'strip'
+}
+
+/**
+ * A linear slider would waste almost all of its travel: flow values here span
+ * $1k to $21B, so a straight 0-1 mapping puts every flow that matters in the
+ * first percent of the track. Squaring the slider's own 0-1 position back into
+ * a dollar figure is the inverse of `valueScaleFraction`, the same square-root
+ * curve arc width already uses, so "drag the slider a third of the way" feels
+ * about as consequential regardless of where on the range you start.
+ */
+const SLIDER_RESOLUTION = 1000
+
+function ValueSlider({
+  minValueUsd,
+  maxValueUsd,
+  onChange,
+  onClear,
+  compact = false,
+}: {
+  minValueUsd: number
+  maxValueUsd: number
+  onChange: (usd: number) => void
+  onClear: () => void
+  compact?: boolean
+}) {
+  const id = useId()
+  if (!(maxValueUsd > 0)) return null
+
+  const position = Math.round(valueScaleFraction(minValueUsd, maxValueUsd) * SLIDER_RESOLUTION)
+
+  return (
+    <div className={compact ? 'flex shrink-0 items-center gap-2' : 'flex flex-col gap-1.5'}>
+      <div className="flex items-center justify-between gap-2">
+        <label htmlFor={id} className={compact ? 'shrink-0 text-2xs text-muted' : 'text-xs text-dim'}>
+          {minValueUsd > 0 ? `Above ${formatUsd(minValueUsd)}` : compact ? 'Min value' : 'No minimum'}
+        </label>
+        {!compact && minValueUsd > 0 && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-2xs text-muted underline-offset-2 hover:text-dim hover:underline"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <input
+        id={id}
+        type="range"
+        min={0}
+        max={SLIDER_RESOLUTION}
+        step={1}
+        value={position}
+        onChange={(e) => {
+          const fraction = Number(e.target.value) / SLIDER_RESOLUTION
+          onChange(Math.round(fraction * fraction * maxValueUsd))
+        }}
+        aria-valuetext={minValueUsd > 0 ? `Above ${formatUsd(minValueUsd)}` : 'No minimum'}
+        className={compact ? 'w-24 shrink-0' : 'w-full'}
+        style={{ accentColor: 'var(--mf-text-dim)' }}
+      />
+    </div>
+  )
 }
 
 const STAGE_LABELS: Record<Stage, string> = {
@@ -74,6 +144,10 @@ export function FilterRail({
   facilityCounts,
   visibleFacilityCount,
   visibleFlowCount,
+  minValueUsd,
+  maxValueUsd,
+  onChangeMinValue,
+  onClearMinValue,
   variant = 'rail',
 }: FilterRailProps) {
   const showingAll = selectedStages.length === 0
@@ -95,6 +169,13 @@ export function FilterRail({
             onClick={() => onToggleStage(stage)}
           />
         ))}
+        <ValueSlider
+          compact
+          minValueUsd={minValueUsd}
+          maxValueUsd={maxValueUsd}
+          onChange={onChangeMinValue}
+          onClear={onClearMinValue}
+        />
         <span className="ml-auto shrink-0 pl-2 font-mono text-2xs text-muted">
           {visibleFacilityCount} sites · {visibleFlowCount} flows
         </span>
@@ -156,6 +237,15 @@ export function FilterRail({
             )
           })}
         </ul>
+      </FilterGroup>
+
+      <FilterGroup label="Value">
+        <ValueSlider
+          minValueUsd={minValueUsd}
+          maxValueUsd={maxValueUsd}
+          onChange={onChangeMinValue}
+          onClear={onClearMinValue}
+        />
       </FilterGroup>
 
       <div className="mt-auto px-4 py-4">

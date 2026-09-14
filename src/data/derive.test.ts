@@ -71,7 +71,7 @@ function flow(over: Partial<Flow> = {}): Flow {
   }
 }
 
-const noFilters: Filters = { mineralIds: [], stages: [] }
+const noFilters: Filters = { mineralIds: [], stages: [], minValueUsd: 0 }
 
 describe('filtering', () => {
   it('treats an empty filter as no filter, not as nothing selected', () => {
@@ -86,21 +86,29 @@ describe('filtering', () => {
 
   it('keeps a multi-mineral facility when either mineral is selected', () => {
     const facilities = [facility({ id: 'a', mineral_ids: ['copper', 'cobalt'] })]
-    const filters: Filters = { mineralIds: ['cobalt'], stages: [] }
+    const filters: Filters = { mineralIds: ['cobalt'], stages: [], minValueUsd: 0 }
     expect(filterFacilities(facilities, filters, activeIds)).toHaveLength(1)
   })
 
   it('matches a flow when either endpoint is at a selected stage', () => {
     const flows = [flow({ stage_from: 'mine', stage_to: 'process' })]
-    expect(filterFlows(flows, { mineralIds: [], stages: ['process'] }, activeIds)).toHaveLength(1)
-    expect(filterFlows(flows, { mineralIds: [], stages: ['refine'] }, activeIds)).toHaveLength(0)
+    expect(
+      filterFlows(flows, { mineralIds: [], stages: ['process'], minValueUsd: 0 }, activeIds),
+    ).toHaveLength(1)
+    expect(
+      filterFlows(flows, { mineralIds: [], stages: ['refine'], minValueUsd: 0 }, activeIds),
+    ).toHaveLength(0)
   })
 
   /** The rare-earths case: a mineral that only trades at one stage. */
   it('keeps a refine-only mineral visible under a refine filter and empty under mine', () => {
     const flows = [flow({ mineral_id: 'cobalt', stage_from: 'refine', stage_to: 'refine' })]
-    expect(filterFlows(flows, { mineralIds: [], stages: ['refine'] }, activeIds)).toHaveLength(1)
-    expect(filterFlows(flows, { mineralIds: [], stages: ['mine'] }, activeIds)).toHaveLength(0)
+    expect(
+      filterFlows(flows, { mineralIds: [], stages: ['refine'], minValueUsd: 0 }, activeIds),
+    ).toHaveLength(1)
+    expect(
+      filterFlows(flows, { mineralIds: [], stages: ['mine'], minValueUsd: 0 }, activeIds),
+    ).toHaveLength(0)
   })
 })
 
@@ -216,6 +224,22 @@ describe('toArcData', () => {
   it('skips a flow whose country is missing rather than throwing', () => {
     const result = toArcData([flow({ from_iso3: 'ZZZ' })], dataset)
     expect(result.arcs).toHaveLength(0)
+  })
+
+  it('drops flows below the value threshold before sorting and capping', () => {
+    const flows = [
+      flow({ id: 'small', value_usd: 10 }),
+      flow({ id: 'big', value_usd: 1000, from_iso3: 'PER' }),
+    ]
+    const result = toArcData(flows, dataset, 300, 500)
+    expect(result.arcs.map((a) => a.id)).toEqual(['big'])
+    expect(result.totalMatching).toBe(1)
+    expect(result.truncated).toBe(false)
+  })
+
+  it('treats a zero threshold as no filter at all', () => {
+    const result = toArcData([flow({ value_usd: 1 })], dataset, 300, 0)
+    expect(result.arcs).toHaveLength(1)
   })
 })
 

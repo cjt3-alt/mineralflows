@@ -1,30 +1,22 @@
 {
-  "generated_at": "2026-09-01T03:30:51Z",
+  "generated_at": "2026-09-14T00:30:38Z",
   "schema_version": "1.0.0",
   "sources": [
     {
-      "id": "seed-countries",
-      "name": "Hand-authored seed dataset: countries",
-      "url": null,
-      "vintage": "2026",
-      "retrieved_at": "2026-08-31",
-      "coverage": "Hand-picked representative country points, used where no country list covers an ISO3 code the data references."
-    },
-    {
-      "id": "seed-facilities",
-      "name": "Hand-authored seed dataset: facilities",
-      "url": null,
-      "vintage": "2026",
-      "retrieved_at": "2026-08-31",
-      "coverage": "Hand-authored facilities: real mines, smelters and refineries with approximate coordinates, standing in until a facility source is dropped in."
-    },
-    {
-      "id": "seed-flows",
-      "name": "Hand-authored seed dataset: flows",
-      "url": null,
+      "id": "adb-wto-ticm",
+      "name": "ADB-WTO Trade in Critical Minerals database",
+      "url": "https://critmin.org",
       "vintage": "2024",
       "retrieved_at": "2026-08-31",
-      "coverage": "Hand-authored country-to-country flows on a contained-metal basis, standing in until a bilateral trade extract is dropped in."
+      "coverage": "500 flows for 2024, the largest 500 per mineral by value out of 3740 found. Bilateral trade by HS code, aggregated to one flow per mineral, country pair and supply-chain stage. Direction follows the exporter's report; pairs with no export row are filled from the importer's mirror and marked low confidence. Values are traded values, not estimates."
+    },
+    {
+      "id": "icmm",
+      "name": "ICMM Global Mining Dataset",
+      "url": "https://www.icmm.com/en-gb/research/social-performance/2025/global-mining-dataset",
+      "vintage": "v1.5",
+      "retrieved_at": "2026-08-31",
+      "coverage": "1229 facility records across 1229 site-stages, of which 551 are low confidence. Geocoded mines, plants, smelters and refineries, with ICMM's own confidence rating carried through. A site that does more than one thing appears once per stage at the same coordinates."
     },
     {
       "id": "seed-prices",
@@ -33,6 +25,22 @@
       "vintage": "2023-2024",
       "retrieved_at": "2026-08-31",
       "coverage": "Indicative annual average prices, order-of-magnitude only, used where no price source covers a mineral."
+    },
+    {
+      "id": "worldbank-countries",
+      "name": "World Bank country API",
+      "url": "https://datahelpdesk.worldbank.org/knowledgebase/articles/898590-country-api-queries",
+      "vintage": "current",
+      "retrieved_at": "2026-09-13",
+      "coverage": "211 countries. Capital-city coordinates used as country-level arc endpoints, plus the canonical country names the ETL matches source spellings against. Not polygon centroids."
+    },
+    {
+      "id": "worldbank-pinksheet",
+      "name": "World Bank Commodity Markets Pink Sheet",
+      "url": "https://www.worldbank.org/en/research/commodity-markets",
+      "vintage": "2023-2024 annual averages",
+      "retrieved_at": "2026-09-13",
+      "coverage": "Annual averages of the monthly Pink Sheet series, in US dollars per tonne. Covers copper."
     }
   ]
 }

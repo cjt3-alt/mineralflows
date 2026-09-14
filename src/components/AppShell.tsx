@@ -6,11 +6,13 @@ import { DetailPanel, type Selection } from './DetailPanel.tsx'
 import { LegendBar } from './LegendBar.tsx'
 import { loadDataset, type Dataset } from '../data/load.ts'
 import {
+  DEFAULT_ARC_CAP,
   EMPTY_FILTERS,
   filterFacilities,
   filterFlows,
   filtersFromSearchParams,
   filtersToSearchParams,
+  resolveValue,
   toArcData,
   toPointData,
   type Filters,
@@ -101,6 +103,7 @@ export function AppShell() {
         totalMatching: 0,
         facilityCounts: { mine: 0, process: 0, refine: 0 } as Record<Stage, number>,
         hasEstimated: false,
+        sliderCeilingUsd: 0,
       }
     }
 
@@ -108,7 +111,7 @@ export function AppShell() {
 
     // Stage counts reflect the mineral filter but not the stage filter, so the
     // rail shows what each stage would give you rather than what is already on.
-    const mineralOnly: Filters = { mineralIds: filters.mineralIds, stages: [] }
+    const mineralOnly: Filters = { mineralIds: filters.mineralIds, stages: [], minValueUsd: 0 }
     const byMineral = filterFacilities(dataset.facilities, mineralOnly, activeIds)
     const facilityCounts = Object.fromEntries(
       STAGES.map((stage) => [stage, byMineral.filter((f) => f.properties.stage === stage).length]),
@@ -116,7 +119,14 @@ export function AppShell() {
 
     const facilities = filterFacilities(dataset.facilities, filters, activeIds)
     const flows = filterFlows(dataset.flows, filters, activeIds)
-    const built = toArcData(flows, dataset)
+    const built = toArcData(flows, dataset, DEFAULT_ARC_CAP, filters.minValueUsd)
+
+    // The slider's ceiling ignores the threshold itself, so dragging it up
+    // never shrinks the range out from under the thumb.
+    const sliderCeilingUsd = flows.reduce(
+      (max, f) => Math.max(max, resolveValue(f, dataset.priceFor).usd ?? 0),
+      0,
+    )
 
     return {
       points: toPointData(facilities, dataset.mineralsById, activeIds),
@@ -126,6 +136,7 @@ export function AppShell() {
       totalMatching: built.totalMatching,
       facilityCounts,
       hasEstimated: built.arcs.some((a) => a.value.estimated),
+      sliderCeilingUsd,
     }
   }, [dataset, filters])
 
@@ -154,6 +165,12 @@ export function AppShell() {
   }, [])
   const onClearStages = useCallback(() => {
     setFilters((f) => ({ ...f, stages: [] }))
+  }, [])
+  const onChangeMinValue = useCallback((minValueUsd: number) => {
+    setFilters((f) => ({ ...f, minValueUsd }))
+  }, [])
+  const onClearMinValue = useCallback(() => {
+    setFilters((f) => ({ ...f, minValueUsd: 0 }))
   }, [])
   const onClose = useCallback(() => setSelection(null), [])
 
@@ -208,6 +225,10 @@ export function AppShell() {
       facilityCounts={view.facilityCounts}
       visibleFacilityCount={view.points.length}
       visibleFlowCount={view.arcs.length}
+      minValueUsd={filters.minValueUsd}
+      maxValueUsd={view.sliderCeilingUsd}
+      onChangeMinValue={onChangeMinValue}
+      onClearMinValue={onClearMinValue}
     />
   )
   const panel = (

@@ -165,7 +165,7 @@
     "color": "#3fe0c5",
     "glow_intensity": 0.78,
     "sort_order": 2,
-    "active": true
+    "active": false
   },
   {
     "id": "cobalt",
@@ -210,7 +210,7 @@
     "color": "#5b8cff",
     "glow_intensity": 0.82,
     "sort_order": 3,
-    "active": true
+    "active": false
   },
   {
     "id": "rare-earths",
@@ -250,6 +250,6 @@
     "color": "#c77dff",
     "glow_intensity": 0.86,
     "sort_order": 4,
-    "active": true
+    "active": false
   }
 ]
