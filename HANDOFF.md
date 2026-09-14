@@ -102,6 +102,8 @@ own comments; the short version:
   The alpha constants (`BORDER_BASE_ALPHA`, `BORDER_FAR_FLOOR` and the arc shader's `baseAlpha`
   values, all in GlobeCanvas.tsx) are tuned for the current density (full country topology, up to 300
   arcs) — revisit them if the arc cap or the topology resolution ever changes materially.
+  `BORDER_FAR_FLOOR` was lowered again (0.16 → 0.07) on 13 September after CJ found the far-side
+  countries too visible; the same knob if it ever needs to go the other way.
 - **`ARC_RADIUS_SCALE` (currently `1`) was originally wrong by ~100x** — tubes were being built with a
   sub-pixel radius and were invisible until this was caught by inspecting the live Three.js scene
   graph directly, not by looking at screenshots. If arcs ever look wrong again after a change near
@@ -109,6 +111,27 @@ own comments; the short version:
 - **No hover tooltip on arcs anymore.** globe.gl used to give this for free; supporting it now would
   mean raycasting on every `pointermove`, which wasn't judged worth the per-frame cost for
   information the detail panel already shows on click. Click and keyboard nav both still work fully.
+- **Facility points also got the same facing-based dim-near-the-edge treatment** on 13 September
+  (CJ: "dim the dots on the far side too"), by patching globe.gl's own point materials to a small
+  `ShaderMaterial` with the same formula, rather than replacing the points layer entirely. Real depth
+  testing stays on, so the existing far-side hide (proven working — confirmed a genuinely far-side
+  point renders at zero alpha) is untouched; this only adds a graceful fade for points that already
+  pass that test but sit near the horizon, so they stop looking untouched next to lines that were
+  already fading.
+
+  **Getting this to actually run took a real bug fix, worth remembering if you patch globe.gl
+  internals again.** A dependency-array `useEffect` keyed on `[points, ...]` looked reasonable but
+  never fired once the globe was actually ready: `GlobeCanvas` only mounts after the dataset has
+  already loaded, so `points` is populated on the very first render and never changes identity again
+  — there is no later render where the effect's dependencies change to give it a second chance, and
+  `globeRef.current` was still `undefined` on that first render. The fix was to stop depending on
+  React's dependency array for this at all: the effect now polls every frame via
+  `requestAnimationFrame`, checking whether the globe exists yet and applying the patch when it does.
+  It's cheap to run forever afterward, since an already-patched material fails the "is this a plain
+  MeshLambertMaterial" check immediately. The arc-mesh-building effect nearby looks similar but
+  doesn't have this bug, because `arcs` is read the same way and would have the identical problem if
+  its one-extra-`requestAnimationFrame` retry hadn't happened to land after the globe ref populated —
+  worth switching that one to the same polling pattern if it ever misbehaves.
 - **This session's own sandboxed browser preview could not show live animation at all** — it reports
   its tab as backgrounded to the page's Visibility API even when active, which throttles
   `requestAnimationFrame` (confirmed via direct GPU pixel-diffing: zero change across several
@@ -118,6 +141,17 @@ own comments; the short version:
 
 ### What I'd do next
 
+**⚠ Before you next push to `main`: CI's ETL job will fail as-is.** It runs
+`python etl/pipeline.py --offline --no-manual --check`, which compares the committed `public/data/`
+against the offline/seed-fallback output — and now that `public/data/` is a full real run instead
+(see the data section in README.md), that check fails on all five files, confirmed locally. Either
+the check needs to validate against a full run instead, or it needs a documented reason to keep
+comparing against the fallback path while the two are expected to diverge. Not yet reconciled.
+
+0. **Keep iterating on how the arcs look.** CJ's read after the rebuild (13 September): better than
+   before, but still not landed — no specifics on what's wrong yet, just that the look isn't there.
+   Worth revisiting the tube radius scale, the traveling-band width/speed, and the base/highlight
+   colour before adding anything new to the globe.
 1. **Judge the copper-only result, then decide on re-expanding** to lithium/cobalt/rare earths — see
    the scope-call note above; it's a config edit away.
 2. **The TiCM raw-file decision** (section 7, item 3 below) is now more pressing than it was — real
@@ -125,6 +159,11 @@ own comments; the short version:
    raw extracts out of the repo.
 3. **Re-tune the arc cap** (currently 300, in `derive.ts`) now that you're looking at a real 500-flow
    extract instead of the seed's 28 — see if 300 is still the right density judgement.
+4. **Incorporate Mindat data** — flagged by CJ on 13 September as something to work on. Mindat is
+   already named in section 8 below as a candidate for facility coverage beyond ICMM's
+   member-reported large-scale operations, especially rare earths. No design work has started on
+   this yet — it would need a new source module under `etl/sources/` (see `icmm_mining.py` for the
+   shape one takes) and a look at Mindat's actual data access terms and format before anything else.
 
 ---
 

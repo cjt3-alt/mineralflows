@@ -1,9 +1,17 @@
 # MineralFlows
 
 A static, client-only web app that visualises critical mineral supply chains on an interactive 3D
-globe: where copper, lithium, cobalt, and rare earths are mined, processed, and refined, and how
-they move between countries. Flow lines are sized by market value, and every value derived from
-volume × price is labelled as an estimate wherever it appears.
+globe: where minerals are mined, processed, and refined, and how they move between countries. Flow
+lines are sized by market value, and every value derived from volume × price is labelled as an
+estimate wherever it appears. A value slider lets you filter flows below a dollar threshold, and the
+same filter round-trips through the URL as `?minValue=`.
+
+**Currently scoped to copper only.** The app and ETL support four minerals (copper, lithium, cobalt,
+rare earths) end to end, but as of 13 September 2026 lithium, cobalt, and rare earths are switched
+off in [`etl/config/minerals.json`](etl/config/minerals.json) (`"active": false`), to judge the app
+on one commodity before re-expanding — see [`HANDOFF.md`](HANDOFF.md), section 0, for the reasoning.
+Flip a mineral's `active` flag back to `true` and re-run the pipeline to bring it back; nothing else
+changes.
 
 Live at <https://cjt3-alt.github.io/mineralflows/>.
 
@@ -22,19 +30,19 @@ database, no server rendering, no runtime API calls.
 - **The ETL** — [`etl/`](etl/) reads six public sources, normalises them to that contract, and
   writes `public/data/`. See [`etl/README.md`](etl/README.md).
 
-## The data in the app right now is the seed dataset
+## The data in the app right now is real, not the seed dataset
 
-Thirty real facilities, twenty-eight flows, and eight indicative prices, hand-authored to prove the
-contract before real extracts landed. Real places — Escondida, Kamoa-Kakula, Greenbushes, Bayan Obo,
-Salar de Atacama — with approximate coordinates. It deliberately includes three low-confidence
-facilities and fourteen estimated-value flows, so those code paths are exercised from the first
-render rather than the first refresh.
+As of 13 September 2026, `public/data/` is the output of a real `python etl/pipeline.py` run against
+the copper-only config above: 1,229 ICMM facilities and up to 500 ADB-WTO TiCM flows (the globe draws
+the top 300 of those by value, and the legend says so). Sources: ICMM v1.5, ADB-WTO TiCM 2024, World
+Bank Pink Sheet, World Bank country API — see the data sources table below.
 
-The ETL is wired to real sources and runs end to end, but `public/data/` is **not** the output of a
-full run. Replacing thirty checkable facilities with thirteen hundred, and twenty-eight flows with
-two thousand, is a change worth reading a diff for — so it arrives through the pull request that
-`refresh-data.yml` opens, not through a commit nobody looked at. What is committed is exactly what
-`python etl/pipeline.py --offline --no-manual` produces, and CI checks that on every push.
+The hand-authored 30-facility seed dataset (`etl/seed/`) still exists and is still what the pipeline
+falls back to when a source is unreachable — offline, or on a bare CI runner with no manual drops —
+so that fallback path stays exercised. It is not what ships in `public/data/` anymore.
+
+To refresh: `python etl/pipeline.py` locally, or run [`refresh-data.yml`](.github/workflows/refresh-data.yml)
+from the Actions tab, which opens a PR with the diff rather than committing it silently.
 
 ## Development
 
@@ -65,16 +73,30 @@ python -m ruff check etl/ && python -m ruff format --check etl/
   the detail panel lists all of them.
 - **Arcs are flows**, width on a square-root scale. Linear width would make copper a solid band and
   everything else a hairline. Altitude rises with distance so a Chile-to-China arc clears the globe
-  rather than cutting through it.
-- **Low confidence is visible without reading anything.** Low-confidence facilities are drawn faint
-  and flush against the sphere while verified ones stand proud of it; low-confidence flows are
-  dashed. The difference survives greyscale and colourblindness, and it never disappears under
-  reduced motion.
+  rather than cutting through it. Each arc grows in once when it first appears and carries a
+  continuously traveling brightness band along its length — a steady connection with something
+  moving through it, not a dash animating end to end.
+- **The far side of the globe fades, it doesn't vanish.** Country borders, arcs, and facility points
+  all use a shader that dims a point smoothly based on whether it currently faces the camera, rather
+  than a hard cutoff at the horizon — so the far hemisphere is dimly visible through the globe and
+  the picture reads the same at any rotation, including while the camera's own slow idle turn (below)
+  is moving it. See [`HANDOFF.md`](HANDOFF.md), section 0, for the reasoning and the tuning knobs.
+- **Low confidence is visible without reading anything.** Low-confidence facilities are drawn dimmer
+  and flush against the sphere, with a slow ring, while verified ones stand proud of it and are
+  brighter; low-confidence flows are dashed and don't carry the traveling band. The difference
+  survives greyscale and colourblindness, and it never disappears under reduced motion.
 - **Estimated values never look like traded ones.** A value derived from volume × price carries a
   badge, a plain-language warning, and the arithmetic that produced it.
+- **The camera turns slowly on its own** when nothing is selected and keyboard navigation isn't
+  active, and a drag imparts momentum that coasts to a stop rather than snapping back. It pauses
+  automatically the moment something is selected, so it never carries what you're looking at out of
+  view.
 
 At most 300 arcs are drawn. Past that the frame rate collapses, so the set is capped by value and
-the legend says how many of how many are showing rather than quietly dropping the rest.
+the legend says how many of how many are showing rather than quietly dropping the rest. The value
+slider filters flows below a dollar threshold before that cap is applied; facility points are not
+affected by it, since a flow records origin/destination country, not which specific mine or refinery
+it moved through.
 
 ## Keyboard and accessibility
 
@@ -85,7 +107,10 @@ the legend says how many of how many are showing rather than quietly dropping th
   announced to a screen reader.
 - The detail panel takes focus when it opens, closes on Escape, and hands focus back.
 - Focus is always visible and always the same shape.
-- `prefers-reduced-motion` turns off bloom, arc animation, and the load camera move.
+- `prefers-reduced-motion` turns off bloom, the arc grow/traveling band, the low-confidence ring
+  pulse, the camera's idle auto-rotate, and the load camera move. The facing-based fade on borders,
+  arcs, and points is unaffected — it's a function of camera angle, not time, so there's nothing to
+  turn off.
 - Below 768px the rail becomes a strip under the top bar and the panel becomes a sheet over the
   globe. Nothing is hidden on a small screen. Bloom is switched off there too, on cost grounds.
 - The globe camera works out how far back it has to sit for the sphere to fit the narrower axis, so
@@ -125,9 +150,9 @@ over), the apex domain once it is, and a plain static file server. An absolute `
 every asset at the `github.io` URL. There is no client-side router, so a relative base costs
 nothing.
 
-**`world-atlas` and `topojson-client` are dependencies.** A landmass outline needs land geometry and
-runtime API calls are not allowed, so 55 KB of public-domain Natural Earth data is bundled at build
-time.
+**`world-atlas` and `topojson-client` are dependencies.** Country borders need real geometry and
+runtime API calls are not allowed, so ~1 MB of public-domain Natural Earth country topology (110m
+resolution) is bundled at build time and flattened into line segments once, in `GlobeCanvas.tsx`.
 
 **Country coordinates are capital cities, not polygon centroids.** They come from the World Bank
 country API, which is an official, versioned, no-auth list. It means Australia's arcs land on
@@ -140,7 +165,16 @@ that looks like a centroid and is not should not be quiet.
 Pushes to `main` run [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): typecheck,
 lint, test, build, and publish `dist/` to GitHub Pages via the official Pages actions. A parallel
 job lints and tests the ETL and checks that an offline run reproduces the committed data files
-exactly.
+exactly — `python etl/pipeline.py --offline --no-manual --check`.
+
+> **This check will currently fail if pushed.** As of 13 September 2026, `public/data/` is the
+> output of a full real run (manual sources included, network reachable), not the offline/no-manual
+> seed fallback this check compares against — confirmed locally, it reports all five data files as
+> differing. This is a direct, known consequence of shipping real data (see the section above) and
+> hasn't been reconciled yet: either the check needs to start validating against a full run instead
+> of the offline fallback, or it needs a documented reason to keep checking the fallback path
+> specifically while the real data legitimately diverges from it. Worth resolving before the next
+> push to `main`, not something to be surprised by in CI.
 
 [`refresh-data.yml`](.github/workflows/refresh-data.yml) runs on the 3rd of each month and on
 demand. It runs the pipeline, validates the output with the app's own test suite, and opens a pull
@@ -156,15 +190,17 @@ These cannot be done from code and are yours to do in the browser.
 2. **Repo settings → Pages → Custom domain: `mineralflows.com`**, then tick **Enforce HTTPS** once
    the certificate is issued (up to an hour after DNS resolves).
 3. **Add the DNS records below** at your registrar, before step 2.
-4. **Take the raw TiCM extracts out, once real trade data is shipping.** See below — this one is
-   deferred on purpose, not forgotten.
+4. **Take the raw TiCM extracts out — the trigger condition below fired on 13 September 2026.**
+   Real trade data is now shipping and shown (see the data section above), which is one of the
+   three conditions this was waiting on. Not yet done; see below for the reasoning and the order to
+   do it in.
 
-#### Before this runs on real data: the raw TiCM extracts
+#### The raw TiCM extracts: due for removal, not yet actioned
 
 `etl/raw/manual/adb-wto-ticm/` holds 24 MB of raw bilateral trade CSVs, about 130,000 rows straight
-out of critmin.org. **They are committed deliberately for now**, while the app runs on seed data and
-the project is not being shown to anyone. Leaving them there is what keeps the monthly refresh able
-to produce real flows without a human in the loop.
+out of critmin.org. They were committed deliberately while the app ran on seed data, so the monthly
+refresh could produce real flows without a human in the loop — that reason no longer holds, now that
+real data has shipped once already.
 
 The reason to revisit it later is not the ADB-WTO licence, which permits exactly this: non-commercial
 reuse with attribution. It is the clause underneath. TiCM is a middleman — most of these numbers
@@ -181,7 +217,8 @@ here permits.
 So the trigger is not a date, it is a state: **when this repo stops being a private scratch project.**
 Whichever of these comes first —
 
-- real trade data has shipped to `public/data/` and the site is showing it,
+- ✅ **real trade data has shipped to `public/data/` and the site is showing it** — happened
+  13 September 2026,
 - the repo is being shown to anyone outside the project, or
 - anything here starts earning money, which needs clearance from ADB and the WTO regardless.
 
@@ -232,10 +269,14 @@ The CNAME target has no repository name in it. Verify the A record IPs against
 <https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site>
 before relying on them; GitHub has changed them before.
 
-## Adding a fifth mineral
+## Reactivating lithium, cobalt, or rare earths — or adding a fifth mineral
 
-Add a row to [`etl/config/minerals.json`](etl/config/minerals.json) with its HS codes and the stage
-each code represents, add its source spellings to
+The app is currently scoped to copper only (see the top of this file). To bring back one of the
+other three, which are already fully configured: flip its `"active"` field to `true` in
+[`etl/config/minerals.json`](etl/config/minerals.json) and re-run the pipeline. Nothing else changes.
+
+To add a genuinely new, fifth mineral: add a row to `etl/config/minerals.json` with its HS codes and
+the stage each code represents, add its source spellings to
 [`etl/config/commodity_aliases.json`](etl/config/commodity_aliases.json), give it a price series in
 [`etl/config/usgs_price_series.json`](etl/config/usgs_price_series.json), and run the pipeline. No
 component branches on a mineral id, and no source module knows what copper is.

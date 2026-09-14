@@ -158,7 +158,7 @@ const BORDER_COLOR = LAND_STROKE
 const BORDER_BASE_ALPHA = 0.22
 /** Alpha on the far side, as a fraction of BORDER_BASE_ALPHA. Never fully
  *  zero — the point is a smooth fade, not a second hard edge. */
-const BORDER_FAR_FLOOR = 0.16
+const BORDER_FAR_FLOOR = 0.07
 
 const BORDER_VERTEX_SHADER = /* glsl */ `
   varying vec3 vWorld;
@@ -219,6 +219,34 @@ function buildBorderGeometry(globe: GlobeMethods): BufferGeometry {
   geometry.setAttribute('position', new Float32BufferAttribute(positions, 3))
   return geometry
 }
+
+/**
+ * The same facing fade as the borders, applied instead to facility points —
+ * see the effect below that patches globe.gl's own point materials with
+ * this. Unlike the border and arc shaders, points keep normal (not
+ * additive) blending and real depth testing: 1,229 of them is enough that
+ * additive stacking would repeat the same overexposure the borders and arcs
+ * both hit at full density, and the existing hard cutoff on the true far
+ * side already works, so there is nothing here to replace, only to add to.
+ */
+const POINT_VERTEX_SHADER = /* glsl */ `
+  varying vec3 vWorld;
+  void main() {
+    vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`
+const POINT_FRAGMENT_SHADER = /* glsl */ `
+  uniform vec3 uColor;
+  uniform float uOpacity;
+  varying vec3 vWorld;
+  void main() {
+    vec3 normalW = normalize(vWorld);
+    vec3 viewDir = normalize(cameraPosition - vWorld);
+    float facing = smoothstep(-0.15, 0.35, dot(normalW, viewDir));
+    gl_FragColor = vec4(uColor, uOpacity * mix(0.12, 1.0, facing));
+  }
+`
 
 /**
  * Arcs are custom `TubeGeometry` meshes rather than a globe.gl layer, for the
@@ -550,6 +578,78 @@ export function GlobeCanvas({
     },
     [highlighted],
   )
+
+  /**
+   * Facility points still come from globe.gl's own `pointsData` layer (per
+   * the rebuild plan, unchanged) and are still fully hidden on the true far
+   * side by the globe's own depth test — that part already works. What they
+   * did not have is the graceful dim-toward-the-edge the borders and arcs
+   * now get, so a cluster of points near the horizon looked untouched next
+   * to lines that were already fading. This patches each point's material
+   * with the same facing formula, layered on top of the existing hard cutoff
+   * rather than replacing it — depthTest/depthWrite stay on, so a genuinely
+   * far-side point is still fully hidden; this only dims the ones that pass.
+   *
+   * globe.gl shares one material per distinct (colour, opacity) pair across
+   * every point that uses it, rather than one material per point — visible
+   * directly in the scene graph (551 low-confidence points on one material
+   * instance). Replacing per-mesh would just make 1,229 shader materials
+   * instead of the handful globe.gl already collapsed to, so this preserves
+   * that sharing by keying replacements on the material being replaced.
+   */
+  useEffect(() => {
+    const replacements = new Map<object, ShaderMaterial>()
+
+    const patchPointMaterials = () => {
+      const globe = globeRef.current
+      if (globe) {
+        globe.scene().traverse((obj) => {
+          const mesh = obj as unknown as {
+            type?: string
+            geometry?: { type?: string }
+            material?: {
+              type?: string
+              color?: { getHex: () => number }
+              opacity?: number
+            }
+          }
+          if (mesh.type !== 'Mesh' || mesh.geometry?.type !== 'CylinderGeometry') return
+          const material = mesh.material
+          if (!material || material.type !== 'MeshLambertMaterial' || !material.color) return
+
+          let shader = replacements.get(material)
+          if (!shader) {
+            shader = new ShaderMaterial({
+              uniforms: {
+                uColor: { value: new Color(material.color.getHex()) },
+                uOpacity: { value: material.opacity ?? 1 },
+              },
+              vertexShader: POINT_VERTEX_SHADER,
+              fragmentShader: POINT_FRAGMENT_SHADER,
+              transparent: true,
+              depthWrite: true,
+              depthTest: true,
+            })
+            replacements.set(material, shader)
+          }
+          ;(obj as unknown as { material: ShaderMaterial }).material = shader
+        })
+      }
+      raf = requestAnimationFrame(patchPointMaterials)
+    }
+
+    // A dependency-array effect would need to fire again the moment
+    // `globeRef.current` becomes available, but GlobeCanvas only mounts once
+    // the dataset is already loaded — `points` is populated from the very
+    // first render and never changes identity to naturally re-trigger one.
+    // Polling every frame sidesteps that timing question entirely, and costs
+    // almost nothing once patched: an already-converted material fails the
+    // `MeshLambertMaterial` check immediately. It also keeps catching newly
+    // appearing Lambert materials as globe.gl creates them (e.g. a fresh
+    // highlight colour), which a one-shot effect would miss.
+    let raf = requestAnimationFrame(patchPointMaterials)
+    return () => cancelAnimationFrame(raf)
+  }, [])
 
   /**
    * Rebuilds every arc mesh whenever the filtered set changes. Each gets its
