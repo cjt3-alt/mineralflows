@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-14T00:30:38Z",
+  "generated_at": "2026-10-03T11:02:41Z",
   "schema_version": "1.0.0",
   "sources": [
     {
@@ -7,7 +7,7 @@
       "name": "ADB-WTO Trade in Critical Minerals database",
       "url": "https://critmin.org",
       "vintage": "2024",
-      "retrieved_at": "2026-08-31",
+      "retrieved_at": "2026-09-14",
       "coverage": "500 flows for 2024, the largest 500 per mineral by value out of 3740 found. Bilateral trade by HS code, aggregated to one flow per mineral, country pair and supply-chain stage. Direction follows the exporter's report; pairs with no export row are filled from the importer's mirror and marked low confidence. Values are traded values, not estimates."
     },
     {
@@ -15,7 +15,7 @@
       "name": "ICMM Global Mining Dataset",
       "url": "https://www.icmm.com/en-gb/research/social-performance/2025/global-mining-dataset",
       "vintage": "v1.5",
-      "retrieved_at": "2026-08-31",
+      "retrieved_at": "2026-09-14",
       "coverage": "1229 facility records across 1229 site-stages, of which 551 are low confidence. Geocoded mines, plants, smelters and refineries, with ICMM's own confidence rating carried through. A site that does more than one thing appears once per stage at the same coordinates."
     },
     {
@@ -31,7 +31,7 @@
       "name": "World Bank country API",
       "url": "https://datahelpdesk.worldbank.org/knowledgebase/articles/898590-country-api-queries",
       "vintage": "current",
-      "retrieved_at": "2026-09-13",
+      "retrieved_at": "2026-10-03",
       "coverage": "211 countries. Capital-city coordinates used as country-level arc endpoints, plus the canonical country names the ETL matches source spellings against. Not polygon centroids."
     },
     {
@@ -39,7 +39,7 @@
       "name": "World Bank Commodity Markets Pink Sheet",
       "url": "https://www.worldbank.org/en/research/commodity-markets",
       "vintage": "2023-2024 annual averages",
-      "retrieved_at": "2026-09-13",
+      "retrieved_at": "2026-10-03",
       "coverage": "Annual averages of the monthly Pink Sheet series, in US dollars per tonne. Covers copper."
     }
   ]
