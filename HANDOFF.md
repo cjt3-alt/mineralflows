@@ -44,6 +44,16 @@ preserved on the `backup/pre-redesign` branch and the `pre-redesign-2026-10-11` 
   with limits, double-tap zoom, +/−/reset buttons, and auto-rotate only as an idle screensaver.
   All the constants and rules are in `src/components/cameraDynamics.ts`, with tests. The drag feel
   (`GRAB_GAIN`, `DAMPING`) was verified numerically in a headless browser, not by hand on a phone.
+- **Visual polish pass (`design/polish` branch).** Dot-matrix land painted into the surface texture
+  (dots evenly spaced on the sphere, not the texture), a globe shader with a camera-relative key
+  light and a fresnel rim, arcs as a thin core plus an additive halo with an exporter-to-importer
+  colour ramp, a comet on its own phase per arc, a largest-first staggered draw-in, eased
+  highlight and dim, landing pulses at the top ten importers, glowing smelter and refinery points,
+  and a lighter interface (hairline-divided headline numbers, borderless layer switches, glass
+  panels). Knobs: `DOT_SPACING_DEG`, `RIM_COLOR` and the rim maths in `GLOBE_FRAGMENT_SHADER`,
+  `ARC_RADIUS_SCALE`, `ARC_HALO_SCALE`, `ARC_STAGGER_MS`, `ARC_COMET_SPEED`, `PULSE_COUNT`,
+  `POINT_SPRITE_SCALE`. The globe shader output is sRGB-encoded, so small linear values read
+  bright; that is why the rim is confined to the outer band.
 - **Tuning knobs** now live at the top of `GlobeCanvas.tsx`: `HOME_VIEW`, `FILL`, the `OCEAN`/`LAND`
   texture colours, `BORDER_BASE_ALPHA`, the arc `base` alpha in `ARC_FRAGMENT_SHADER`,
   `ARC_RADIUS_SCALE`, and `POINT_REFERENCE_DISTANCE`. Stage shades are `stageShade` in `derive.ts`.

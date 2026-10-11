@@ -75,10 +75,10 @@ function Section({ index, title, children, aside }: { index: string; title: stri
 
 function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="border border-line bg-surface-raised/60 px-2.5 py-2">
+    <div className="px-3 py-3">
       <dt className="hud-label text-muted">{label}</dt>
-      <dd className="mt-0.5 font-display text-xl leading-tight font-medium text-ink">{value}</dd>
-      {sub && <dd className="hud-label mt-0.5 text-muted">{sub}</dd>}
+      <dd className="mt-1 font-display text-[1.65rem] leading-none font-medium tracking-tight text-ink">{value}</dd>
+      {sub && <dd className="mt-1.5 text-xs text-muted">{sub}</dd>}
     </div>
   )
 }
@@ -103,21 +103,16 @@ function LayerRow({
       aria-checked={on}
       onClick={onClick}
       className={
-        'group flex w-full items-center gap-2.5 border px-2 py-1.5 text-left transition-colors ' +
-        (on ? 'border-line bg-surface-raised/50 text-ink' : 'border-transparent text-muted hover:text-dim')
+        'group relative flex w-full items-center gap-3 py-1.5 pr-1 pl-3 text-left transition-colors hover:bg-white/[0.025] ' +
+        (on ? 'text-ink' : 'text-muted hover:text-dim')
       }
-      style={{ borderRadius: 'var(--mf-radius)' }}
     >
       <span
         aria-hidden="true"
         className={
-          'flex h-3.5 w-3.5 shrink-0 items-center justify-center border ' +
-          (on ? 'border-accent/70' : 'border-line-strong')
+          'absolute top-1.5 bottom-1.5 left-0 w-[2px] transition-colors ' + (on ? 'bg-accent' : 'bg-line-strong')
         }
-        style={{ borderRadius: '1px' }}
-      >
-        {on && <span className="h-1.5 w-1.5 bg-accent" />}
-      </span>
+      />
       <span className="flex w-7 shrink-0 items-center justify-center" style={{ opacity: on ? 1 : 0.35 }}>
         {swatch}
       </span>
@@ -128,15 +123,31 @@ function LayerRow({
 }
 
 function Dot({ color, size }: { color: string; size: number }) {
-  return <span className="inline-block rounded-full" style={{ width: size, height: size, backgroundColor: color }} />
+  // The same soft glow the globe gives smelters and refineries, scaled with size.
+  return (
+    <span
+      className="inline-block rounded-full"
+      style={{ width: size, height: size, backgroundColor: color, boxShadow: `0 0 ${size - 3}px ${color}` }}
+    />
+  )
 }
 
 function Line({ color, thickness }: { color: string; thickness: number }) {
-  return <span className="inline-block w-7" style={{ height: thickness, backgroundColor: color }} />
+  // Dim at the exporter end, bright where it lands, like the arcs.
+  return (
+    <span
+      className="inline-block w-7 rounded-full"
+      style={{
+        height: thickness,
+        background: `linear-gradient(90deg, color-mix(in srgb, ${color} 45%, black), ${color} 70%, color-mix(in srgb, ${color} 55%, #ffdcb4))`,
+        boxShadow: `0 0 4px color-mix(in srgb, ${color} 50%, transparent)`,
+      }}
+    />
+  )
 }
 
 const DOT_SIZE: Record<Stage, number> = { mine: 5, process: 8, refine: 10 }
-const LINE_THICKNESS: Record<Stage, number> = { mine: 3, process: 3, refine: 3 }
+const LINE_THICKNESS: Record<Stage, number> = { mine: 2, process: 2, refine: 2 }
 
 function CountrySearch({
   countries,
@@ -231,7 +242,7 @@ export function FilterRail(props: FilterRailProps) {
   return (
     <>
       <Section index="01" title="Overview">
-        <dl className="grid grid-cols-2 gap-2">
+        <dl className="-mx-3 grid grid-cols-2 [&>*:nth-child(-n+2)]:border-b [&>*:nth-child(-n+2)]:border-line [&>*:nth-child(even)]:border-l [&>*:nth-child(even)]:border-line">
           <Kpi label="Trade value" value={formatUsd(overview.tradeUsd)} sub={focusCountry ? name(focusCountry) : 'All flows'} />
           <Kpi label="Flows drawn" value={String(overview.flowsDrawn)} sub={`of ${overview.flowsTotal}`} />
           <Kpi label="Sites" value={overview.sites.toLocaleString('en-US')} sub="Mines to refineries" />
@@ -271,7 +282,7 @@ export function FilterRail(props: FilterRailProps) {
       </Section>
 
       <Section index="03" title="Sites">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col">
           {STAGES.map((s) => (
             <LayerRow
               key={s}
@@ -290,7 +301,7 @@ export function FilterRail(props: FilterRailProps) {
       </Section>
 
       <Section index="04" title="Flows">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col">
           {STAGES.map((k) => (
             <LayerRow
               key={k}

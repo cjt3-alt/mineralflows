@@ -84,12 +84,16 @@ body {
   color: var(--mf-accent);
 }
 
-/* Panels float over the stage like instrument glass. */
+/* Panels float over the stage like instrument glass: a faint vertical
+   gradient, a hairline of light along the top edge, and a soft drop. */
 .panel {
-  background: var(--mf-glass);
-  border: 1px solid var(--mf-line-strong);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: linear-gradient(180deg, rgba(14, 22, 33, 0.82) 0%, rgba(6, 10, 16, 0.86) 100%);
+  border: 1px solid rgba(120, 160, 200, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(160, 220, 255, 0.07),
+    0 18px 40px -12px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
 }
 
 /* Bracketed corners: the reticle around the globe stage and around panels. */
@@ -124,23 +128,32 @@ body {
   border-bottom: 1px solid;
 }
 
-/* The globe stage: a faint grid and a vignette, so the sphere sits in a room. */
+/* The globe stage: a faint grid, a cool glow behind the sphere and a vignette
+   toward the edges, so the globe sits in a lit room rather than on a void. */
 .stage {
   background:
-    radial-gradient(ellipse at center, rgba(20, 40, 58, 0.35) 0%, rgba(3, 6, 10, 0) 60%),
+    radial-gradient(circle at 55% 50%, rgba(40, 120, 150, 0.16) 0%, rgba(3, 6, 10, 0) 42%),
+    radial-gradient(ellipse at center, rgba(3, 6, 10, 0) 55%, rgba(0, 0, 0, 0.55) 100%),
     linear-gradient(rgba(90, 216, 240, 0.025) 1px, transparent 1px) 0 0 / 48px 48px,
     linear-gradient(90deg, rgba(90, 216, 240, 0.025) 1px, transparent 1px) 0 0 / 48px 48px,
     var(--mf-void);
 }
 
 .tooltip {
+  transition:
+    left 70ms ease-out,
+    right 70ms ease-out,
+    top 70ms ease-out;
   min-width: 13rem;
   max-width: 17rem;
   padding: 0.5rem 0.625rem;
-  background: rgba(8, 13, 20, 0.94);
-  border: 1px solid var(--mf-line-strong);
+  background: linear-gradient(180deg, rgba(14, 22, 33, 0.95), rgba(7, 11, 17, 0.95));
+  border: 1px solid rgba(120, 160, 200, 0.14);
   border-left: 2px solid var(--mf-accent);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(160, 220, 255, 0.06),
+    0 10px 28px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
 }
 
 /* Toggle rows and segmented controls share one pressed state. */
@@ -184,4 +197,10 @@ body {
 dialog::backdrop {
   background: rgba(2, 4, 8, 0.72);
   backdrop-filter: blur(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tooltip {
+    transition: none;
+  }
 }

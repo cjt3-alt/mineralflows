@@ -120,9 +120,9 @@ function Header({ kicker, title, sub }: { kicker: ReactNode; title: ReactNode; s
 
 function Figure({ label, value, note }: { label: string; value: ReactNode; note?: ReactNode }) {
   return (
-    <div className="border border-line bg-surface-raised/60 px-3 py-2">
+    <div className="border-t border-line-strong pt-2.5 pb-1">
       <p className="hud-label text-muted">{label}</p>
-      <p className="font-display text-2xl leading-tight font-medium text-ink">{value}</p>
+      <p className="mt-1 font-display text-[1.75rem] leading-none font-medium tracking-tight text-ink">{value}</p>
       {note && <p className="mt-0.5 text-xs text-muted">{note}</p>}
     </div>
   )
@@ -344,7 +344,7 @@ function CountryDetail({
     <>
       <Header kicker={'Country dossier · ' + summary.iso3} title={name} sub="All flows matching the current filters" />
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-4">
         <Figure label="Exports" value={formatUsd(summary.exportsUsd)} note={formatShare(summary.shareOfExports) + ' of world flows'} />
         <Figure label="Imports" value={formatUsd(summary.importsUsd)} note={formatShare(summary.shareOfImports) + ' of world flows'} />
       </div>

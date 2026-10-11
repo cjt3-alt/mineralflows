@@ -35,8 +35,8 @@ export function Legend({
   const steps = [maxValueUsd / 100, maxValueUsd / 10, maxValueUsd].filter((v) => v > 0)
 
   return (
-    <div className="panel pointer-events-auto w-60 px-3 py-2.5">
-      <p className="hud-label mb-2 text-dim">Legend</p>
+    <div className="panel pointer-events-auto w-52 px-3 py-2.5">
+      <p className="hud-label mb-2 text-muted">Flow value</p>
       {steps.length > 0 ? (
         <div className="flex flex-col gap-1.5">
           {steps
@@ -46,11 +46,15 @@ export function Legend({
               const t = valueScaleFraction(value, maxValueUsd)
               return (
                 <div key={value} className="flex items-center gap-2">
-                  <span className="flex w-10 items-center">
+                  <span className="flex w-8 items-center">
                     <span
                       aria-hidden="true"
-                      className="inline-block w-10"
-                      style={{ height: SWATCH_MIN_PX + (SWATCH_MAX_PX - SWATCH_MIN_PX) * t + 'px', backgroundColor: color }}
+                      className="inline-block w-8 rounded-full"
+                      style={{
+                        height: SWATCH_MIN_PX + (SWATCH_MAX_PX - SWATCH_MIN_PX) * t + 'px',
+                        background: `linear-gradient(90deg, color-mix(in srgb, ${color} 50%, black), ${color}, #ffe2bd)`,
+                        boxShadow: `0 0 ${2 + 6 * t}px color-mix(in srgb, ${color} 55%, transparent)`,
+                      }}
                     />
                   </span>
                   <span className="font-mono text-xs text-dim">{formatUsd(value)}</span>
@@ -62,12 +66,12 @@ export function Legend({
         <p className="text-xs text-muted">No flows match these filters. Sites still show.</p>
       )}
 
-      <div className="mt-2.5 flex flex-col gap-1 border-t border-line pt-2 text-xs text-muted">
+      <div className="mt-2 flex flex-col gap-1 border-t border-line pt-2 text-xs text-muted">
         {hasLowConfidenceFlows && (
           <p className="flex items-center gap-2">
             <span
               aria-hidden="true"
-              className="inline-block h-0 w-10 border-t-2 border-dashed"
+              className="inline-block h-0 w-8 border-t-2 border-dashed"
               style={{ borderColor: color }}
             />
             Importer-reported only

@@ -10,7 +10,6 @@ import {
   Float32BufferAttribute,
   LineSegments,
   Mesh,
-  MeshBasicMaterial,
   NormalBlending,
   Points,
   ShaderMaterial,
@@ -84,12 +83,16 @@ export interface GlobeCanvasProps {
 
 /** The interface accent: selection, hover and the keyboard cursor. Never data. */
 const ACCENT = '#5ad8f0'
-const OCEAN = '#04070c'
-const LAND = '#15222f'
-const GRATICULE = 'rgba(90, 216, 240, 0.09)'
-const GRATICULE_MAJOR = 'rgba(90, 216, 240, 0.18)'
-const BORDER_COLOR = '#8aa2bf'
-const ATMOSPHERE_COLOR = '#2a7a92'
+const OCEAN = '#050a11'
+/** A barely-lifted fill under the land dots, so coastlines still read as shapes. */
+const LAND_UNDERFILL = '#0a1520'
+const LAND_DOT = '#4a7391'
+const GRATICULE = 'rgba(90, 216, 240, 0.06)'
+const GRATICULE_MAJOR = 'rgba(90, 216, 240, 0.13)'
+const BORDER_COLOR = '#7f9ab8'
+const ATMOSPHERE_COLOR = '#3fb3d1'
+/** The sphere's edge glow, seen as an atmosphere from orbit. */
+const RIM_COLOR = '#4cc3e0'
 
 /* ------------------------------------------------------------------ framing */
 
@@ -98,40 +101,74 @@ const HOME_VIEW = { lat: 8, lng: 150 }
 
 /* ------------------------------------------------------------- land texture */
 
+/** Spacing of the land dot matrix, in degrees of arc, and each dot's radius. */
+const DOT_SPACING_DEG = 0.72
+const DOT_RADIUS_DEG = 0.2
+
 /**
- * The sphere's own surface: dark water, slightly lifted land, and a faint
- * targeting grid every 15 degrees. Painted once onto an equirectangular canvas
- * from the same country rings the borders use. Natural Earth splits shapes at
- * the antimeridian, so no ring needs unwrapping.
+ * The sphere's own surface: dark water, a faint targeting grid every 15
+ * degrees, and land drawn as a dot matrix, the signature look of an
+ * operations globe. Painted once onto an equirectangular canvas from the same
+ * country rings the borders use; Natural Earth splits shapes at the
+ * antimeridian, so no ring needs unwrapping.
+ *
+ * The dots are spaced evenly on the sphere, not on the texture: each row's
+ * longitude step widens by 1/cos(latitude), and each dot is drawn as an
+ * ellipse stretched by the same factor, so after the texture wraps the globe
+ * every dot is round and the grid is even from the equator to the poles.
  */
 function makeSurfaceTexture(): CanvasTexture {
   const width = 4096
   const height = 2048
+  const x = (lng: number) => ((lng + 180) / 360) * width
+  const y = (lat: number) => ((90 - lat) / 180) * height
+
+  const traceLand = (ctx: CanvasRenderingContext2D, sx: (lng: number) => number, sy: (lat: number) => number) => {
+    for (const shape of COUNTRY_SHAPES) {
+      for (const polygon of shape.polygons) {
+        ctx.beginPath()
+        for (const ring of polygon) {
+          ring.forEach(([lng, lat], i) => (i === 0 ? ctx.moveTo(sx(lng), sy(lat)) : ctx.lineTo(sx(lng), sy(lat))))
+          ctx.closePath()
+        }
+        ctx.fill('evenodd')
+      }
+    }
+  }
+
+  // A low-resolution land mask to sample the dot grid against.
+  const maskW = 1440
+  const maskH = 720
+  const mask = document.createElement('canvas')
+  mask.width = maskW
+  mask.height = maskH
+  const mctx = mask.getContext('2d', { willReadFrequently: true })!
+  mctx.fillStyle = '#fff'
+  traceLand(
+    mctx,
+    (lng) => ((lng + 180) / 360) * maskW,
+    (lat) => ((90 - lat) / 180) * maskH,
+  )
+  const maskData = mctx.getImageData(0, 0, maskW, maskH).data
+  const isLand = (lat: number, lng: number) => {
+    const mx = Math.min(maskW - 1, Math.max(0, Math.floor(((lng + 180) / 360) * maskW)))
+    const my = Math.min(maskH - 1, Math.max(0, Math.floor(((90 - lat) / 180) * maskH)))
+    return maskData[(my * maskW + mx) * 4]! > 127
+  }
+
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext('2d')!
-  const x = (lng: number) => ((lng + 180) / 360) * width
-  const y = (lat: number) => ((90 - lat) / 180) * height
 
   ctx.fillStyle = OCEAN
   ctx.fillRect(0, 0, width, height)
+  ctx.fillStyle = LAND_UNDERFILL
+  traceLand(ctx, x, y)
 
-  ctx.fillStyle = LAND
-  for (const shape of COUNTRY_SHAPES) {
-    for (const polygon of shape.polygons) {
-      ctx.beginPath()
-      for (const ring of polygon) {
-        ring.forEach(([lng, lat], i) => (i === 0 ? ctx.moveTo(x(lng), y(lat)) : ctx.lineTo(x(lng), y(lat))))
-        ctx.closePath()
-      }
-      ctx.fill('evenodd')
-    }
-  }
-
+  ctx.lineWidth = 2
   for (let lng = -180; lng <= 180; lng += 15) {
     ctx.strokeStyle = lng % 90 === 0 ? GRATICULE_MAJOR : GRATICULE
-    ctx.lineWidth = 2
     ctx.beginPath()
     ctx.moveTo(x(lng), 0)
     ctx.lineTo(x(lng), height)
@@ -139,17 +176,83 @@ function makeSurfaceTexture(): CanvasTexture {
   }
   for (let lat = -75; lat <= 75; lat += 15) {
     ctx.strokeStyle = lat === 0 ? GRATICULE_MAJOR : GRATICULE
-    ctx.lineWidth = 2
     ctx.beginPath()
     ctx.moveTo(0, y(lat))
     ctx.lineTo(width, y(lat))
     ctx.stroke()
   }
 
+  const pxPerDeg = width / 360
+  ctx.fillStyle = LAND_DOT
+  for (let lat = -84; lat <= 84; lat += DOT_SPACING_DEG) {
+    const stretch = 1 / Math.max(0.08, Math.cos((lat * Math.PI) / 180))
+    const step = DOT_SPACING_DEG * stretch
+    // Offset alternate rows by half a step for a hex-like weave.
+    const start = -180 + (Math.round((lat + 90) / DOT_SPACING_DEG) % 2 ? step / 2 : 0)
+    for (let lng = start; lng < 180; lng += step) {
+      if (!isLand(lat, lng)) continue
+      ctx.beginPath()
+      ctx.ellipse(x(lng), y(lat), DOT_RADIUS_DEG * pxPerDeg * stretch, DOT_RADIUS_DEG * pxPerDeg, 0, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+
   const texture = new CanvasTexture(canvas)
   texture.colorSpace = SRGBColorSpace
-  texture.anisotropy = 4
+  texture.anisotropy = 8
   return texture
+}
+
+/* ------------------------------------------------------------------ globe */
+
+/**
+ * The sphere's material: the surface texture under a soft key light that rides
+ * with the camera (up and to the left, so the globe always reads as round and
+ * lit the same way at any rotation), plus a fresnel rim that brightens toward
+ * the silhouette like an atmosphere seen from orbit.
+ */
+const GLOBE_VERTEX_SHADER = /* glsl */ `
+  varying vec2 vUv;
+  varying vec3 vNormalV;
+  varying vec3 vViewDir;
+  void main() {
+    vUv = uv;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vNormalV = normalize(normalMatrix * normal);
+    vViewDir = normalize(-mv.xyz);
+    gl_Position = projectionMatrix * mv;
+  }
+`
+const GLOBE_FRAGMENT_SHADER = /* glsl */ `
+  uniform sampler2D uMap;
+  uniform vec3 uRim;
+  varying vec2 vUv;
+  varying vec3 vNormalV;
+  varying vec3 vViewDir;
+  void main() {
+    vec3 n = normalize(vNormalV);
+    vec3 base = texture2D(uMap, vUv).rgb;
+    vec3 light = normalize(vec3(-0.55, 0.6, 0.6));
+    float key = 0.42 + 0.78 * max(dot(n, light), 0.0);
+    float facing = max(dot(n, normalize(vViewDir)), 0.0);
+    // Output is sRGB-encoded after this, so small linear values read bright:
+    // the rim stays at zero across the face and rises only in the outer band.
+    float rim = pow(smoothstep(0.6, 1.0, 1.0 - facing), 2.0);
+    vec3 col = base * key + uRim * rim * 0.35;
+    gl_FragColor = vec4(col, 1.0);
+    #include <colorspace_fragment>
+  }
+`
+
+function makeGlobeMaterial(): ShaderMaterial {
+  return new ShaderMaterial({
+    uniforms: {
+      uMap: { value: makeSurfaceTexture() },
+      uRim: { value: new Color(RIM_COLOR) },
+    },
+    vertexShader: GLOBE_VERTEX_SHADER,
+    fragmentShader: GLOBE_FRAGMENT_SHADER,
+  })
 }
 
 /* ---------------------------------------------------------------- borders */
@@ -162,7 +265,7 @@ function makeSurfaceTexture(): CanvasTexture {
  * so the fade tracks every drag with no per-frame JS.
  */
 const BORDER_ALTITUDE = 0.001
-const BORDER_BASE_ALPHA = 0.34
+const BORDER_BASE_ALPHA = 0.2
 const BORDER_FAR_FLOOR = 0.05
 
 const FACING_GLSL = /* glsl */ `
@@ -240,16 +343,26 @@ const POINT_ALTITUDE = 0.004
 /** Camera distance (globe radii x 100) the point sizes in derive.ts are tuned for. */
 const POINT_REFERENCE_DISTANCE = 290
 
+/**
+ * The sprite is larger than the mark itself (`POINT_SPRITE_SCALE`), leaving
+ * room for a soft glow around smelters and refineries. Mines get almost none,
+ * so the processing sites — the chokepoints — are what the eye finds first.
+ */
+const POINT_SPRITE_SCALE = 2.6
+const POINT_CORE = (1 / POINT_SPRITE_SCALE).toFixed(4)
+
 const POINT_VERTEX_SHADER = /* glsl */ `
   attribute vec3 aColor;
   attribute float aSize;
   attribute float aState;
   attribute float aLow;
+  attribute float aGlow;
   uniform float uPixelRatio;
   varying vec3 vColor;
   varying float vAlpha;
   varying float vLow;
   varying float vHi;
+  varying float vGlow;
   ${FACING_GLSL}
   void main() {
     vec4 world = modelMatrix * vec4(position, 1.0);
@@ -257,13 +370,14 @@ const POINT_VERTEX_SHADER = /* glsl */ `
     float hi = aState > 1.5 ? 1.0 : 0.0;
     float dim = (aState > 0.5 && aState < 1.5) ? 1.0 : 0.0;
     float scale = clamp(${POINT_REFERENCE_DISTANCE.toFixed(1)} / -mv.z, 0.6, 3.0);
-    gl_PointSize = aSize * uPixelRatio * scale * (hi > 0.5 ? 2.2 : 1.0);
+    gl_PointSize = aSize * ${POINT_SPRITE_SCALE.toFixed(2)} * uPixelRatio * scale * (hi > 0.5 ? 1.6 : 1.0);
     gl_Position = projectionMatrix * mv;
     vColor = aColor;
     vLow = aLow;
     vHi = hi;
-    float base = aLow > 0.5 ? 0.6 : 0.95;
-    vAlpha = base * mix(0.15, 1.0, facingOf(world.xyz)) * (dim > 0.5 ? 0.18 : 1.0);
+    vGlow = aGlow;
+    float base = aLow > 0.5 ? 0.65 : 1.0;
+    vAlpha = base * mix(0.15, 1.0, facingOf(world.xyz)) * (dim > 0.5 ? 0.16 : 1.0);
   }
 `
 const POINT_FRAGMENT_SHADER = /* glsl */ `
@@ -272,20 +386,30 @@ const POINT_FRAGMENT_SHADER = /* glsl */ `
   varying float vAlpha;
   varying float vLow;
   varying float vHi;
+  varying float vGlow;
   void main() {
     float d = length(gl_PointCoord - 0.5) * 2.0;
     if (d > 1.0) discard;
-    float a = vLow > 0.5
-      ? smoothstep(0.45, 0.6, d) * (1.0 - smoothstep(0.82, 1.0, d))
-      : 1.0 - smoothstep(0.72, 1.0, d);
+    float r = d / ${POINT_CORE};
     vec3 col = vColor;
-    if (vHi > 0.5) {
-      float core = 1.0 - smoothstep(0.32, 0.42, d);
-      float ring = smoothstep(0.7, 0.78, d) * (1.0 - smoothstep(0.9, 1.0, d));
-      col = mix(uAccent, vec3(1.0), core * 0.6);
-      a = max(core, ring);
+    float a;
+    if (vLow > 0.5) {
+      a = smoothstep(0.5, 0.65, r) * (1.0 - smoothstep(0.85, 1.0, r));
+    } else {
+      float core = 1.0 - smoothstep(0.78, 1.0, r);
+      // A hot centre, then the mark's own colour, then a soft falloff of light.
+      col = mix(vColor, mix(vColor, vec3(1.0, 0.95, 0.88), 0.55), 1.0 - smoothstep(0.0, 0.5, r));
+      float glow = vGlow * 0.5 * exp(-max(r - 1.0, 0.0) * 1.9) * (1.0 - smoothstep(2.2, 2.6, r));
+      a = max(core, glow);
     }
-    gl_FragColor = vec4(col, a * vAlpha);
+    if (vHi > 0.5) {
+      float ring = smoothstep(1.45, 1.6, r) * (1.0 - smoothstep(1.75, 1.9, r));
+      col = mix(col, uAccent, ring);
+      a = max(a, ring);
+    }
+    a *= vAlpha;
+    if (a < 0.004) discard;
+    gl_FragColor = vec4(col, a);
   }
 `
 
@@ -304,6 +428,7 @@ function buildPoints(globe: GlobeMethods, points: PointDatum[]): PointLayer {
   const colors = new Float32Array(n * 3)
   const sizes = new Float32Array(n)
   const lows = new Float32Array(n)
+  const glows = new Float32Array(n)
   const color = new Color()
   points.forEach((p, i) => {
     const c = globe.getCoords(p.lat, p.lng, POINT_ALTITUDE)
@@ -312,6 +437,7 @@ function buildPoints(globe: GlobeMethods, points: PointDatum[]): PointLayer {
     colors.set([color.r, color.g, color.b], i * 3)
     sizes[i] = p.size
     lows[i] = p.confidence === 'low' ? 1 : 0
+    glows[i] = p.stage === 'mine' ? 0.25 : p.stage === 'process' ? 0.8 : 1
   })
   // Draw mines first and refineries last, so the rarer, larger marks sit on
   // top of the mine clusters they are often surrounded by.
@@ -320,6 +446,7 @@ function buildPoints(globe: GlobeMethods, points: PointDatum[]): PointLayer {
   geometry.setAttribute('aColor', new Float32BufferAttribute(colors, 3))
   geometry.setAttribute('aSize', new Float32BufferAttribute(sizes, 1))
   geometry.setAttribute('aLow', new Float32BufferAttribute(lows, 1))
+  geometry.setAttribute('aGlow', new Float32BufferAttribute(glows, 1))
   const state = new Float32BufferAttribute(new Float32Array(n), 1)
   geometry.setAttribute('aState', state)
   const material = new ShaderMaterial({
@@ -342,31 +469,45 @@ function buildPoints(globe: GlobeMethods, points: PointDatum[]): PointLayer {
 /* ------------------------------------------------------------------- arcs */
 
 /**
- * Arcs are one `TubeGeometry` per flow with its own small material, because
- * each has its own grow-in progress, highlight and dim state. Normal blending
- * rather than additive: with depth testing off (so a flow survives past the
- * horizon) hundreds of tubes overlap at hubs like China, and additive blending
- * stacked them to solid white. Normal blending converges on the arc colour
- * instead, however many overlap.
+ * Each flow is two tubes: a thin core and a wide, faint halo drawn additively
+ * around it, so an arc reads as a line of light rather than a pipe. Each has
+ * its own small material because each has its own grow-in, comet phase,
+ * highlight and dim state.
+ *
+ * The core uses normal blending: with depth testing off (so a flow survives
+ * past the horizon) hundreds of tubes overlap at hubs like China, and additive
+ * blending stacked them to solid white. The halo is additive but faint enough
+ * that even a hub's worth of overlap only warms the air around it.
  */
 interface ArcEntry {
   arc: ArcDatum
-  mesh: Mesh
-  material: ShaderMaterial
+  core: Mesh
+  halo: Mesh | null
+  materials: ShaderMaterial[]
   /** Points along the curve in world space, for screen-space picking. */
   samples: Vector3[]
-  createdAt: number
+  /** When the grow-in starts; staggered so the largest flows draw first. */
+  startsAt: number
+  /** Highlight and dim targets; the animation loop eases the uniforms toward them. */
+  hiTarget: number
+  dimTarget: number
 }
 
-const ARC_CURVE_SEGMENTS = 48
-const ARC_TUBE_RADIAL_SEGMENTS = 6
+const ARC_CURVE_SEGMENTS = 64
+const ARC_TUBE_RADIAL_SEGMENTS = 8
 /** derive.ts widths are in globe-radius hundredths; this sets on-screen thickness. */
-const ARC_RADIUS_SCALE = 0.7
-const ARC_MIN_RADIUS = 0.16
-const ARC_GROW_MS = 900
-/** Loops per second of the bright band that travels from exporter to importer. */
-const ARC_BAND_SPEED = 0.22
+const ARC_RADIUS_SCALE = 0.42
+const ARC_MIN_RADIUS = 0.11
+/** Halo radius as a multiple of the core's. */
+const ARC_HALO_SCALE = 4.5
+const ARC_GROW_MS = 1100
+/** The whole set finishes drawing in within this, largest first. */
+const ARC_STAGGER_MS = 1600
+/** Loops per second of the comet that travels from exporter to importer. */
+const ARC_COMET_SPEED = 0.16
 const ARC_PICK_SAMPLES = 24
+/** How quickly highlight and dim ease toward their targets, per frame. */
+const ARC_STATE_EASE = 0.18
 
 function slerpVector3(a: Vector3, b: Vector3, t: number): Vector3 {
   const angle = a.angleTo(b)
@@ -393,85 +534,235 @@ function buildArcCurve(globe: GlobeMethods, arc: ArcDatum): CatmullRomCurve3 {
   return new CatmullRomCurve3(points)
 }
 
+/**
+ * `vEdge` is how squarely this bit of tube faces the camera: 1 along the
+ * middle of the line, 0 at its silhouette. Fading alpha by it gives every arc
+ * a soft edge instead of a hard-sided pipe.
+ */
 const ARC_VERTEX_SHADER = /* glsl */ `
   varying vec2 vUv;
   varying vec3 vWorld;
+  varying float vEdge;
   void main() {
     vUv = uv;
     vec4 w = modelMatrix * vec4(position, 1.0);
     vWorld = w.xyz;
-    gl_Position = projectionMatrix * viewMatrix * w;
+    vec4 mv = viewMatrix * w;
+    vec3 nV = normalize(normalMatrix * normal);
+    vEdge = abs(dot(nV, normalize(-mv.xyz)));
+    gl_Position = projectionMatrix * mv;
   }
 `
+/**
+ * `vUv.x` runs along the tube from exporter (0) to importer (1). Colour ramps
+ * from a dim, deep shade at the exporter to a warm, bright one where the
+ * material lands, so direction reads without arrows. The comet is a bright
+ * head with an exponential tail behind it, each arc on its own phase so they
+ * do not pulse in lockstep.
+ */
 const ARC_FRAGMENT_SHADER = /* glsl */ `
   uniform vec3 uColor;
   uniform vec3 uAccent;
   uniform float uGrow;
   uniform float uTime;
   uniform float uWeight;
-  uniform float uState;
+  uniform float uHi;
+  uniform float uDim;
   uniform float uLowConfidence;
-  uniform float uBandStrength;
+  uniform float uComet;
+  uniform float uPhase;
+  uniform float uHalo;
   varying vec2 vUv;
   varying vec3 vWorld;
+  varying float vEdge;
   ${FACING_GLSL}
   void main() {
     if (vUv.x > uGrow) discard;
     if (uLowConfidence > 0.5 && fract(vUv.x * 22.0) > 0.55) discard;
 
-    float hi = uState > 1.5 ? 1.0 : 0.0;
-    float dim = (uState > 0.5 && uState < 1.5) ? 1.0 : 0.0;
+    vec3 start = uColor * 0.5;
+    vec3 end = mix(uColor, vec3(1.0, 0.86, 0.66), 0.5);
+    vec3 col = mix(start, end, smoothstep(0.0, 1.0, vUv.x));
 
-    float band = 0.0;
+    float comet = 0.0;
     if (uLowConfidence < 0.5) {
-      float phase = fract(vUv.x - uTime * ${ARC_BAND_SPEED.toFixed(4)});
-      band = (1.0 - smoothstep(0.0, 0.1, abs(phase - 0.5))) * uBandStrength;
+      float head = fract(uTime * ${ARC_COMET_SPEED.toFixed(4)} + uPhase);
+      float behind = head - vUv.x;
+      if (behind < 0.0) behind += 1.0;
+      comet = exp(-behind * 16.0) * step(behind, 0.4) * uComet;
     }
+    col = mix(col, vec3(1.0, 0.96, 0.88), comet * 0.8);
+    col = mix(col, uAccent, uHi);
 
-    vec3 col = hi > 0.5 ? uAccent : uColor;
-    col = mix(col, vec3(1.0), band * 0.55);
-    float base = uLowConfidence > 0.5 ? 0.22 : 0.16 + 0.44 * uWeight;
-    if (hi > 0.5) base = 0.95;
-    if (dim > 0.5) base *= 0.16;
-    float alpha = min(1.0, base + band * 0.35 * (1.0 - dim)) * mix(0.1, 1.0, facingOf(vWorld));
-    if (alpha < 0.01) discard;
+    float soft;
+    float base;
+    if (uHalo > 0.5) {
+      soft = pow(vEdge, 2.0);
+      base = (0.035 + 0.11 * uWeight) * (1.0 + uHi * 1.5) + comet * 0.12;
+    } else {
+      soft = smoothstep(0.0, 0.55, vEdge);
+      base = uLowConfidence > 0.5 ? 0.26 : 0.32 + 0.55 * uWeight;
+      base = mix(base, 1.0, uHi) + comet * 0.45;
+    }
+    base *= mix(1.0, 0.12, uDim);
+    float alpha = min(1.0, base) * soft * mix(0.08, 1.0, facingOf(vWorld));
+    if (alpha < 0.005) discard;
     gl_FragColor = vec4(col, alpha);
   }
 `
 
-function buildArc(globe: GlobeMethods, arc: ArcDatum, reducedMotion: boolean): ArcEntry {
-  const curve = buildArcCurve(globe, arc)
-  const geometry = new TubeGeometry(
-    curve,
-    ARC_CURVE_SEGMENTS,
-    Math.max(ARC_MIN_RADIUS, arc.width * ARC_RADIUS_SCALE),
-    ARC_TUBE_RADIAL_SEGMENTS,
-    false,
-  )
-  const material = new ShaderMaterial({
+function makeArcMaterial(arc: ArcDatum, halo: boolean, reducedMotion: boolean): ShaderMaterial {
+  return new ShaderMaterial({
     uniforms: {
       uColor: { value: new Color(arc.color) },
       uAccent: { value: new Color(ACCENT) },
       uGrow: { value: reducedMotion ? 1 : 0 },
       uTime: { value: 0 },
       uWeight: { value: arc.weight },
-      uState: { value: 0 },
+      uHi: { value: 0 },
+      uDim: { value: 0 },
       uLowConfidence: { value: arc.confidence === 'low' ? 1 : 0 },
-      uBandStrength: { value: reducedMotion ? 0 : 1 },
+      uComet: { value: reducedMotion ? 0 : 1 },
+      uPhase: { value: Math.random() },
+      uHalo: { value: halo ? 1 : 0 },
     },
     vertexShader: ARC_VERTEX_SHADER,
     fragmentShader: ARC_FRAGMENT_SHADER,
     transparent: true,
     depthWrite: false,
     depthTest: false,
-    blending: NormalBlending,
+    blending: halo ? AdditiveBlending : NormalBlending,
     side: DoubleSide,
   })
-  const mesh = new Mesh(geometry, material)
+}
+
+function buildArc(globe: GlobeMethods, arc: ArcDatum, rank: number, count: number, reducedMotion: boolean): ArcEntry {
+  const curve = buildArcCurve(globe, arc)
+  const radius = Math.max(ARC_MIN_RADIUS, arc.width * ARC_RADIUS_SCALE)
+  const coreMaterial = makeArcMaterial(arc, false, reducedMotion)
+  const core = new Mesh(new TubeGeometry(curve, ARC_CURVE_SEGMENTS, radius, ARC_TUBE_RADIAL_SEGMENTS, false), coreMaterial)
   // Larger flows draw last so they sit on top of the small ones they cross.
-  mesh.renderOrder = 4 + arc.weight
-  const samples = curve.getSpacedPoints(ARC_PICK_SAMPLES)
-  return { arc, mesh, material, samples, createdAt: performance.now() }
+  core.renderOrder = 5 + arc.weight
+  const materials = [coreMaterial]
+
+  // Importer-only flows stay a plain dashed line: no halo to make them look surer than they are.
+  let halo: Mesh | null = null
+  if (arc.confidence !== 'low') {
+    const haloMaterial = makeArcMaterial(arc, true, reducedMotion)
+    // Halo and core share a phase so the comet glows where it is.
+    haloMaterial.uniforms.uPhase!.value = coreMaterial.uniforms.uPhase!.value
+    halo = new Mesh(
+      new TubeGeometry(curve, ARC_CURVE_SEGMENTS, radius * ARC_HALO_SCALE, ARC_TUBE_RADIAL_SEGMENTS, false),
+      haloMaterial,
+    )
+    halo.renderOrder = 4
+    materials.push(haloMaterial)
+  }
+
+  const delay = count > 1 ? (rank / (count - 1)) * ARC_STAGGER_MS : 0
+  return {
+    arc,
+    core,
+    halo,
+    materials,
+    samples: curve.getSpacedPoints(ARC_PICK_SAMPLES),
+    startsAt: performance.now() + delay,
+    hiTarget: 0,
+    dimTarget: 0,
+  }
+}
+
+/* --------------------------------------------------------- landing pulses */
+
+/**
+ * Where the most material lands, a soft ring ripples outward on the surface,
+ * sized by how much arrives. It makes the import hubs readable at a glance
+ * without another label. Data-coloured, never the accent.
+ */
+const PULSE_COUNT = 10
+const PULSE_COLOR = '#ffc98a'
+
+const PULSE_VERTEX_SHADER = /* glsl */ `
+  attribute float aWeight;
+  attribute float aPhase;
+  uniform float uPixelRatio;
+  varying float vWeight;
+  varying float vPhase;
+  varying float vFacing;
+  ${FACING_GLSL}
+  void main() {
+    vec4 world = modelMatrix * vec4(position, 1.0);
+    vec4 mv = viewMatrix * world;
+    float scale = clamp(290.0 / -mv.z, 0.6, 3.0);
+    gl_PointSize = (26.0 + 46.0 * aWeight) * uPixelRatio * scale;
+    gl_Position = projectionMatrix * mv;
+    vWeight = aWeight;
+    vPhase = aPhase;
+    vFacing = facingOf(world.xyz);
+  }
+`
+const PULSE_FRAGMENT_SHADER = /* glsl */ `
+  uniform vec3 uColor;
+  uniform float uTime;
+  varying float vWeight;
+  varying float vPhase;
+  varying float vFacing;
+  void main() {
+    float d = length(gl_PointCoord - 0.5) * 2.0;
+    if (d > 1.0) discard;
+    float t = fract(uTime * 0.38 + vPhase);
+    float ring = smoothstep(t - 0.12, t, d) * (1.0 - smoothstep(t, t + 0.03, d));
+    float alpha = ring * (1.0 - t) * (0.35 + 0.45 * vWeight) * vFacing;
+    if (alpha < 0.005) discard;
+    gl_FragColor = vec4(uColor, alpha);
+  }
+`
+
+interface PulseLayer {
+  object: Points
+  material: ShaderMaterial
+}
+
+function buildPulses(globe: GlobeMethods, arcs: ArcDatum[]): PulseLayer | null {
+  const byDestination = new Map<string, { lat: number; lng: number; usd: number }>()
+  for (const arc of arcs) {
+    const key = arc.flow.to_iso3
+    const entry = byDestination.get(key) ?? { lat: arc.endLat, lng: arc.endLng, usd: 0 }
+    entry.usd += arc.value.usd ?? 0
+    byDestination.set(key, entry)
+  }
+  const top = [...byDestination.values()].sort((a, b) => b.usd - a.usd).slice(0, PULSE_COUNT)
+  if (top.length === 0) return null
+  const max = top[0]!.usd
+  const positions = new Float32Array(top.length * 3)
+  const weights = new Float32Array(top.length)
+  const phases = new Float32Array(top.length)
+  top.forEach((d, i) => {
+    const c = globe.getCoords(d.lat, d.lng, 0.004)
+    positions.set([c.x, c.y, c.z], i * 3)
+    weights[i] = max > 0 ? Math.sqrt(d.usd / max) : 0
+    phases[i] = i / top.length
+  })
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3))
+  geometry.setAttribute('aWeight', new Float32BufferAttribute(weights, 1))
+  geometry.setAttribute('aPhase', new Float32BufferAttribute(phases, 1))
+  const material = new ShaderMaterial({
+    uniforms: {
+      uColor: { value: new Color(PULSE_COLOR) },
+      uTime: { value: 0 },
+      uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, 2) },
+    },
+    vertexShader: PULSE_VERTEX_SHADER,
+    fragmentShader: PULSE_FRAGMENT_SHADER,
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+  })
+  const object = new Points(geometry, material)
+  object.renderOrder = 2
+  return { object, material }
 }
 
 /* ---------------------------------------------------------------- picking */
@@ -533,6 +824,7 @@ export function GlobeCanvas({
 
   const pointLayerRef = useRef<PointLayer | null>(null)
   const arcEntriesRef = useRef<ArcEntry[]>([])
+  const pulseLayerRef = useRef<PulseLayer | null>(null)
 
   /**
    * The globe exists only after its first commit, and `points`/`arcs` are
@@ -559,10 +851,7 @@ export function GlobeCanvas({
     return () => observer.disconnect()
   }, [])
 
-  const globeMaterial = useMemo(
-    () => new MeshBasicMaterial({ map: makeSurfaceTexture(), color: new Color('#ffffff') }),
-    [],
-  )
+  const globeMaterial = useMemo(() => makeGlobeMaterial(), [])
 
   /* Borders: built once the globe exists, never rebuilt. */
   useEffect(() => {
@@ -597,16 +886,30 @@ export function GlobeCanvas({
     const globe = globeRef.current
     if (!ready || !globe) return
     const scene = globe.scene()
-    const built = arcs.map((arc) => buildArc(globe, arc, reducedMotion))
-    for (const entry of built) scene.add(entry.mesh)
+    const built = arcs.map((arc, i) => buildArc(globe, arc, i, arcs.length, reducedMotion))
+    for (const entry of built) {
+      scene.add(entry.core)
+      if (entry.halo) scene.add(entry.halo)
+    }
     arcEntriesRef.current = built
+    const pulses = reducedMotion ? null : buildPulses(globe, arcs)
+    if (pulses) scene.add(pulses.object)
+    pulseLayerRef.current = pulses
     return () => {
-      for (const { mesh, material } of built) {
-        scene.remove(mesh)
-        mesh.geometry.dispose()
-        material.dispose()
+      for (const { core, halo, materials } of built) {
+        for (const mesh of halo ? [core, halo] : [core]) {
+          scene.remove(mesh)
+          mesh.geometry.dispose()
+        }
+        for (const m of materials) m.dispose()
       }
       arcEntriesRef.current = []
+      if (pulses) {
+        scene.remove(pulses.object)
+        pulses.object.geometry.dispose()
+        pulses.material.dispose()
+      }
+      pulseLayerRef.current = null
     }
   }, [ready, arcs, reducedMotion])
 
@@ -658,13 +961,20 @@ export function GlobeCanvas({
       })
       layer.state.needsUpdate = true
     }
-    for (const { arc, material } of arcEntriesRef.current) {
-      // Writing a uniform is how a three.js material is updated; the ref holds
-      // live scene objects, not React state.
+    for (const entry of arcEntriesRef.current) {
+      // The ref holds live scene objects, not React state; the animation loop
+      // eases the uniforms toward these targets.
       // eslint-disable-next-line react-hooks/immutability
-      material.uniforms.uState!.value = isHi(arc.id) ? 2 : selectedId !== null ? 1 : 0
+      entry.hiTarget = isHi(entry.arc.id) ? 1 : 0
+      entry.dimTarget = selectedId !== null && entry.hiTarget === 0 ? 1 : 0
+      if (reducedMotion) {
+        for (const m of entry.materials) {
+          m.uniforms.uHi!.value = entry.hiTarget
+          m.uniforms.uDim!.value = entry.dimTarget
+        }
+      }
     }
-  }, [ready, points, arcs, selectedId, hoverId, externalHoverId, cursorId, focusCountry])
+  }, [ready, points, arcs, selectedId, hoverId, externalHoverId, cursorId, focusCountry, reducedMotion])
 
   /* --------------------------------------------------------------- camera */
 
@@ -723,7 +1033,8 @@ export function GlobeCanvas({
     }
     tune()
 
-    // The HUD readout updates about ten times a second, not every frame.
+    // The HUD readout updates about ten times a second, not every frame, with
+    // a trailing update so the last position of a move is always shown.
     let lastReport = 0
     let pending = 0
     const report = () => {
@@ -734,12 +1045,13 @@ export function GlobeCanvas({
     }
     const onChange = () => {
       tune()
-      if (!pending && performance.now() - lastReport > 100) pending = requestAnimationFrame(report)
+      if (pending) return
+      pending = window.setTimeout(report, Math.max(0, 100 - (performance.now() - lastReport)))
     }
     controls.addEventListener('change', onChange)
     return () => {
       controls.removeEventListener('change', onChange)
-      cancelAnimationFrame(pending)
+      window.clearTimeout(pending)
     }
   }, [ready, reducedMotion])
 
@@ -885,10 +1197,20 @@ export function GlobeCanvas({
     let raf = 0
     const tick = () => {
       const now = performance.now()
-      for (const { material, createdAt } of arcEntriesRef.current) {
-        material.uniforms.uTime!.value = now / 1000
-        material.uniforms.uGrow!.value = Math.min(1, (now - createdAt) / ARC_GROW_MS)
+      const seconds = now / 1000
+      for (const entry of arcEntriesRef.current) {
+        const t = Math.min(1, Math.max(0, (now - entry.startsAt) / ARC_GROW_MS))
+        const grow = 1 - Math.pow(1 - t, 3)
+        for (const m of entry.materials) {
+          const u = m.uniforms
+          u.uTime!.value = seconds
+          u.uGrow!.value = grow
+          u.uHi!.value += (entry.hiTarget - u.uHi!.value) * ARC_STATE_EASE
+          u.uDim!.value += (entry.dimTarget - u.uDim!.value) * ARC_STATE_EASE
+        }
       }
+      const pulses = pulseLayerRef.current
+      if (pulses) pulses.material.uniforms.uTime!.value = seconds
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
@@ -1195,7 +1517,7 @@ export function GlobeCanvas({
           showGlobe
           showAtmosphere
           atmosphereColor={ATMOSPHERE_COLOR}
-          atmosphereAltitude={0.13}
+          atmosphereAltitude={0.17}
           animateIn={!reducedMotion}
           enablePointerInteraction={false}
         />
