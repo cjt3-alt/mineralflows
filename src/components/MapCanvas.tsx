@@ -715,7 +715,10 @@ export function MapCanvas({
         const low = g.arc.confidence === 'low'
         const dimF = 1 - 0.85 * g.dim
         const width = Math.max(0.7, g.arc.width * 1.6) * zoomWidth
-        const alpha = (low ? 0.4 : 0.45 + 0.5 * g.arc.weight) * dimF
+        // Importer-reported flows are dashed, not faint: a country that publishes
+        // no trade data (Russia, in this data) should still be visible, just
+        // marked as less certain. They get no halo or comet.
+        const alpha = (low ? 0.38 + 0.45 * g.arc.weight : 0.45 + 0.5 * g.arc.weight) * dimF
         const minX = Math.min(g.a.x, g.b.x, g.c.x)
         const maxX = Math.max(g.a.x, g.b.x, g.c.x)
 
@@ -743,7 +746,7 @@ export function MapCanvas({
           const grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y)
           grad.addColorStop(0, rgba(mixHex(g.arc.color, '#000000', 0.5), alpha))
           grad.addColorStop(1, rgba(mixHex(g.arc.color, '#ffdcaa', 0.5), alpha))
-          ctx.setLineDash(low ? [3, 4] : [])
+          ctx.setLineDash(low ? [5, 4] : [])
           curve()
           ctx.strokeStyle = grad
           ctx.lineWidth = width

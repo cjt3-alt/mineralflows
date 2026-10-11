@@ -348,6 +348,19 @@ function CountryDetail({
         <Figure label="Exports" value={formatUsd(summary.exportsUsd)} note={formatShare(summary.shareOfExports) + ' of world flows'} />
         <Figure label="Imports" value={formatUsd(summary.importsUsd)} note={formatShare(summary.shareOfImports) + ' of world flows'} />
       </div>
+      {summary.exportsUsd > 0 && summary.exportsBuyerReportedUsd / summary.exportsUsd > 0.5 && (
+        <div className="mt-3">
+          <Warning>
+            {summary.exportsBuyerReportedUsd >= summary.exportsUsd * 0.995
+              ? `All of ${name}'s exports here`
+              : `${formatShare(summary.exportsBuyerReportedUsd / summary.exportsUsd)} of ${name}'s exports here`}{' '}
+            come only from its buyers&rsquo; customs records: {name} did not report them itself. They
+            show where its copper went, but treat the values as less certain, and expect trade that
+            no buyer reported to be missing entirely.
+          </Warning>
+        </div>
+      )}
+
       <p className="mt-2 text-xs text-muted">
         Net position:{' '}
         <span className={net >= 0 ? 'text-ok' : 'text-alert'}>

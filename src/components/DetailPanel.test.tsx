@@ -187,6 +187,7 @@ describe('DetailPanel', () => {
         importsUsd: 0,
         exportsByKind: { mine: 21_000_000_000, process: 0, refine: 0 },
         importsByKind: { mine: 0, process: 0, refine: 0 },
+        exportsBuyerReportedUsd: 0,
         topDestinations: [{ iso3: 'CHN', usd: 21_000_000_000 }],
         topOrigins: [],
         facilities: { mine: 3, process: 0, refine: 0 },
@@ -197,6 +198,31 @@ describe('DetailPanel', () => {
     expect(screen.getByRole('heading', { name: 'Chile' })).toBeTruthy()
     expect(screen.getByText(/net exporter/)).toBeTruthy()
     expect(screen.getByText('China')).toBeTruthy()
+    expect(screen.queryByText(/buyers/)).toBeNull()
+  })
+
+  /** A country that reports none of its own exports, as Russia in this data. */
+  it('says when a country\'s exports are known only from its buyers\' records', () => {
+    const exportsUsd = 4_000_000_000
+    renderPanel({
+      kind: 'country',
+      iso3: 'CHN',
+      summary: {
+        iso3: 'CHN',
+        exportsUsd,
+        importsUsd: 0,
+        exportsByKind: { mine: 0, process: 0, refine: exportsUsd },
+        importsByKind: { mine: 0, process: 0, refine: 0 },
+        exportsBuyerReportedUsd: exportsUsd,
+        topDestinations: [],
+        topOrigins: [],
+        facilities: { mine: 0, process: 0, refine: 0 },
+        shareOfImports: 0,
+        shareOfExports: 0.02,
+      },
+    })
+    expect(screen.getByText(/All of China's exports here/)).toBeTruthy()
+    expect(screen.getByText(/buyers.*customs records/)).toBeTruthy()
   })
 
   it('takes focus when it opens, so the keyboard lands somewhere useful', () => {

@@ -147,6 +147,12 @@ describe('summarizeCountry', () => {
     expect(s.topOrigins).toEqual([{ iso3: 'PER', usd: 200 }])
     expect(s.facilities.mine).toBe(1)
     expect(s.shareOfExports).toBe(0.8)
+    expect(s.exportsBuyerReportedUsd).toBe(0)
+  })
+
+  it('counts exports known only from buyers\' mirror reports', () => {
+    const mirrored = [flow({ id: 'm', from_iso3: 'CHL', to_iso3: 'CHN', value_usd: 300, confidence: 'low' }), ...flows]
+    expect(summarizeCountry('CHL', mirrored, [], () => undefined).exportsBuyerReportedUsd).toBe(300)
   })
 
   it('reports zeros, not NaN, for a country with no trade', () => {

@@ -451,6 +451,12 @@ export interface CountrySummary {
   /** Exports by kind, so the panel can say what a country ships, not just how much. */
   exportsByKind: Record<Stage, number>
   importsByKind: Record<Stage, number>
+  /**
+   * Exports known only from the buyers' customs records: the country itself
+   * reported none of them. When this is most of `exportsUsd`, the country's
+   * own trade reporting is missing, and the panel says so.
+   */
+  exportsBuyerReportedUsd: number
   topDestinations: Partner[]
   topOrigins: Partner[]
   facilities: Record<Stage, number>
@@ -483,6 +489,7 @@ export function summarizeCountry(
 ): CountrySummary {
   const exportsByKind = zeroByStage()
   const importsByKind = zeroByStage()
+  let exportsBuyerReportedUsd = 0
   const destinations = new Map<string, number>()
   const origins = new Map<string, number>()
   let total = 0
@@ -493,6 +500,9 @@ export function summarizeCountry(
     const kind = flowKind(flow)
     if (flow.from_iso3 === iso3) {
       exportsByKind[kind] += usd
+      // Low confidence on a flow means the exporter filed no record of it and
+      // the importer's mirror report stands in (see the TiCM source module).
+      if (flow.confidence === 'low') exportsBuyerReportedUsd += usd
       destinations.set(flow.to_iso3, (destinations.get(flow.to_iso3) ?? 0) + usd)
     }
     if (flow.to_iso3 === iso3) {
@@ -515,6 +525,7 @@ export function summarizeCountry(
     importsUsd,
     exportsByKind,
     importsByKind,
+    exportsBuyerReportedUsd,
     topDestinations: topPartners(destinations, 5),
     topOrigins: topPartners(origins, 5),
     facilities: facilityCounts,
