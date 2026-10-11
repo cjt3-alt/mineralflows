@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { geoEqualEarth, geoGraticule10, geoPath, type GeoPermissibleObjects, type GeoProjection } from 'd3-geo'
+import { geoGraticule10, geoMercator, geoPath, type GeoPermissibleObjects, type GeoProjection } from 'd3-geo'
 import { feature, mesh } from 'topojson-client'
 import countriesTopology from 'world-atlas/countries-110m.json'
 import type { Topology } from 'topojson-specification'
@@ -21,6 +21,7 @@ import {
   centreOn,
   clampView,
   fitPoints,
+  keepInView,
   quadAt,
   zoomAbout,
   type Pt,
@@ -30,8 +31,8 @@ import {
 
 /**
  * The flat map: the same data, marks and interactions as the globe, drawn on
- * a 2D canvas in the Equal Earth projection (equal-area, so no country looks
- * bigger than it is). The map is cut where the least traded value crosses
+ * a 2D canvas in the Mercator projection, the one web maps use, so it reads
+ * like the map everyone already knows. The map is cut where the least traded value crosses
  * (see `chooseSeam`), which for copper puts the Pacific in the middle.
  *
  * Two layers. A static layer — ocean, graticule, dot-matrix land, borders —
@@ -87,9 +88,13 @@ const COUNTRY_GEOMETRY = new Map<string, GeoPermissibleObjects>(
   ]),
 )
 
-/** The map is cropped to these latitudes: no copper trade happens in Antarctica. */
-const LAT_TOP = 84
-const LAT_BOTTOM = -57
+/**
+ * Mercator stretches toward the poles without limit, so the map is cropped, as
+ * web maps are: north of Svalbard, and south at Cape Horn, since no copper
+ * trade happens in Antarctica.
+ */
+const LAT_TOP = 78
+const LAT_BOTTOM = -56
 
 interface Fitted {
   projection: GeoProjection
@@ -99,12 +104,21 @@ interface Fitted {
 }
 
 function fitProjection(width: number, height: number, centralMeridian: number, pad: number): Fitted {
-  const projection = geoEqualEarth().rotate([-centralMeridian, 0]).scale(1).translate([0, 0])
-  const [[x0], [x1]] = geoPath(projection).bounds(SPHERE)
+  const projection = geoMercator().rotate([-centralMeridian, 0]).scale(1).translate([0, 0])
+  // A unit Mercator spans 2π across; the height depends on the crop.
+  const x0 = -Math.PI
+  const x1 = Math.PI
   const top = projection([centralMeridian, LAT_TOP])![1]
   const bottom = projection([centralMeridian, LAT_BOTTOM])![1]
   const s = Math.min((width - pad * 2) / (x1 - x0), (height - pad * 2) / (bottom - top))
-  projection.scale(s).translate([width / 2 - (s * (x0 + x1)) / 2, height / 2 - (s * (top + bottom)) / 2])
+  const tx = width / 2 - (s * (x0 + x1)) / 2
+  const ty = height / 2 - (s * (top + bottom)) / 2
+  projection.scale(s).translate([tx, ty])
+  // Clip to the cropped rectangle, so the "sphere" outline is the map's edge.
+  projection.clipExtent([
+    [tx + s * x0, ty + s * top],
+    [tx + s * x1, ty + s * bottom],
+  ])
   return { projection, mapW: s * (x1 - x0), mapH: s * (bottom - top) }
 }
 
@@ -804,8 +818,10 @@ export function MapCanvas({
     const ends = arcGeomRef.current.flatMap((g) =>
       g.arc.flow.from_iso3 === focusCountry ? [g.b, g.c] : g.arc.flow.to_iso3 === focusCountry ? [g.a, g.c] : [],
     )
-    const target = fitPoints([home, ...ends], visible, 70, 2.5)
-    if (target) flyTo(target, 900)
+    const fit = fitPoints([home, ...ends], visible, 70, 2.5)
+    // The country itself must end up clear of the panel, even if that pushes
+    // some far-flung partners off screen.
+    if (fit && mapRect) flyTo(clampView(keepInView(clampView(fit, visible, mapRect), home, visible), visible, mapRect), 900)
     // The arcs are read once per focus, not re-fitted when a layer toggles.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusCountry, countries, project])

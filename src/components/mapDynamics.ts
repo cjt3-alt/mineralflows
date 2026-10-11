@@ -168,3 +168,18 @@ export function fitPoints(points: Pt[], visible: Rect, margin = 60, maxK = 3): V
     { x: (visible.left + visible.right) / 2, y: (visible.top + visible.bottom) / 2 },
   )
 }
+
+/**
+ * Shift a view so a base-map point sits inside the visible area with a margin.
+ * Used after fitting a country with its partners: when the partners span the
+ * world, the fit alone can leave the country itself under a panel.
+ */
+export function keepInView(view: View, p: Pt, visible: Rect, margin = 80): View {
+  const sx = p.x * view.k + view.x
+  const sy = p.y * view.k + view.y
+  const dx =
+    sx > visible.right - margin ? visible.right - margin - sx : sx < visible.left + margin ? visible.left + margin - sx : 0
+  const dy =
+    sy > visible.bottom - margin ? visible.bottom - margin - sy : sy < visible.top + margin ? visible.top + margin - sy : 0
+  return { ...view, x: view.x + dx, y: view.y + dy }
+}

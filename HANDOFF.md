@@ -18,7 +18,7 @@ branch, built on top of `design/polish`, which swaps the globe for a flat map.
 
 - `src/components/MapCanvas.tsx` replaces `GlobeCanvas.tsx` with the same props and the same
   interactions (hover tooltips, click to select, click a country to focus, keyboard walk, +/−/reset).
-  It draws on a 2D canvas in the Equal Earth projection (d3-geo): a static layer (ocean, graticule,
+  It draws on a 2D canvas in the Mercator projection (d3-geo), cropped at 78°N and 56°S like a web map (Equal Earth was tried first; CJ preferred Mercator's familiar look): a static layer (ocean, graticule,
   dot-matrix land, borders) re-rendered only when the view settles and reused, shifted and scaled,
   while panning; and a per-frame layer (arcs with halo, colour ramp and comet, landing pulses,
   glowing sites, highlights).

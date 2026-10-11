@@ -86,9 +86,10 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
             cyan. Click a country to see only its trade and a breakdown of its position.
           </p>
           <p>
-            <span className="text-ink">The projection is Equal Earth</span>, so every country keeps its
-            true relative size, and the map is cut where the least trade crosses: for copper that puts
-            the Pacific, where the largest flows run, in the middle.
+            <span className="text-ink">The projection is Mercator</span>, the one web maps use. Like
+            every flat map it distorts: land near the poles is drawn larger than it is. The map is cut
+            where the least trade crosses, which for copper puts the Pacific, where the largest flows
+            run, in the middle.
           </p>
         </Block>
 

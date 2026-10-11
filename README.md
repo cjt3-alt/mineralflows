@@ -1,7 +1,7 @@
 # MineralFlows
 
 A static, client-only web app that visualises critical mineral supply chains on an interactive flat
-map (Equal Earth projection, centred where the trade runs): where minerals are mined, processed, and refined, and how they move between countries. Flow
+map (Mercator projection, like web maps, centred where the trade runs): where minerals are mined, processed, and refined, and how they move between countries. Flow
 lines are sized by market value, and every value derived from volume × price is labelled as an
 estimate wherever it appears. The interface is styled as an operations console: a control column of
 layers, a country search and the largest flows, a globe you can hover and click, and a dossier panel

@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { bowControl, centreOn, chooseSeam, clampView, crossesSeam, fitPoints, quadAt, wrapLng, zoomAbout } from './mapDynamics.ts'
+import {
+  bowControl,
+  centreOn,
+  chooseSeam,
+  clampView,
+  crossesSeam,
+  fitPoints,
+  keepInView,
+  quadAt,
+  wrapLng,
+  zoomAbout,
+} from './mapDynamics.ts'
 
 describe('seam', () => {
   it('knows which flows a cut would split', () => {
@@ -95,5 +106,12 @@ describe('zoom and pan', () => {
     expect(250 * v.k + v.x).toBeCloseTo(300)
     const one = fitPoints([{ x: 100, y: 100 }], screen, 50, 3)!
     expect(one.k).toBe(3)
+  })
+
+  it('slides a focused point out from under a panel, and leaves a visible one alone', () => {
+    const visible = { left: 0, top: 0, right: 620, bottom: 600 }
+    const moved = keepInView({ k: 1, x: 0, y: 0 }, { x: 900, y: 300 }, visible, 80)
+    expect(900 + moved.x).toBe(540)
+    expect(keepInView({ k: 1, x: 0, y: 0 }, { x: 300, y: 300 }, visible, 80)).toEqual({ k: 1, x: 0, y: 0 })
   })
 })
