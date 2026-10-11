@@ -183,3 +183,53 @@ export function keepInView(view: View, p: Pt, visible: Rect, margin = 80): View 
     sy > visible.bottom - margin ? visible.bottom - margin - sy : sy < visible.top + margin ? visible.top + margin - sy : 0
   return { ...view, x: view.x + dx, y: view.y + dy }
 }
+
+/* ---------------------------------------------------------------- wrapping */
+
+/**
+ * The world repeats east–west, like a web map: drag far enough and you come
+ * back round. Vertically the map is clamped to its own edges; horizontally
+ * nothing is clamped, and every drawing and picking step asks which copies of
+ * the world are on screen.
+ */
+export function clampWrapView(view: View, visible: Rect, map: Rect): View {
+  const k = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, view.k))
+  const size = (map.bottom - map.top) * k
+  const span = visible.bottom - visible.top
+  const y =
+    size <= span
+      ? (visible.top + visible.bottom) / 2 - ((map.top + map.bottom) / 2) * k
+      : Math.min(visible.top - map.top * k, Math.max(visible.bottom - map.bottom * k, view.y))
+  return { k, x: view.x, y }
+}
+
+/**
+ * Offsets (multiples of `period`) at which a span drawn at [minX, maxX] in
+ * screen pixels also appears inside [lo, hi]. With a period wider than the
+ * screen this is usually one offset, near a seam two.
+ */
+export function copyOffsets(minX: number, maxX: number, period: number, lo: number, hi: number): number[] {
+  if (!(period > 0)) return [0]
+  const first = Math.ceil((lo - maxX) / period)
+  const last = Math.floor((hi - minX) / period)
+  const out: number[] = []
+  for (let n = first; n <= last; n++) out.push(n === 0 ? 0 : n * period)
+  return out
+}
+
+/**
+ * The end of an arc moved by one world width if that makes the short way
+ * round: a flow from Chile to Europe crosses the cut instead of the whole map.
+ */
+export function shortWay(a: Pt, b: Pt, mapW: number): Pt {
+  const dx = b.x - a.x
+  if (dx > mapW / 2) return { x: b.x - mapW, y: b.y }
+  if (dx < -mapW / 2) return { x: b.x + mapW, y: b.y }
+  return b
+}
+
+/** Of a target view's repeats, the one nearest the current view, so a flight never laps the world. */
+export function nearestRepeat(target: View, current: View, mapW: number): View {
+  const n = Math.round((-current.x / current.k - -target.x / target.k) / mapW)
+  return { ...target, x: target.x - n * mapW * target.k }
+}

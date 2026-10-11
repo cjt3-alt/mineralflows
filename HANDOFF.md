@@ -25,6 +25,13 @@ branch, built on top of `design/polish`, which swaps the globe for a flat map.
 - **Where the map is cut** is chosen from the data (`chooseSeam` in `mapDynamics.ts`): among
   meridians clear of land south of 58°N, the one the least traded value crosses. For copper that is
   the Atlantic, centring the map on the Pacific at 150°E so Chile and Peru to China stay whole.
+- **Fills the panel and wraps, like a web map (GeoGuessr's guess map was the reference).** The
+  projection is fitted by height, so the cropped world (80°N to 58°S) fills the panel top to bottom
+  at zoom 1, and the world repeats east–west: panning never hits an edge, flows crossing the map's
+  cut take the short way across it (`shortWay`), and drawing and picking ask which copies are on
+  screen (`copyOffsets`). Vertical pan is clamped (`clampWrapView`). The static layer is cached with
+  a margin and re-rendered when a pan nears it; land for the dot matrix comes from a lat/lng mask
+  painted once (rings crossing the 180th meridian are unwrapped first, or they paint stripes).
 - **Panels:** an open dossier panel counts as covering the right of the map (`insetRight`), so the
   map slides out from under it and a focused country is fitted, with its partners, into what is
   visible. Pan and zoom rules are in `mapDynamics.ts` with tests.

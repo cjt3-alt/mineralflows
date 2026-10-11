@@ -6,7 +6,11 @@ import {
   clampView,
   crossesSeam,
   fitPoints,
+  clampWrapView,
+  copyOffsets,
   keepInView,
+  nearestRepeat,
+  shortWay,
   quadAt,
   wrapLng,
   zoomAbout,
@@ -113,5 +117,33 @@ describe('zoom and pan', () => {
     const moved = keepInView({ k: 1, x: 0, y: 0 }, { x: 900, y: 300 }, visible, 80)
     expect(900 + moved.x).toBe(540)
     expect(keepInView({ k: 1, x: 0, y: 0 }, { x: 300, y: 300 }, visible, 80)).toEqual({ k: 1, x: 0, y: 0 })
+  })
+})
+
+describe('wrapping', () => {
+  const screen = { left: 0, top: 0, right: 1000, bottom: 600 }
+  const map = { left: -200, top: 0, right: 1400, bottom: 600 }
+
+  it('fills the height at zoom 1 and never clamps east–west', () => {
+    expect(clampWrapView({ k: 1, x: 5000, y: 80 }, screen, map)).toEqual({ k: 1, x: 5000, y: 0 })
+    expect(clampWrapView({ k: 2, x: 0, y: 100 }, screen, map).y).toBe(0)
+    expect(clampWrapView({ k: 2, x: 0, y: -900 }, screen, map).y).toBe(-600)
+  })
+
+  it('finds every copy of the world on screen', () => {
+    expect(copyOffsets(-200, 1400, 1600, 0, 1000)).toEqual([0])
+    expect(copyOffsets(-1200, 400, 1600, 0, 1000)).toEqual([0, 1600])
+    expect(copyOffsets(0, 100, 400, 0, 1000)).toEqual([0, 400, 800])
+  })
+
+  it('takes the short way across the cut', () => {
+    expect(shortWay({ x: 1300, y: 0 }, { x: 0, y: 0 }, 1600)).toEqual({ x: 1600, y: 0 })
+    expect(shortWay({ x: 100, y: 0 }, { x: 300, y: 0 }, 1600)).toEqual({ x: 300, y: 0 })
+  })
+
+  it('flies to the nearest repeat of a target', () => {
+    const current = { k: 1, x: -3200, y: 0 }
+    const target = { k: 1, x: 100, y: 0 }
+    expect(nearestRepeat(target, current, 1600).x).toBe(-3100)
   })
 })

@@ -15,14 +15,17 @@ import { COUNTRY_SHAPES, countryAt } from '../data/geo.ts'
 import type { Country } from '../data/schema.ts'
 import { DOUBLE_TAP_MS, isDoubleTap, isTap } from './cameraDynamics.ts'
 import {
-  MAX_ZOOM,
   ZOOM_STEP,
   bowControl,
   centreOn,
-  clampView,
+  clampWrapView,
+  copyOffsets,
   fitPoints,
   keepInView,
+  nearestRepeat,
   quadAt,
+  shortWay,
+  wrapLng,
   zoomAbout,
   type Pt,
   type Rect,
@@ -32,14 +35,17 @@ import {
 /**
  * The flat map: the same data, marks and interactions as the globe, drawn on
  * a 2D canvas in the Mercator projection, the one web maps use, so it reads
- * like the map everyone already knows. The map is cut where the least traded value crosses
+ * like the map everyone already knows. Like a web map it fills its panel top
+ * to bottom and repeats east–west: drag far enough and you come back round,
+ * and a flow that crosses the map's edge takes the short way across it. The map is cut where the least traded value crosses
  * (see `chooseSeam`), which for copper puts the Pacific in the middle.
  *
  * Two layers. A static layer — ocean, graticule, dot-matrix land, borders —
- * is rendered to an offscreen canvas only when the view settles; while a pan
- * or zoom is in progress it is reused, shifted and scaled, so dragging costs
- * one bitmap copy. A dynamic layer — arcs, comets, landing pulses, sites,
- * highlights — is redrawn every frame on top.
+ * is rendered to an offscreen canvas with a margin around the viewport, only
+ * when the view settles or a pan runs past the margin; in between it is
+ * reused, shifted and scaled, so dragging costs one bitmap copy. A dynamic
+ * layer — arcs, comets, landing pulses, sites, highlights — is redrawn every
+ * frame on top.
  */
 
 export interface MapCanvasProps {
@@ -63,8 +69,7 @@ export interface MapCanvasProps {
 /* ------------------------------------------------------------------ palette */
 
 const ACCENT = '#5ad8f0'
-const SPHERE_FILL = 'rgba(9, 17, 27, 0.75)'
-const SPHERE_EDGE = 'rgba(76, 195, 224, 0.45)'
+const OCEAN_FILL = 'rgba(9, 17, 27, 0.75)'
 const GRATICULE = 'rgba(90, 216, 240, 0.06)'
 const LAND_UNDERFILL = 'rgba(14, 30, 44, 0.9)'
 const LAND_DOT = '#4a7391'
@@ -77,7 +82,6 @@ const PULSE = '255, 201, 138'
 const topology = countriesTopology as unknown as Topology
 const LAND = feature(topology, topology.objects.land!) as unknown as GeoPermissibleObjects
 const BORDERS = mesh(topology, topology.objects.countries as never, (a, b) => a !== b) as unknown as GeoPermissibleObjects
-const SPHERE: GeoPermissibleObjects = { type: 'Sphere' }
 const GRATICULE_LINES = geoGraticule10()
 
 /** Country outlines by ISO3, for the hover and focus fills. */
@@ -90,37 +94,105 @@ const COUNTRY_GEOMETRY = new Map<string, GeoPermissibleObjects>(
 
 /**
  * Mercator stretches toward the poles without limit, so the map is cropped, as
- * web maps are: north of Svalbard, and south at Cape Horn, since no copper
- * trade happens in Antarctica.
+ * web maps are. The crop is what fills the panel's height at zoom 1.
  */
-const LAT_TOP = 78
-const LAT_BOTTOM = -56
+const LAT_TOP = 80
+const LAT_BOTTOM = -58
 
 interface Fitted {
   projection: GeoProjection
-  /** The fitted map's size at zoom 1, centred in the viewport. */
+  /** Pixels per radian. */
+  s: number
+  /** Screen position of the central meridian and the equator at zoom 1. */
+  tx: number
+  ty: number
+  /** One world's width at zoom 1; the map repeats every `mapW`. */
   mapW: number
-  mapH: number
+  centralMeridian: number
 }
 
-function fitProjection(width: number, height: number, centralMeridian: number, pad: number): Fitted {
-  const projection = geoMercator().rotate([-centralMeridian, 0]).scale(1).translate([0, 0])
-  // A unit Mercator spans 2π across; the height depends on the crop.
-  const x0 = -Math.PI
-  const x1 = Math.PI
-  const top = projection([centralMeridian, LAT_TOP])![1]
-  const bottom = projection([centralMeridian, LAT_BOTTOM])![1]
-  const s = Math.min((width - pad * 2) / (x1 - x0), (height - pad * 2) / (bottom - top))
-  const tx = width / 2 - (s * (x0 + x1)) / 2
-  const ty = height / 2 - (s * (top + bottom)) / 2
-  projection.scale(s).translate([tx, ty])
-  // Clip to the cropped rectangle, so the "sphere" outline is the map's edge.
-  projection.clipExtent([
-    [tx + s * x0, ty + s * top],
-    [tx + s * x1, ty + s * bottom],
-  ])
-  return { projection, mapW: s * (x1 - x0), mapH: s * (bottom - top) }
+/** Fit by height: the cropped world exactly fills the panel top to bottom. */
+function fitProjection(width: number, height: number, centralMeridian: number): Fitted {
+  const unit = geoMercator().rotate([-centralMeridian, 0]).scale(1).translate([0, 0])
+  const top = unit([centralMeridian, LAT_TOP])![1]
+  const bottom = unit([centralMeridian, LAT_BOTTOM])![1]
+  const s = height / (bottom - top)
+  const tx = width / 2
+  const ty = -s * top
+  const projection = geoMercator()
+    .rotate([-centralMeridian, 0])
+    .scale(s)
+    .translate([tx, ty])
+    .clipExtent([
+      [tx - Math.PI * s, 0],
+      [tx + Math.PI * s, height],
+    ])
+  return { projection, s, tx, ty, mapW: 2 * Math.PI * s, centralMeridian }
 }
+
+/* ---------------------------------------------------------------- land mask */
+
+/**
+ * Land as a lat/lng bitmap, painted once, so the dot matrix can ask "is this
+ * point land?" for any view without drawing a mask per frame.
+ */
+const MASK_W = 4096
+const MASK_H = 2048
+let landMask: Uint8Array | null = null
+
+function isLand(lat: number, lng: number): boolean {
+  if (!landMask) {
+    const canvas = document.createElement('canvas')
+    canvas.width = MASK_W
+    canvas.height = MASK_H
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+    ctx.fillStyle = '#fff'
+    // A ring that crosses the 180th meridian (Russia's Chukotka, Fiji) jumps
+    // from +180 to -180 between two points; traced naively that jump draws a
+    // sliver across the whole map, which the even-odd fill turns into stripes.
+    // Unwrap each ring so it stays continuous, then paint it once in place and
+    // once a world to either side, so whatever lands past an edge comes back in.
+    for (const shape of COUNTRY_SHAPES) {
+      for (const polygon of shape.polygons) {
+        const rings = polygon.map((ring) => {
+          let prev = ring[0]?.[0] ?? 0
+          return ring.map(([x, y]) => {
+            let lng = x
+            while (lng - prev > 180) lng -= 360
+            while (lng - prev < -180) lng += 360
+            prev = lng
+            return [lng, y] as const
+          })
+        })
+        for (const shift of [-360, 0, 360]) {
+          ctx.beginPath()
+          for (const ring of rings) {
+            ring.forEach(([x, y], i) => {
+              const px = ((x + shift + 180) / 360) * MASK_W
+              const py = ((90 - y) / 180) * MASK_H
+              if (i === 0) ctx.moveTo(px, py)
+              else ctx.lineTo(px, py)
+            })
+            ctx.closePath()
+          }
+          ctx.fill('evenodd')
+        }
+      }
+    }
+    const rgba = ctx.getImageData(0, 0, MASK_W, MASK_H).data
+    landMask = new Uint8Array(MASK_W * MASK_H)
+    for (let i = 0; i < landMask.length; i++) landMask[i] = rgba[i * 4]! > 127 ? 1 : 0
+  }
+  const x = Math.min(MASK_W - 1, Math.max(0, Math.floor(((wrapLng(lng) + 180) / 360) * MASK_W)))
+  const y = Math.min(MASK_H - 1, Math.max(0, Math.floor(((90 - lat) / 180) * MASK_H)))
+  return landMask[y * MASK_W + x] === 1
+}
+
+/** Margins of the cached static layer beyond the viewport, as fractions of its size. */
+const STATIC_MARGIN_X = 0.35
+const STATIC_MARGIN_Y = 0.2
+const DOT_SPACING = 4.4
+const DOT_RADIUS = 1.05
 
 /* -------------------------------------------------------------- arc model */
 
@@ -259,7 +331,7 @@ export function MapCanvas({
   const [keyboardActive, setKeyboardActive] = useState(false)
 
   const viewRef = useRef<View>({ k: 1, x: 0, y: 0 })
-  const staticRef = useRef<{ canvas: HTMLCanvasElement; view: View } | null>(null)
+  const staticRef = useRef<{ canvas: HTMLCanvasElement; view: View; mx: number; my: number; at: number } | null>(null)
   const arcGeomRef = useRef<ArcGeom[]>([])
   const flightRef = useRef<number>(0)
   const settleRef = useRef<number>(0)
@@ -277,11 +349,10 @@ export function MapCanvas({
   }, [])
 
   const dpr = typeof window === 'undefined' ? 1 : Math.min(window.devicePixelRatio || 1, 2)
-  const small = size.width < 640
 
   const fitted = useMemo<Fitted | null>(
-    () => (size.width > 0 ? fitProjection(size.width, size.height, centralMeridian, small ? 8 : 28) : null),
-    [size.width, size.height, centralMeridian, small],
+    () => (size.width > 0 && size.height > 0 ? fitProjection(size.width, size.height, centralMeridian) : null),
+    [size.width, size.height, centralMeridian],
   )
 
   /** The part of the screen not covered by a panel. */
@@ -293,15 +364,14 @@ export function MapCanvas({
     () => ({ x: (visible.left + visible.right) / 2, y: (visible.top + visible.bottom) / 2 }),
     [visible],
   )
-  /** The map's extent in base coordinates: fitted and centred in the full canvas. */
-  const mapRect = useMemo<Rect | null>(() => {
-    if (!fitted) return null
-    const left = (size.width - fitted.mapW) / 2
-    const top = (size.height - fitted.mapH) / 2
-    return { left, top, right: left + fitted.mapW, bottom: top + fitted.mapH }
-  }, [fitted, size.width, size.height])
+  /** One world's extent in base coordinates. */
+  const mapRect = useMemo<Rect | null>(
+    () =>
+      fitted ? { left: fitted.tx - fitted.mapW / 2, top: 0, right: fitted.tx + fitted.mapW / 2, bottom: size.height } : null,
+    [fitted, size.height],
+  )
 
-  /** Base-map position of a lat/lng (zoom 1). */
+  /** Base-map position of a lat/lng (zoom 1), in the primary copy of the world. */
   const project = useCallback(
     (lat: number, lng: number): Pt | null => {
       const p = fitted?.projection([lng, lat])
@@ -310,113 +380,106 @@ export function MapCanvas({
     [fitted],
   )
 
-  /** Screen position to lat/lng, or null off the map. */
-  const unproject = useCallback(
-    (x: number, y: number): { lat: number; lng: number } | null => {
+  /** Base-map position to lat/lng; Mercator inverts in closed form, and wraps. */
+  const baseToLatLng = useCallback(
+    (bx: number, by: number): { lat: number; lng: number } | null => {
       if (!fitted) return null
-      const v = viewRef.current
-      const ll = fitted.projection.invert?.([(x - v.x) / v.k, (y - v.y) / v.k])
-      if (!ll || !Number.isFinite(ll[0]) || !Number.isFinite(ll[1])) return null
-      // Invert happily returns points outside the sphere's outline; reject them.
-      const back = fitted.projection(ll)
-      if (!back || Math.hypot(back[0] - (x - v.x) / v.k, back[1] - (y - v.y) / v.k) > 0.5) return null
-      return { lat: ll[1], lng: ll[0] }
+      const lat = ((2 * Math.atan(Math.exp((fitted.ty - by) / fitted.s)) - Math.PI / 2) * 180) / Math.PI
+      if (lat > LAT_TOP || lat < LAT_BOTTOM) return null
+      return { lat, lng: wrapLng(fitted.centralMeridian + (((bx - fitted.tx) / fitted.s) * 180) / Math.PI) }
     },
     [fitted],
+  )
+
+  const unproject = useCallback(
+    (x: number, y: number) => {
+      const v = viewRef.current
+      return baseToLatLng((x - v.x) / v.k, (y - v.y) / v.k)
+    },
+    [baseToLatLng],
   )
 
   /* ------------------------------------------------------- static layer */
 
   const renderStatic = useCallback(() => {
-    if (!fitted || size.width === 0) return
+    if (!fitted || !mapRect || size.width === 0) return
     const v = { ...viewRef.current }
-    const w = Math.round(size.width * dpr)
-    const h = Math.round(size.height * dpr)
+    const W = size.width
+    const H = size.height
+    const mx = Math.round(W * STATIC_MARGIN_X)
+    const my = Math.round(H * STATIC_MARGIN_Y)
     const canvas = staticRef.current?.canvas ?? document.createElement('canvas')
-    canvas.width = w
-    canvas.height = h
+    canvas.width = Math.round((W + 2 * mx) * dpr)
+    canvas.height = Math.round((H + 2 * my) * dpr)
     const ctx = canvas.getContext('2d')!
     const path = geoPath(fitted.projection, ctx)
-    const toView = () => ctx.setTransform(dpr * v.k, 0, 0, dpr * v.k, dpr * v.x, dpr * v.y)
+    const period = fitted.mapW * v.k
+    const offsets = copyOffsets(mapRect.left * v.k + v.x, mapRect.right * v.k + v.x, period, -mx, W + mx)
+    const atCopy = (off: number) =>
+      ctx.setTransform(dpr * v.k, 0, 0, dpr * v.k, dpr * (v.x + off + mx), dpr * (v.y + my))
 
-    ctx.clearRect(0, 0, w, h)
-    toView()
-    ctx.beginPath()
-    path(SPHERE)
-    ctx.fillStyle = SPHERE_FILL
-    ctx.fill()
-
-    ctx.beginPath()
-    path(GRATICULE_LINES)
-    ctx.strokeStyle = GRATICULE
-    ctx.lineWidth = 1 / v.k
-    ctx.stroke()
-
-    ctx.beginPath()
-    path(LAND)
-    ctx.fillStyle = LAND_UNDERFILL
-    ctx.fill()
-
-    // Dot-matrix land on an even screen-space grid at any zoom, sampled from
-    // a land mask drawn with the same transform.
-    const mask = document.createElement('canvas')
-    mask.width = w
-    mask.height = h
-    const mctx = mask.getContext('2d', { willReadFrequently: true })!
-    mctx.setTransform(dpr * v.k, 0, 0, dpr * v.k, dpr * v.x, dpr * v.y)
-    mctx.beginPath()
-    geoPath(fitted.projection, mctx)(LAND)
-    mctx.fillStyle = '#fff'
-    mctx.fill()
-    const data = mctx.getImageData(0, 0, w, h).data
     ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.fillStyle = LAND_DOT
-    const spacing = 4.4 * dpr
-    const radius = 1.05 * dpr
-    for (let row = 0, y = spacing / 2; y < h; y += spacing, row++) {
-      for (let x = spacing / 2 + (row % 2 ? spacing / 2 : 0); x < w; x += spacing) {
-        if (data[(Math.floor(y) * w + Math.floor(x)) * 4]! < 128) continue
-        ctx.beginPath()
-        ctx.arc(x, y, radius, 0, Math.PI * 2)
-        ctx.fill()
-      }
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    for (const off of offsets) {
+      atCopy(off)
+      ctx.fillStyle = OCEAN_FILL
+      ctx.fillRect(mapRect.left, mapRect.top, fitted.mapW, mapRect.bottom - mapRect.top)
+      ctx.beginPath()
+      path(GRATICULE_LINES)
+      ctx.strokeStyle = GRATICULE
+      ctx.lineWidth = 1 / v.k
+      ctx.stroke()
+      ctx.beginPath()
+      path(LAND)
+      ctx.fillStyle = LAND_UNDERFILL
+      ctx.fill()
     }
 
-    toView()
+    // The dot matrix: an even screen grid, anchored to the map so the dots
+    // ride with it while panning, lit wherever the land mask says land. One
+    // path, one fill.
+    ctx.setTransform(dpr, 0, 0, dpr, dpr * mx, dpr * my)
     ctx.beginPath()
-    path(BORDERS)
-    ctx.strokeStyle = BORDER
-    ctx.lineWidth = 0.6 / v.k
-    ctx.stroke()
+    const startX = (((v.x % DOT_SPACING) + DOT_SPACING) % DOT_SPACING) - mx
+    const startY = (((v.y % DOT_SPACING) + DOT_SPACING) % DOT_SPACING) - my
+    for (let y = startY; y < H + my; y += DOT_SPACING) {
+      const row = Math.round((y - v.y) / DOT_SPACING)
+      const shift = row % 2 ? DOT_SPACING / 2 : 0
+      for (let x = startX + shift; x < W + mx; x += DOT_SPACING) {
+        const ll = baseToLatLng((x - v.x) / v.k, (y - v.y) / v.k)
+        if (!ll || !isLand(ll.lat, ll.lng)) continue
+        ctx.moveTo(x + DOT_RADIUS, y)
+        ctx.arc(x, y, DOT_RADIUS, 0, Math.PI * 2)
+      }
+    }
+    ctx.fillStyle = LAND_DOT
+    ctx.fill()
 
-    // The map's edge glows like the globe's rim.
-    ctx.beginPath()
-    path(SPHERE)
-    ctx.shadowColor = 'rgba(76, 195, 224, 0.6)'
-    ctx.shadowBlur = 14 * dpr
-    ctx.strokeStyle = SPHERE_EDGE
-    ctx.lineWidth = 1.2 / v.k
-    ctx.stroke()
-    ctx.shadowBlur = 0
+    for (const off of offsets) {
+      atCopy(off)
+      ctx.beginPath()
+      path(BORDERS)
+      ctx.strokeStyle = BORDER
+      ctx.lineWidth = 0.6 / v.k
+      ctx.stroke()
+    }
 
-    staticRef.current = { canvas, view: v }
-  }, [fitted, size.width, size.height, dpr])
-
+    staticRef.current = { canvas, view: v, mx, my, at: performance.now() }
+  }, [fitted, mapRect, size.width, size.height, dpr, baseToLatLng])
 
   /* ------------------------------------------------------------ the view */
 
   const reportView = useCallback(() => {
-    const { width, height } = size
-    const c = unproject(width / 2, height / 2)
-    setReadout(c ? { lat: c.lat, lng: c.lng, k: viewRef.current.k } : { lat: 0, lng: centralMeridian, k: viewRef.current.k })
-  }, [size, unproject, centralMeridian])
+    const c = unproject(visibleCentre.x, visibleCentre.y)
+    setReadout(c ? { lat: c.lat, lng: c.lng, k: viewRef.current.k } : null)
+  }, [unproject, visibleCentre])
 
-  /** Apply a view, clamped, and schedule a crisp static re-render once it settles. */
+  /** Apply a view (clamped top and bottom only) and schedule a crisp re-render once it settles. */
   const setView = useCallback(
     (next: View) => {
       if (!mapRect) return
-      viewRef.current = clampView(next, visible, mapRect)
-      // The readout follows a move about ten times a second, and settles exactly.
+      viewRef.current = clampWrapView(next, visible, mapRect)
       const now = performance.now()
       if (now - lastReportRef.current > 100) {
         lastReportRef.current = now
@@ -431,57 +494,48 @@ export function MapCanvas({
     [mapRect, visible, reportView, renderStatic],
   )
 
-  /** Animate to a view; any user input cancels it. */
+  /** Animate to a view, via its nearest repeat so it never laps the world; any input cancels it. */
   const flyTo = useCallback(
-    (target: View, ms = 700) => {
+    (raw: View, ms = 700) => {
+      if (!fitted || !mapRect) return
       cancelAnimationFrame(flightRef.current)
+      const target = nearestRepeat(clampWrapView(raw, visible, mapRect), viewRef.current, fitted.mapW)
       if (reducedMotion || ms === 0) return setView(target)
       const from = { ...viewRef.current }
       const start = performance.now()
       const step = () => {
         const t = Math.min(1, (performance.now() - start) / ms)
         const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
-        // Interpolate zoom geometrically so it feels even, translation linearly.
+        // Zoom geometrically so it feels even; translation linearly.
         const k = from.k * Math.pow(target.k / from.k, e)
         setView({ k, x: from.x + (target.x - from.x) * e, y: from.y + (target.y - from.y) * e })
         if (t < 1) flightRef.current = requestAnimationFrame(step)
       }
       flightRef.current = requestAnimationFrame(step)
     },
-    [reducedMotion, setView],
+    [fitted, mapRect, visible, reducedMotion, setView],
   )
 
-  const homeView = useCallback((): View => {
-    if (!fitted) return { k: 1, x: 0, y: 0 }
-    // A phone in portrait gets a closer start, so the map is not a thin strip.
-    const k = Math.min(MAX_ZOOM, Math.max(1, (size.height * 0.42) / fitted.mapH))
-    return centreOn({ x: size.width / 2, y: size.height / 2 }, k, visibleCentre)
-  }, [fitted, size.width, size.height, visibleCentre])
+  const homeView = useCallback(
+    (): View => (fitted ? centreOn({ x: fitted.tx, y: size.height / 2 }, 1, visibleCentre) : { k: 1, x: 0, y: 0 }),
+    [fitted, size.height, visibleCentre],
+  )
 
-  /* First fit, and a refit that keeps the centre when the viewport changes. */
+  /* First fit, and a re-clamp when the canvas changes size. */
   const fittedOnceRef = useRef(false)
   useEffect(() => {
     if (!fitted || !mapRect) return
     if (!fittedOnceRef.current) {
       fittedOnceRef.current = true
-      viewRef.current = clampView(homeView(), visible, mapRect)
+      viewRef.current = clampWrapView(homeView(), visible, mapRect)
     } else {
-      viewRef.current = clampView(viewRef.current, visible, mapRect)
+      viewRef.current = clampWrapView(viewRef.current, visible, mapRect)
     }
     renderStatic()
     reportView()
-    // Only when the canvas itself changes; panels opening are handled below.
+    // Only when the canvas itself changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitted, mapRect])
-
-  /* A panel opening or closing re-clamps the view smoothly, so content slides clear of it. */
-  const insetRef = useRef(insetRight)
-  useEffect(() => {
-    if (insetRef.current === insetRight || !mapRect) return
-    insetRef.current = insetRight
-    flyTo(clampView(viewRef.current, visible, mapRect), 450)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [insetRight])
 
   /* --------------------------------------------------------- arc models */
 
@@ -491,8 +545,10 @@ export function MapCanvas({
     const previous = new Map(arcGeomRef.current.map((g) => [g.arc.id, g]))
     arcGeomRef.current = arcs.flatMap((arc, i) => {
       const a = project(arc.startLat, arc.startLng)
-      const b = project(arc.endLat, arc.endLng)
-      if (!a || !b) return []
+      const end = project(arc.endLat, arc.endLng)
+      if (!a || !end) return []
+      // The short way round, across the map's edge if that is shorter.
+      const b = shortWay(a, end, fitted.mapW)
       const old = previous.get(arc.id)
       return [
         {
@@ -510,10 +566,7 @@ export function MapCanvas({
     })
   }, [arcs, fitted, project, reducedMotion])
 
-  const pointPositions = useMemo(
-    () => points.map((p) => project(p.lat, p.lng)),
-    [points, project],
-  )
+  const pointPositions = useMemo(() => points.map((p) => project(p.lat, p.lng)), [points, project])
 
   /** The ten largest import destinations, for landing pulses. */
   const pulses = useMemo(() => {
@@ -576,11 +629,13 @@ export function MapCanvas({
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas || !fitted || size.width === 0) return
+    if (!canvas || !fitted || !mapRect || size.width === 0) return
     canvas.width = Math.round(size.width * dpr)
     canvas.height = Math.round(size.height * dpr)
     const ctx = canvas.getContext('2d')!
     const path = geoPath(fitted.projection, ctx)
+    const W = size.width
+    const H = size.height
     let raf = 0
 
     const draw = () => {
@@ -588,43 +643,67 @@ export function MapCanvas({
       const seconds = now / 1000
       const v = viewRef.current
       const s = frameState.current
+      const period = fitted.mapW * v.k
       const isHi = (id: string) =>
         id === s.selectedId || id === s.hoverId || id === s.externalHoverId || id === s.cursorId
-      const toScreen = (p: Pt) => ({ x: p.x * v.k + v.x, y: p.y * v.k + v.y })
       const zoomWidth = 1 + 0.28 * Math.log2(v.k)
 
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       // Static layer, shifted and scaled from the view it was rendered at.
+      // Its content repeats every world width, so the shift is taken modulo
+      // that; once it nears the edge of the cached margin, re-render.
       const cached = staticRef.current
       if (cached) {
         const f = v.k / cached.view.k
-        ctx.setTransform(f, 0, 0, f, dpr * (v.x - cached.view.x * f), dpr * (v.y - cached.view.y * f))
-        ctx.drawImage(cached.canvas, 0, 0)
+        const restX = -cached.mx * f
+        const restY = -cached.my * f
+        let dx = v.x - (cached.mx + cached.view.x) * f - restX
+        dx -= period * Math.round(dx / period)
+        const dy = v.y - (cached.my + cached.view.y) * f - restY
+        // Copy only the part of the cache that lands on screen: the cache is
+        // larger than the viewport, and blitting all of it every frame costs
+        // fill rate for pixels nobody sees.
+        const ox = dpr * (restX + dx)
+        const oy = dpr * (restY + dy)
+        const sx = Math.max(0, -ox / f)
+        const sy = Math.max(0, -oy / f)
+        const sw = Math.min(cached.canvas.width - sx, (canvas.width - ox) / f - sx)
+        const sh = Math.min(cached.canvas.height - sy, (canvas.height - oy) / f - sy)
+        if (sw > 0 && sh > 0) ctx.drawImage(cached.canvas, sx, sy, sw, sh, ox + sx * f, oy + sy * f, sw * f, sh * f)
+        const stale =
+          Math.abs(dx) > cached.mx * 0.55 || Math.abs(dy) > cached.my * 0.55 || f < 0.8 || f > 1.25
+        if (stale && now - cached.at > 120) renderStatic()
       }
 
+      /** Every copy of a span of base x that is on screen, as screen offsets. */
+      const copies = (minBase: number, maxBase: number, pad = 40) =>
+        copyOffsets(minBase * v.k + v.x, maxBase * v.k + v.x, period, -pad, W + pad)
+
       // Hovered and focused countries get a faint fill.
-      ctx.setTransform(dpr * v.k, 0, 0, dpr * v.k, dpr * v.x, dpr * v.y)
       for (const [iso3, alpha] of [
         [s.focusCountry, 0.12],
         [s.hoverCountry !== s.focusCountry ? s.hoverCountry : null, 0.07],
       ] as const) {
         const geom = iso3 ? COUNTRY_GEOMETRY.get(iso3) : undefined
         if (!geom) continue
-        ctx.beginPath()
-        path(geom)
-        ctx.fillStyle = rgba(ACCENT, alpha)
-        ctx.fill()
-        ctx.strokeStyle = rgba(ACCENT, alpha * 3)
-        ctx.lineWidth = 0.8 / v.k
-        ctx.stroke()
+        for (const off of copies(mapRect.left, mapRect.right, 0)) {
+          ctx.setTransform(dpr * v.k, 0, 0, dpr * v.k, dpr * (v.x + off), dpr * v.y)
+          ctx.beginPath()
+          path(geom)
+          ctx.fillStyle = rgba(ACCENT, alpha)
+          ctx.fill()
+          ctx.strokeStyle = rgba(ACCENT, alpha * 3)
+          ctx.lineWidth = 0.8 / v.k
+          ctx.stroke()
+        }
       }
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.lineCap = 'round'
 
-      // Arcs: halo, then core, then comet.
+      // Arcs: halo, then core, then comet, for each copy on screen.
       for (const g of arcGeomRef.current) {
         const hiTarget = isHi(g.arc.id) ? 1 : 0
         const dimTarget = s.selectedId !== null && hiTarget === 0 ? 1 : 0
@@ -633,63 +712,64 @@ export function MapCanvas({
         const t = g.startsAt === 0 ? 1 : Math.min(1, Math.max(0, (now - g.startsAt) / ARC_GROW_MS))
         if (t <= 0) continue
         const grow = 1 - Math.pow(1 - t, 3)
-        const a = toScreen(g.a)
-        const c = toScreen(g.c)
-        const b = toScreen(g.b)
-        const [sa, sc, sb] = grow >= 1 ? [a, c, b] : subQuad(a, c, b, 0, grow)
         const low = g.arc.confidence === 'low'
         const dimF = 1 - 0.85 * g.dim
         const width = Math.max(0.7, g.arc.width * 1.6) * zoomWidth
-
-        const curve = () => {
-          ctx.beginPath()
-          ctx.moveTo(sa.x, sa.y)
-          ctx.quadraticCurveTo(sc.x, sc.y, sb.x, sb.y)
-        }
-
-        if (!low) {
-          ctx.globalCompositeOperation = 'lighter'
-          curve()
-          ctx.strokeStyle = rgba(g.hi > 0.5 ? ACCENT : g.arc.color, (0.05 + 0.12 * g.arc.weight + 0.15 * g.hi) * dimF)
-          ctx.lineWidth = width * 5
-          ctx.stroke()
-          ctx.globalCompositeOperation = 'source-over'
-        }
-
-        const grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y)
-        const base = g.arc.color
-        const end = mixHex(base, '#ffdcaa', 0.5)
         const alpha = (low ? 0.4 : 0.45 + 0.5 * g.arc.weight) * dimF
-        grad.addColorStop(0, rgba(mixHex(base, '#000000', 0.5), alpha))
-        grad.addColorStop(1, rgba(end, alpha))
-        curve()
-        ctx.setLineDash(low ? [3, 4] : [])
-        ctx.strokeStyle = g.hi > 0.02 ? rgba(ACCENT, Math.max(alpha, g.hi)) : grad
-        if (g.hi > 0.02 && g.hi < 0.98) {
-          // Mid-ease: draw the gradient and lay the accent over it.
+        const minX = Math.min(g.a.x, g.b.x, g.c.x)
+        const maxX = Math.max(g.a.x, g.b.x, g.c.x)
+
+        for (const off of copies(minX, maxX)) {
+          const toScreen = (p: Pt) => ({ x: p.x * v.k + v.x + off, y: p.y * v.k + v.y })
+          const a = toScreen(g.a)
+          const c = toScreen(g.c)
+          const b = toScreen(g.b)
+          const [sa, sc, sb] = grow >= 1 ? [a, c, b] : subQuad(a, c, b, 0, grow)
+          const curve = () => {
+            ctx.beginPath()
+            ctx.moveTo(sa.x, sa.y)
+            ctx.quadraticCurveTo(sc.x, sc.y, sb.x, sb.y)
+          }
+
+          if (!low) {
+            ctx.globalCompositeOperation = 'lighter'
+            curve()
+            ctx.strokeStyle = rgba(g.hi > 0.5 ? ACCENT : g.arc.color, (0.05 + 0.12 * g.arc.weight + 0.15 * g.hi) * dimF)
+            ctx.lineWidth = width * 5
+            ctx.stroke()
+            ctx.globalCompositeOperation = 'source-over'
+          }
+
+          const grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y)
+          grad.addColorStop(0, rgba(mixHex(g.arc.color, '#000000', 0.5), alpha))
+          grad.addColorStop(1, rgba(mixHex(g.arc.color, '#ffdcaa', 0.5), alpha))
+          ctx.setLineDash(low ? [3, 4] : [])
+          curve()
           ctx.strokeStyle = grad
           ctx.lineWidth = width
           ctx.stroke()
-          ctx.strokeStyle = rgba(ACCENT, g.hi)
-        }
-        ctx.lineWidth = width * (1 + 0.4 * g.hi)
-        ctx.stroke()
-        ctx.setLineDash([])
-
-        if (!low && !reducedMotion && grow >= 1) {
-          const head = (seconds * COMET_SPEED + g.phase) % 1
-          const t0 = Math.max(0, head - COMET_TAIL)
-          if (head > 0.01) {
-            const [ca, cc, cb] = subQuad(a, c, b, t0, head)
-            const cg = ctx.createLinearGradient(ca.x, ca.y, cb.x, cb.y)
-            cg.addColorStop(0, `rgba(${COMET}, 0)`)
-            cg.addColorStop(1, `rgba(${COMET}, ${0.85 * dimF})`)
-            ctx.beginPath()
-            ctx.moveTo(ca.x, ca.y)
-            ctx.quadraticCurveTo(cc.x, cc.y, cb.x, cb.y)
-            ctx.strokeStyle = cg
-            ctx.lineWidth = width * 1.3
+          if (g.hi > 0.02) {
+            curve()
+            ctx.strokeStyle = rgba(ACCENT, g.hi)
+            ctx.lineWidth = width * (1 + 0.4 * g.hi)
             ctx.stroke()
+          }
+          ctx.setLineDash([])
+
+          if (!low && !reducedMotion && grow >= 1) {
+            const head = (seconds * COMET_SPEED + g.phase) % 1
+            if (head > 0.01) {
+              const [ca, cc, cb] = subQuad(a, c, b, Math.max(0, head - COMET_TAIL), head)
+              const cg = ctx.createLinearGradient(ca.x, ca.y, cb.x, cb.y)
+              cg.addColorStop(0, `rgba(${COMET}, 0)`)
+              cg.addColorStop(1, `rgba(${COMET}, ${0.85 * dimF})`)
+              ctx.beginPath()
+              ctx.moveTo(ca.x, ca.y)
+              ctx.quadraticCurveTo(cc.x, cc.y, cb.x, cb.y)
+              ctx.strokeStyle = cg
+              ctx.lineWidth = width * 1.3
+              ctx.stroke()
+            }
           }
         }
       }
@@ -697,14 +777,15 @@ export function MapCanvas({
       // Landing pulses at the largest import hubs.
       if (!reducedMotion) {
         for (const pulse of s.pulses) {
-          const p = toScreen(pulse.p)
           const t = (seconds * 0.38 + pulse.phase) % 1
           const r = (6 + (18 + 26 * pulse.weight) * t) * Math.sqrt(zoomWidth)
-          ctx.beginPath()
-          ctx.arc(p.x, p.y, r, 0, Math.PI * 2)
-          ctx.strokeStyle = `rgba(${PULSE}, ${(1 - t) * (0.3 + 0.4 * pulse.weight)})`
-          ctx.lineWidth = 1.2
-          ctx.stroke()
+          for (const off of copies(pulse.p.x, pulse.p.x, r)) {
+            ctx.beginPath()
+            ctx.arc(pulse.p.x * v.k + v.x + off, pulse.p.y * v.k + v.y, r, 0, Math.PI * 2)
+            ctx.strokeStyle = `rgba(${PULSE}, ${(1 - t) * (0.3 + 0.4 * pulse.weight)})`
+            ctx.lineWidth = 1.2
+            ctx.stroke()
+          }
         }
       }
 
@@ -716,8 +797,8 @@ export function MapCanvas({
           if (p.stage !== pass) continue
           const pos = s.pointPositions[i]
           if (!pos) continue
-          const sp = toScreen(pos)
-          if (sp.x < -20 || sp.y < -20 || sp.x > size.width + 20 || sp.y > size.height + 20) continue
+          const sy = pos.y * v.k + v.y
+          if (sy < -20 || sy > H + 20) continue
           const hi = isHi(p.id)
           const dim =
             !hi &&
@@ -725,16 +806,19 @@ export function MapCanvas({
               (s.focusCountry !== null && p.facility.properties.country_iso3 !== s.focusCountry))
           const sz = p.size * pointScale * (hi ? 1.5 : 1)
           const img = sprite(p.color, sz, p.confidence === 'low', p.stage === 'mine' ? 0.25 : p.stage === 'process' ? 0.8 : 1, dpr)
-          ctx.globalAlpha = dim ? 0.16 : 1
           const d = img.width / dpr
-          ctx.drawImage(img, sp.x - d / 2, sp.y - d / 2, d, d)
-          ctx.globalAlpha = 1
-          if (hi) {
-            ctx.beginPath()
-            ctx.arc(sp.x, sp.y, sz * 0.95, 0, Math.PI * 2)
-            ctx.strokeStyle = ACCENT
-            ctx.lineWidth = 1.4
-            ctx.stroke()
+          for (const off of copies(pos.x, pos.x, 20)) {
+            const sx = pos.x * v.k + v.x + off
+            ctx.globalAlpha = dim ? 0.16 : 1
+            ctx.drawImage(img, sx - d / 2, sy - d / 2, d, d)
+            ctx.globalAlpha = 1
+            if (hi) {
+              ctx.beginPath()
+              ctx.arc(sx, sy, sz * 0.95, 0, Math.PI * 2)
+              ctx.strokeStyle = ACCENT
+              ctx.lineWidth = 1.4
+              ctx.stroke()
+            }
           }
         }
       }
@@ -743,20 +827,24 @@ export function MapCanvas({
     }
     raf = requestAnimationFrame(draw)
     return () => cancelAnimationFrame(raf)
-  }, [fitted, size.width, size.height, dpr, reducedMotion])
+  }, [fitted, mapRect, size.width, size.height, dpr, reducedMotion, renderStatic])
 
   /* ------------------------------------------------------------ picking */
 
   const pick = useCallback(
     (x: number, y: number): Hit | null => {
+      if (!fitted) return null
       const v = viewRef.current
+      const period = fitted.mapW * v.k
       const pointScale = POINT_SIZE * (1 + 0.15 * Math.log2(v.k))
       let best: Hit | null = null
       let bestDist = Infinity
       points.forEach((p, i) => {
         const pos = pointPositions[i]
         if (!pos) return
-        const d = Math.hypot(pos.x * v.k + v.x - x, pos.y * v.k + v.y - y)
+        let sx = pos.x * v.k + v.x
+        sx += period * Math.round((x - sx) / period)
+        const d = Math.hypot(sx - x, pos.y * v.k + v.y - y)
         if (d < Math.max(7, (p.size * pointScale) / 2 + 3) && d < bestDist) {
           bestDist = d
           best = { kind: 'facility', point: p }
@@ -764,23 +852,27 @@ export function MapCanvas({
       })
       if (best) return best
       for (const g of arcGeomRef.current) {
-        const a = { x: g.a.x * v.k + v.x, y: g.a.y * v.k + v.y }
-        const c = { x: g.c.x * v.k + v.x, y: g.c.y * v.k + v.y }
-        const b = { x: g.b.x * v.k + v.x, y: g.b.y * v.k + v.y }
-        let prev = a
-        for (let i = 1; i <= PICK_SAMPLES; i++) {
-          const q = quadAt(a, c, b, i / PICK_SAMPLES)
-          const d = distToSegment(x, y, prev.x, prev.y, q.x, q.y)
-          if (d < 6 + g.arc.width * 2 && d < bestDist) {
-            bestDist = d
-            best = { kind: 'flow', arc: g.arc }
+        const minX = Math.min(g.a.x, g.b.x, g.c.x) * v.k + v.x
+        const maxX = Math.max(g.a.x, g.b.x, g.c.x) * v.k + v.x
+        for (const off of copyOffsets(minX, maxX, period, x - 12, x + 12)) {
+          const a = { x: g.a.x * v.k + v.x + off, y: g.a.y * v.k + v.y }
+          const c = { x: g.c.x * v.k + v.x + off, y: g.c.y * v.k + v.y }
+          const b = { x: g.b.x * v.k + v.x + off, y: g.b.y * v.k + v.y }
+          let prev = a
+          for (let i = 1; i <= PICK_SAMPLES; i++) {
+            const q = quadAt(a, c, b, i / PICK_SAMPLES)
+            const d = distToSegment(x, y, prev.x, prev.y, q.x, q.y)
+            if (d < 6 + g.arc.width * 2 && d < bestDist) {
+              bestDist = d
+              best = { kind: 'flow', arc: g.arc }
+            }
+            prev = q
           }
-          prev = q
         }
       }
       return best
     },
-    [points, pointPositions],
+    [fitted, points, pointPositions],
   )
 
   /* --------------------------------------------------------- flights */
@@ -788,24 +880,26 @@ export function MapCanvas({
   const zoomBy = useCallback(
     (factor: number, at?: Pt) => {
       cancelAnimationFrame(flightRef.current)
-      const p = at ?? { x: size.width / 2, y: size.height / 2 }
-      flyTo(zoomAbout(viewRef.current, factor, p), 320)
+      flyTo(zoomAbout(viewRef.current, factor, at ?? visibleCentre), 320)
     },
-    [flyTo, size.width, size.height],
+    [flyTo, visibleCentre],
   )
 
   const goHome = useCallback(() => flyTo(homeView(), 700), [flyTo, homeView])
 
-  /** Centre a base-map point at the current zoom. */
   const centreBase = useCallback(
     (p: Pt) => flyTo(centreOn(p, viewRef.current.k, visibleCentre), 800),
     [flyTo, visibleCentre],
   )
 
-  /* A country focused from search or a link is centred; one clicked is left where it is. */
+  /**
+   * A country focused from search or a link is fitted with the far ends of its
+   * drawn flows; one clicked on the map is left where it is. Either way the
+   * country itself ends up clear of the panel.
+   */
   const clickedCountryRef = useRef<string | null>(null)
   useEffect(() => {
-    if (focusCountry === null) return
+    if (focusCountry === null || !mapRect) return
     if (clickedCountryRef.current === focusCountry) {
       clickedCountryRef.current = null
       return
@@ -814,31 +908,41 @@ export function MapCanvas({
     const c = countries[focusCountry]
     const home = c ? project(c.lat, c.lon) : null
     if (!home) return
-    // Fit the country and the far ends of its drawn flows into the visible area.
-    const ends = arcGeomRef.current.flatMap((g) =>
-      g.arc.flow.from_iso3 === focusCountry ? [g.b, g.c] : g.arc.flow.to_iso3 === focusCountry ? [g.a, g.c] : [],
-    )
+    // Arc ends are positioned relative to the exporter; move each set so it
+    // hangs off this country's own position.
+    const ends = arcGeomRef.current.flatMap((g) => {
+      if (g.arc.flow.from_iso3 === focusCountry) {
+        const d = home.x - g.a.x
+        return [{ x: g.b.x + d, y: g.b.y }, { x: g.c.x + d, y: g.c.y }]
+      }
+      if (g.arc.flow.to_iso3 === focusCountry) {
+        const d = home.x - g.b.x
+        return [{ x: g.a.x + d, y: g.a.y }, { x: g.c.x + d, y: g.c.y }]
+      }
+      return []
+    })
     const fit = fitPoints([home, ...ends], visible, 70, 2.5)
-    // The country itself must end up clear of the panel, even if that pushes
-    // some far-flung partners off screen.
-    if (fit && mapRect) flyTo(clampView(keepInView(clampView(fit, visible, mapRect), home, visible), visible, mapRect), 900)
+    if (fit) flyTo(keepInView(clampWrapView(fit, visible, mapRect), home, visible), 900)
     // The arcs are read once per focus, not re-fitted when a layer toggles.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusCountry, countries, project])
 
-  /* A flow picked from the list: bring both ends into view if they are not already. */
+  /* A flow picked from the list: bring it into view if it is not already. */
   useEffect(() => {
-    if (selectedId === null || selectedId !== externalHoverId) return
+    if (!fitted || selectedId === null || selectedId !== externalHoverId) return
     const g = arcGeomRef.current.find((x) => x.arc.id === selectedId)
     if (!g) return
     const v = viewRef.current
+    const period = fitted.mapW * v.k
+    const mid = quadAt(g.a, g.c, g.b, 0.5)
+    const off = period * Math.round((visibleCentre.x - (mid.x * v.k + v.x)) / period)
     const inView = (p: Pt) => {
-      const sx = p.x * v.k + v.x
+      const sx = p.x * v.k + v.x + off
       const sy = p.y * v.k + v.y
       return sx > visible.left + 40 && sy > 40 && sx < visible.right - 40 && sy < size.height - 40
     }
     if (inView(g.a) && inView(g.b)) return
-    const target = fitPoints([g.a, g.b, quadAt(g.a, g.c, g.b, 0.5)], visible, 80, v.k)
+    const target = fitPoints([g.a, g.b, mid], visible, 80, v.k)
     if (target) flyTo(target, 800)
     // Only on a new selection.
     // eslint-disable-next-line react-hooks/exhaustive-deps
