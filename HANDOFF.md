@@ -141,12 +141,19 @@ own comments; the short version:
 
 ### What I'd do next
 
-**⚠ Before you next push to `main`: CI's ETL job will fail as-is.** It runs
-`python etl/pipeline.py --offline --no-manual --check`, which compares the committed `public/data/`
-against the offline/seed-fallback output — and now that `public/data/` is a full real run instead
-(see the data section in README.md), that check fails on all five files, confirmed locally. Either
-the check needs to validate against a full run instead, or it needs a documented reason to keep
-comparing against the fallback path while the two are expected to diverge. Not yet reconciled.
+**Resolved 11 October 2026: CI's ETL check.** `deploy.yml` used to run
+`python etl/pipeline.py --offline --no-manual --check`, which compared the committed `public/data/`
+against the seed-fallback output and so failed on every push once real data was committed. That
+blocked the 14 September deploy, so the live site stayed on the 1 September build. The step now
+runs `--dry-run` (the fallback still has to validate, but no longer has to match), and the monthly
+`refresh-data.yml` PR is the drift check. Its 3 October run confirmed that a full run reproduces the
+committed data except for dates. The same fix stopped ICMM facilities stamping `last_updated` with
+today's date, which rewrote all 1,229 rows on every refresh.
+
+**⚠ Still open: `refresh-data.yml` cannot open its PR.** Both scheduled runs (3 Sept and 3 Oct) failed
+at the last step with "GitHub Actions is not permitted to create or approve pull requests". Fix:
+repo **Settings → Actions → General → Workflow permissions →** tick **"Allow GitHub Actions to
+create and approve pull requests"**. CJ will do this; see `CLAUDE.md`.
 
 0. **Keep iterating on how the arcs look.** CJ's read after the rebuild (13 September): better than
    before, but still not landed — no specifics on what's wrong yet, just that the look isn't there.

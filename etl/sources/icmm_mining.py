@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date
 from pathlib import Path
 
 import openpyxl
@@ -138,7 +137,10 @@ def _read(path: Path, ctx: ExtractContext, coverage_stub: str) -> SourceResult:
     dropped_coords = 0
     dropped_stage = 0
     seen_ids: set[str] = set()
-    last_updated = date.today().isoformat()
+    # The extract's own date, not today's, so a re-run over the same workbook
+    # writes the same file.
+    retrieved_at = drop_date(path)
+    last_updated = retrieved_at.isoformat()
 
     for row in records:
         commodities: set[str] = set()
@@ -223,7 +225,7 @@ def _read(path: Path, ctx: ExtractContext, coverage_stub: str) -> SourceResult:
         name=NAME,
         url=URL,
         vintage=version,
-        retrieved_at=drop_date(path),
+        retrieved_at=retrieved_at,
         coverage=(
             f"{len(features)} facility records across {len(seen_ids)} site-stages, of which "
             f"{low} are low confidence. {coverage_stub} A site that does more than one thing "
