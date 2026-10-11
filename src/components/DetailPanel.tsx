@@ -37,7 +37,7 @@ export interface DetailPanelProps {
   /** Offered on facilities and flows, to jump to a country's dossier. */
   onFocusCountry?: (iso3: string) => void
   /**
-   * `sheet` is the narrow-viewport layout: the same content, over the globe
+   * `sheet` is the narrow-viewport layout: the same content, over the map
    * from the bottom edge rather than floating beside it.
    */
   variant?: 'panel' | 'sheet'
@@ -168,7 +168,7 @@ function FacilityDetail({
       {p.confidence === 'low' && (
         <Warning>
           This site is poorly documented in public sources. Its location, operator and output are
-          approximate, and it is drawn as a hollow ring on the globe for that reason.
+          approximate, and it is drawn as a hollow ring on the map for that reason.
         </Warning>
       )}
 

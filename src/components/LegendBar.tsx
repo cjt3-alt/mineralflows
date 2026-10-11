@@ -2,7 +2,7 @@ import { formatUsd, valueScaleFraction } from '../data/derive.ts'
 import type { Meta } from '../data/schema.ts'
 
 /**
- * Two pieces of standing context. `Legend` floats over the globe and says what
+ * Two pieces of standing context. `Legend` floats over the map and says what
  * the marks mean that the control column does not already say (arc width,
  * dashed arcs, hollow rings, the cap). `StatusBar` credits every source by its
  * own name, with its own vintage, because the sources update on different

@@ -91,3 +91,17 @@ export function countryAt(lat: number, lng: number): CountryShape | null {
   }
   return null
 }
+
+/**
+ * Is a meridian clear of land between the Antarctic coast and 58°N? Used to
+ * choose where a flat map can be cut without splitting a continent. The far
+ * north is ignored on purpose: Greenland and Iceland straddle every Atlantic
+ * meridian, and an Atlantic cut through them is the standard trade-off of a
+ * Pacific-centred map. Sampled every two degrees of latitude.
+ */
+export function isOpenOceanMeridian(lng: number, minLat = -60, maxLat = 58): boolean {
+  for (let lat = minLat; lat <= maxLat; lat += 2) {
+    if (countryAt(lat, lng) !== null) return false
+  }
+  return true
+}

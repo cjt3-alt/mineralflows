@@ -54,7 +54,7 @@ export interface FilterRailProps {
   onHoverFlow: (id: string | null) => void
   onSelectFlow: (arc: ArcDatum) => void
 
-  /** Stage shades of the active mineral, for swatches that match the globe. */
+  /** Stage shades of the active mineral, for swatches that match the map. */
   shade: Record<Stage, string>
 }
 
@@ -123,7 +123,7 @@ function LayerRow({
 }
 
 function Dot({ color, size }: { color: string; size: number }) {
-  // The same soft glow the globe gives smelters and refineries, scaled with size.
+  // The same soft glow the map gives smelters and refineries, scaled with size.
   return (
     <span
       className="inline-block rounded-full"
@@ -206,7 +206,7 @@ function CountrySearch({
             ))}
         </datalist>
       </div>
-      <p className="mt-1.5 text-xs text-muted">Or click any country on the globe.</p>
+      <p className="mt-1.5 text-xs text-muted">Or click any country on the map.</p>
     </div>
   )
 }

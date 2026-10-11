@@ -68,7 +68,7 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
           data, and every number on screen traces back to a named source below.
         </p>
 
-        <Block index="01" title="Reading the globe">
+        <Block index="01" title="Reading the map">
           <p>
             <span className="text-ink">Points are sites.</span> Small, dark points are mines; larger,
             brighter ones are smelters and refineries, where the processing chokepoints sit. A hollow
@@ -84,6 +84,11 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
           <p>
             <span className="text-ink">Cyan is you.</span> Whatever you hover, select or focus turns
             cyan. Click a country to see only its trade and a breakdown of its position.
+          </p>
+          <p>
+            <span className="text-ink">The projection is Equal Earth</span>, so every country keeps its
+            true relative size, and the map is cut where the least trade crosses: for copper that puts
+            the Pacific, where the largest flows run, in the middle.
           </p>
         </Block>
 
@@ -119,7 +124,7 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
               it appears.
             </li>
             <li>
-              The globe draws the largest flows only (25, 100 or 300); the totals in the control panel
+              The map draws the largest flows only (25, 100 or 300); the totals in the control panel
               count every flow, drawn or not.
             </li>
             <li>

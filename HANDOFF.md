@@ -10,6 +10,27 @@ Live: <https://cjt3-alt.github.io/mineralflows/>
 
 ---
 
+## 0b. Branch `design/flat-map`, 11 October 2026 — a flat-map alternative
+
+CJ asked for a flat-map version alongside the globe, keeping the globe as a backup. Three versions
+now exist: `main` (the live globe), `design/polish` (the polished globe, not merged), and this
+branch, built on top of `design/polish`, which swaps the globe for a flat map.
+
+- `src/components/MapCanvas.tsx` replaces `GlobeCanvas.tsx` with the same props and the same
+  interactions (hover tooltips, click to select, click a country to focus, keyboard walk, +/−/reset).
+  It draws on a 2D canvas in the Equal Earth projection (d3-geo): a static layer (ocean, graticule,
+  dot-matrix land, borders) re-rendered only when the view settles and reused, shifted and scaled,
+  while panning; and a per-frame layer (arcs with halo, colour ramp and comet, landing pulses,
+  glowing sites, highlights).
+- **Where the map is cut** is chosen from the data (`chooseSeam` in `mapDynamics.ts`): among
+  meridians clear of land south of 58°N, the one the least traded value crosses. For copper that is
+  the Atlantic, centring the map on the Pacific at 150°E so Chile and Peru to China stay whole.
+- **Panels:** an open dossier panel counts as covering the right of the map (`insetRight`), so the
+  map slides out from under it and a focused country is fitted, with its partners, into what is
+  visible. Pan and zoom rules are in `mapDynamics.ts` with tests.
+- three.js and react-globe.gl are removed on this branch: the bundle drops from 2.4 MB to 0.49 MB
+  (158 kB gzipped). `cameraDynamics.ts` keeps only the tap rules the map uses.
+
 ## 0a. Update, 11 October 2026 — interface overhaul
 
 Supersedes the globe and layout notes in section 0 below where they disagree. The previous version is

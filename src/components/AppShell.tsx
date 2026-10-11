@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { GlobeCanvas } from './GlobeCanvas.tsx'
+import { MapCanvas } from './MapCanvas.tsx'
+import { chooseSeam, wrapLng } from './mapDynamics.ts'
+import { isOpenOceanMeridian } from '../data/geo.ts'
 import { Banner, TopBar } from './TopBar.tsx'
 import { FilterRail, type FilterRailProps } from './FilterRail.tsx'
 import { DetailPanel, type Selection } from './DetailPanel.tsx'
@@ -116,6 +118,22 @@ export function AppShell() {
   }, [filters, state.status])
 
   const dataset = state.status === 'ready' ? state.dataset : null
+
+  /**
+   * Where the flat map is cut, from every active flow rather than the filtered
+   * set, so the map does not re-centre when a filter changes.
+   */
+  const centralMeridian = useMemo(() => {
+    if (!dataset) return 0
+    const active = new Set(dataset.activeMinerals.map((m) => m.id))
+    const flows = dataset.flows.flatMap((f) => {
+      const from = dataset.countries[f.from_iso3]
+      const to = dataset.countries[f.to_iso3]
+      if (!active.has(f.mineral_id) || !from || !to) return []
+      return [{ fromLng: from.lon, toLng: to.lon, usd: resolveValue(f, dataset.priceFor).usd ?? 0 }]
+    })
+    return wrapLng(chooseSeam(flows, isOpenOceanMeridian) + 180)
+  }, [dataset])
 
   const view = useMemo(() => {
     if (!dataset) return null
@@ -301,10 +319,10 @@ export function AppShell() {
   return (
     <div className="flex h-full flex-col">
       <a
-        href="#globe"
+        href="#map"
         className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-30 focus:border focus:border-accent focus:bg-surface focus:px-2 focus:py-1 focus:text-xs focus:text-ink"
       >
-        Skip to the globe
+        Skip to the map
       </a>
 
       <Banner />
@@ -329,14 +347,17 @@ export function AppShell() {
           </nav>
         )}
 
-        <main id="globe" tabIndex={-1} className="stage relative min-w-0 flex-1 overflow-hidden">
-          <GlobeCanvas
+        <main id="map" tabIndex={-1} className="stage relative min-w-0 flex-1 overflow-hidden">
+          <MapCanvas
             points={v.points}
             arcs={v.arcs}
             countries={data.countries}
             selectedId={selectedId}
             externalHoverId={hoverId}
             focusCountry={filters.country}
+            centralMeridian={centralMeridian}
+            // The floating panel is 23rem wide with a 1rem gap; on phones it is a sheet instead.
+            insetRight={!isSmall && panelSelection !== null ? 23 * 16 + 16 : 0}
             reducedMotion={reducedMotion}
             onSelectPoint={onSelectPoint}
             onSelectArc={onSelectArc}

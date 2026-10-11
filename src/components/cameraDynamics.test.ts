@@ -1,40 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  IDLE_RESUME_MS,
-  MIN_ALTITUDE,
-  aimToward,
-  FOCUS_LEAN,
-  clampAltitude,
-  framingAltitude,
-  grabRotateSpeed,
-  isDoubleTap,
-  isTap,
-  maxAltitude,
-  shouldAutoRotate,
-} from './cameraDynamics.ts'
-
-describe('grabRotateSpeed', () => {
-  it('scales with altitude, so a drag covers the same ground at any zoom', () => {
-    expect(grabRotateSpeed(2) / grabRotateSpeed(1)).toBeCloseTo(2)
-  })
-
-  it('never stalls or runs away', () => {
-    expect(grabRotateSpeed(0)).toBeGreaterThan(0)
-    expect(grabRotateSpeed(100)).toBeLessThanOrEqual(1.5)
-  })
-})
-
-describe('zoom limits', () => {
-  it('fits the globe on a phone and a desktop', () => {
-    expect(framingAltitude(390, 700)).toBeGreaterThan(framingAltitude(1200, 800))
-  })
-
-  it('clamps between close-up and a little past the framed globe', () => {
-    expect(clampAltitude(0.01, 1200, 800)).toBe(MIN_ALTITUDE)
-    expect(clampAltitude(99, 1200, 800)).toBe(maxAltitude(1200, 800))
-    expect(clampAltitude(1, 1200, 800)).toBe(1)
-  })
-})
+import { isDoubleTap, isTap } from './cameraDynamics.ts'
 
 describe('taps', () => {
   it('counts a quick, still, single-finger press', () => {
@@ -57,64 +22,5 @@ describe('taps', () => {
     expect(isDoubleTap(first, { at: 1600, x: 100, y: 100 })).toBe(false)
     expect(isDoubleTap(first, { at: 1100, x: 200, y: 100 })).toBe(false)
     expect(isDoubleTap(null, first)).toBe(false)
-  })
-})
-
-describe('shouldAutoRotate', () => {
-  const base = { now: 100_000, lastInteraction: null, pointerDown: false, busy: false, reducedMotion: false }
-
-  it('turns on load, before anyone has touched it', () => {
-    expect(shouldAutoRotate(base)).toBe(true)
-  })
-
-  it('stops while a finger is down, and stays stopped for the idle period after', () => {
-    expect(shouldAutoRotate({ ...base, pointerDown: true })).toBe(false)
-    expect(shouldAutoRotate({ ...base, lastInteraction: base.now - 1000 })).toBe(false)
-    expect(shouldAutoRotate({ ...base, lastInteraction: base.now - IDLE_RESUME_MS })).toBe(true)
-  })
-
-  it('stays off while something is selected or under reduced motion', () => {
-    expect(shouldAutoRotate({ ...base, busy: true })).toBe(false)
-    expect(shouldAutoRotate({ ...base, reducedMotion: true })).toBe(false)
-  })
-})
-
-describe('aimToward', () => {
-  const chile = { lat: -33.4, lng: -70.6 }
-  const china = { lat: 39.9, lng: 116.4 }
-  const angle = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
-    const r = Math.PI / 180
-    return (
-      Math.acos(
-        Math.sin(a.lat * r) * Math.sin(b.lat * r) +
-          Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.cos((a.lng - b.lng) * r),
-      ) / r
-    )
-  }
-
-  it('leans FOCUS_LEAN of the way toward the partners, along the great circle', () => {
-    const aim = aimToward({ lat: 0, lng: 0 }, [{ lat: 0, lng: 90, weight: 1 }])
-    expect(aim.lat).toBeCloseTo(0, 6)
-    expect(aim.lng).toBeCloseTo(FOCUS_LEAN * 90, 6)
-  })
-
-  it('weights partners by value', () => {
-    const aim = aimToward({ lat: 0, lng: 0 }, [
-      { lat: 0, lng: 60, weight: 9 },
-      { lat: 60, lng: 0, weight: 1 },
-    ])
-    expect(aim.lng).toBeGreaterThan(aim.lat * 3)
-  })
-
-  it('caps the lean, so a country with far-away partners stays well in view', () => {
-    const aim = aimToward(chile, [{ ...china, weight: 1 }])
-    expect(angle(chile, aim)).toBeCloseTo(40, 0)
-  })
-
-  it('stays on the country with no partners, or partners that cancel out', () => {
-    expect(aimToward(chile, [])).toEqual(chile)
-    const east = { lat: 0, lng: 90, weight: 1 }
-    const west = { lat: 0, lng: -90, weight: 1 }
-    expect(aimToward({ lat: 0, lng: 0 }, [east, west])).toEqual({ lat: 0, lng: 0 })
   })
 })
