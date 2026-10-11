@@ -34,6 +34,16 @@ preserved on the `backup/pre-redesign` branch and the `pre-redesign-2026-10-11` 
   numbers, country search, layer switches, largest-flows list), a floating legend, a dossier panel with
   a country view (exports, imports, partners, sites), a sources footer and a "Sources & method" dialog.
   Tokens and rationale are in `src/styles/tokens.css`.
+- **Camera dynamics reworked (same day, after CJ found spin and zoom fighting back).** Causes:
+  a refit-on-resize effect snapped the view home whenever the phone address bar resized the
+  viewport; any sub-5px press counted as a click, so the end of a pinch focused a country and flew
+  the camera out; auto-rotate switched back on mid-drag; damping at 0.07 made the drag lag; globe.gl
+  overrides rotateSpeed/zoomSpeed on every change and zooms toward the cursor before re-centring.
+  Now: no camera moves except on explicit request, strict tap rules (quick, still, single-pointer),
+  grab-tuned rotate speed re-applied after globe.gl's own listener, damping 0.14, zoom to centre
+  with limits, double-tap zoom, +/−/reset buttons, and auto-rotate only as an idle screensaver.
+  All the constants and rules are in `src/components/cameraDynamics.ts`, with tests. The drag feel
+  (`GRAB_GAIN`, `DAMPING`) was verified numerically in a headless browser, not by hand on a phone.
 - **Tuning knobs** now live at the top of `GlobeCanvas.tsx`: `HOME_VIEW`, `FILL`, the `OCEAN`/`LAND`
   texture colours, `BORDER_BASE_ALPHA`, the arc `base` alpha in `ARC_FRAGMENT_SHADER`,
   `ARC_RADIUS_SCALE`, and `POINT_REFERENCE_DISTANCE`. Stage shades are `stageShade` in `derive.ts`.

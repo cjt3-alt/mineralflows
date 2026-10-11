@@ -91,8 +91,13 @@ python -m ruff check etl/ && python -m ruff format --check etl/
   reduced motion.
 - **Estimated values never look like traded ones.** A value derived from volume × price carries a
   badge, a plain-language warning, and the arithmetic that produced it.
-- **The camera turns slowly on its own** and pauses whenever anything is hovered, selected or
-  focused.
+- **The camera only moves when you move it.** Drag to spin (tuned so the spot under your finger
+  stays under it at any zoom, with a short glide), scroll or pinch to zoom, double-click or
+  double-tap to zoom in on a spot, or use the +/−/reset buttons (or the +, − and 0 keys). Resizing
+  the window keeps your view. Clicking a country filters to it without moving the camera; search
+  and the largest-flows list fly to what you picked. The globe turns on its own only as a
+  screensaver: on load, then again after 15 seconds untouched with nothing selected. The rules are
+  in `src/components/cameraDynamics.ts`.
 
 The globe draws the largest 25, 100 or 300 flows (100 by default); past a few hundred the picture is
 noise and the frame rate drops. The legend says how many of how many are drawn, and the totals in

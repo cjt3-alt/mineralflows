@@ -27,6 +27,19 @@ import {
   type PointDatum,
 } from '../data/derive.ts'
 import { COUNTRY_SHAPES, countryAt } from '../data/geo.ts'
+import {
+  DAMPING,
+  DOUBLE_TAP_MS,
+  ZOOM_STEP,
+  clampAltitude,
+  framingAltitude,
+  grabRotateSpeed,
+  isDoubleTap,
+  isTap,
+  maxAltitude,
+  MIN_ALTITUDE,
+  shouldAutoRotate,
+} from './cameraDynamics.ts'
 import type { Country } from '../data/schema.ts'
 
 /**
@@ -78,23 +91,6 @@ const BORDER_COLOR = '#8aa2bf'
 const ATMOSPHERE_COLOR = '#2a7a92'
 
 /* ------------------------------------------------------------------ framing */
-
-/**
- * globe.gl's camera has a 50 degree vertical field of view. This works out how
- * far back the camera has to sit for the sphere to fill `FILL` of the narrower
- * axis, so the globe is large on a desktop and still whole on a phone.
- */
-const CAMERA_FOV_DEGREES = 50
-const FILL = 0.8
-
-function framingAltitude(width: number, height: number): number {
-  if (width === 0 || height === 0) return 2.4
-  const halfVertical = ((CAMERA_FOV_DEGREES / 2) * Math.PI) / 180
-  const halfHorizontal = Math.atan(Math.tan(halfVertical) * (width / height))
-  const half = Math.min(halfVertical, halfHorizontal)
-  const angular = Math.atan(FILL * Math.tan(half))
-  return 1 / Math.sin(angular) - 1
-}
 
 /** Where the camera starts: over the western Pacific, with East Asia's import hubs in view and the arcs from South America arriving over the horizon. */
 const HOME_VIEW = { lat: 8, lng: 150 }
@@ -671,62 +667,127 @@ export function GlobeCanvas({
 
   /* --------------------------------------------------------------- camera */
 
+  /**
+   * The camera only moves when the viewer moves it, or explicitly asks to go
+   * somewhere (search, the largest-flows list, the camera buttons). It never
+   * re-frames itself on resize — on a phone the address bar resizes the
+   * viewport during every gesture, which used to snap the view home — and a
+   * click on a country filters without flying away from where it was clicked.
+   * The rules themselves live in cameraDynamics.ts.
+   */
+  const lastInteractionRef = useRef<number | null>(null)
+  const pointerDownRef = useRef(false)
+  const busyRef = useRef(false)
+  /** The country a click on the globe just focused, so the fly-to effect leaves the camera alone. */
+  const clickedCountryRef = useRef<string | null>(null)
+  const sizeRef = useRef(size)
+  const framedRef = useRef(false)
+
+  useEffect(() => {
+    sizeRef.current = size
+  }, [size])
+
+  const markInteraction = useCallback(() => {
+    lastInteractionRef.current = performance.now()
+  }, [])
+
+  useEffect(() => {
+    busyRef.current =
+      keyboardActive || selectedId !== null || focusCountry !== null || hover !== null || externalHoverId !== null
+  }, [keyboardActive, selectedId, focusCountry, hover, externalHoverId])
+
+  /* Controls: set once the globe exists, and re-tuned on every camera change. */
   useEffect(() => {
     const globe = globeRef.current
-    if (!ready || !globe || size.width === 0) return
+    if (!ready || !globe) return
     const controls = globe.controls()
+    const radius = globe.getGlobeRadius()
     controls.enablePan = false
-    controls.minDistance = 140
-    controls.maxDistance = 650
-    controls.autoRotateSpeed = 0.35
+    // Zoom toward the centre. globe.gl zooms toward the cursor and then pulls
+    // the orbit target back to the centre after every step, which made zoom
+    // drift sideways.
+    controls.zoomToCursor = false
     controls.enableDamping = !reducedMotion
-    controls.dampingFactor = 0.07
-    controls.rotateSpeed = 0.6
-    controls.zoomSpeed = 0.7
+    controls.dampingFactor = DAMPING
+    controls.autoRotateSpeed = 0.35
 
-    // Report the camera position to the HUD, at most once a frame.
+    // globe.gl rewrites rotateSpeed and zoomSpeed on every change from a
+    // listener of its own. This one is added after it, so these values win.
+    const tune = () => {
+      const { width, height } = sizeRef.current
+      controls.rotateSpeed = grabRotateSpeed(globe.pointOfView().altitude)
+      controls.zoomSpeed = 0.8
+      controls.minDistance = radius * (1 + MIN_ALTITUDE)
+      controls.maxDistance = radius * (1 + maxAltitude(width, height))
+    }
+    tune()
+
+    // The HUD readout updates about ten times a second, not every frame.
+    let lastReport = 0
     let pending = 0
+    const report = () => {
+      pending = 0
+      lastReport = performance.now()
+      const pov = globe.pointOfView()
+      setView({ lat: pov.lat, lng: pov.lng, altitude: pov.altitude })
+    }
     const onChange = () => {
-      if (pending) return
-      pending = requestAnimationFrame(() => {
-        pending = 0
-        const pov = globe.pointOfView()
-        setView({ lat: pov.lat, lng: pov.lng, altitude: pov.altitude })
-      })
+      tune()
+      if (!pending && performance.now() - lastReport > 100) pending = requestAnimationFrame(report)
     }
     controls.addEventListener('change', onChange)
     return () => {
       controls.removeEventListener('change', onChange)
       cancelAnimationFrame(pending)
     }
-  }, [ready, reducedMotion, size.width])
+  }, [ready, reducedMotion])
 
-  /* One orchestrated move on load, and a refit whenever the viewport changes shape. */
+  /**
+   * First frame: home view, fitted to the viewport. Every later resize keeps
+   * wherever the viewer is and only pulls the zoom back inside the limits.
+   */
   useEffect(() => {
     const globe = globeRef.current
     if (!ready || !globe || size.width === 0) return
-    globe.pointOfView(
-      { ...HOME_VIEW, altitude: framingAltitude(size.width, size.height) },
-      reducedMotion ? 0 : 1600,
-    )
-  }, [ready, reducedMotion, size.width, size.height])
+    const controls = globe.controls()
+    controls.maxDistance = globe.getGlobeRadius() * (1 + maxAltitude(size.width, size.height))
+    if (!framedRef.current) {
+      framedRef.current = true
+      globe.pointOfView({ ...HOME_VIEW, altitude: framingAltitude(size.width, size.height) }, 0)
+      return
+    }
+    const pov = globe.pointOfView()
+    const clamped = clampAltitude(pov.altitude, size.width, size.height)
+    if (Math.abs(clamped - pov.altitude) > 1e-3) globe.pointOfView({ altitude: clamped }, 0)
+  }, [ready, size.width, size.height])
 
-  /* Fly to a focused country. */
+  /** Current altitude, kept within the limits. Flights keep the viewer's zoom. */
+  const currentAltitude = useCallback((): number => {
+    const globe = globeRef.current
+    const { width, height } = sizeRef.current
+    if (!globe) return framingAltitude(width, height)
+    return clampAltitude(globe.pointOfView().altitude, width, height)
+  }, [])
+
+  /* Fly to a country focused from search or a dossier link — not one just clicked on the globe. */
   useEffect(() => {
     const globe = globeRef.current
     if (!ready || !globe || focusCountry === null) return
+    if (clickedCountryRef.current === focusCountry) {
+      clickedCountryRef.current = null
+      return
+    }
+    clickedCountryRef.current = null
     const c = countries[focusCountry]
     if (!c) return
-    globe.pointOfView(
-      { lat: c.lat, lng: c.lon, altitude: framingAltitude(size.width, size.height) * 1.25 },
-      reducedMotion ? 0 : 1100,
-    )
-  }, [ready, focusCountry, countries, reducedMotion, size.width, size.height])
+    globe.pointOfView({ lat: c.lat, lng: c.lon, altitude: currentAltitude() }, reducedMotion ? 0 : 1000)
+  }, [ready, focusCountry, countries, reducedMotion, currentAltitude])
 
   /**
    * Fly to a flow picked from the list. A flow clicked on the globe is already
    * in view, so this only moves when the pick came from elsewhere — which is
-   * exactly when the list row was being hovered.
+   * exactly when the list row was being hovered. Zooms out only as far as
+   * needed for a long flow to fit.
    */
   useEffect(() => {
     const globe = globeRef.current
@@ -737,42 +798,72 @@ export function GlobeCanvas({
     const b = globe.getCoords(arc.endLat, arc.endLng, 0)
     const mid = slerpVector3(new Vector3(a.x, a.y, a.z), new Vector3(b.x, b.y, b.z), 0.5)
     const coords = globe.toGeoCoords({ x: mid.x, y: mid.y, z: mid.z })
+    const { width, height } = sizeRef.current
     globe.pointOfView(
-      { lat: coords.lat, lng: coords.lng, altitude: framingAltitude(size.width, size.height) * 1.1 },
+      { lat: coords.lat, lng: coords.lng, altitude: Math.max(currentAltitude(), framingAltitude(width, height)) },
       reducedMotion ? 0 : 900,
     )
     // Only on a new selection, not on every hover change after it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, selectedId])
 
-  /* Fly to the keyboard cursor, so it is actually on screen. */
+  /* Fly to the keyboard cursor, so it is actually on screen, at the current zoom. */
   useEffect(() => {
     const globe = globeRef.current
     if (!globe || !keyboardActive || current === undefined) return
     const lat = current.kind === 'facility' ? current.point.lat : current.arc.startLat
     const lng = current.kind === 'facility' ? current.point.lng : current.arc.startLng
-    globe.pointOfView(
-      { lat, lng, altitude: framingAltitude(size.width, size.height) * 0.85 },
-      reducedMotion ? 0 : 600,
-    )
-  }, [current, keyboardActive, reducedMotion, size.width, size.height])
+    globe.pointOfView({ lat, lng, altitude: currentAltitude() }, reducedMotion ? 0 : 600)
+  }, [current, keyboardActive, reducedMotion, currentAltitude])
+
+  /** Zoom one step in (factor < 1) or out, optionally centring on a screen point. */
+  const zoomBy = useCallback(
+    (factor: number, at?: { x: number; y: number }) => {
+      const globe = globeRef.current
+      if (!globe) return
+      markInteraction()
+      const pov = globe.pointOfView()
+      const { width, height } = sizeRef.current
+      const target = at ? globe.toGlobeCoords(at.x, at.y) : null
+      globe.pointOfView(
+        {
+          lat: target?.lat ?? pov.lat,
+          lng: target?.lng ?? pov.lng,
+          altitude: clampAltitude(pov.altitude * factor, width, height),
+        },
+        reducedMotion ? 0 : 450,
+      )
+    },
+    [markInteraction, reducedMotion],
+  )
+
+  const goHome = useCallback(() => {
+    const globe = globeRef.current
+    if (!globe) return
+    markInteraction()
+    const { width, height } = sizeRef.current
+    globe.pointOfView({ ...HOME_VIEW, altitude: framingAltitude(width, height) }, reducedMotion ? 0 : 900)
+  }, [markInteraction, reducedMotion])
 
   /**
-   * Idle rotation, paused whenever anything is being looked at: a selection,
-   * a hover, a focused country or keyboard navigation. A globe that keeps
-   * turning under the pointer carries the thing you are reading out of view.
+   * Auto-rotate as a screensaver: on when the page opens, off the moment the
+   * globe is touched, and back only after a quiet spell with nothing selected.
+   * Checked on a timer from refs, so it never re-renders anything.
    */
   useEffect(() => {
     const globe = globeRef.current
     if (!ready || !globe) return
-    globe.controls().autoRotate =
-      !reducedMotion &&
-      !keyboardActive &&
-      selectedId === null &&
-      focusCountry === null &&
-      hover === null &&
-      externalHoverId === null
-  }, [ready, reducedMotion, keyboardActive, selectedId, focusCountry, hover, externalHoverId])
+    const id = window.setInterval(() => {
+      globe.controls().autoRotate = shouldAutoRotate({
+        now: performance.now(),
+        lastInteraction: lastInteractionRef.current,
+        pointerDown: pointerDownRef.current,
+        busy: busyRef.current,
+        reducedMotion,
+      })
+    }, 250)
+    return () => window.clearInterval(id)
+  }, [ready, reducedMotion])
 
   /* ----------------------------------------------------------- animation */
 
@@ -855,13 +946,27 @@ export function GlobeCanvas({
     [points, size.width, size.height],
   )
 
+  /**
+   * Pointer input. OrbitControls owns drag, pinch and wheel; this adds hover,
+   * taps and double taps on top without fighting it:
+   *
+   * - Nothing hover-related runs while a pointer is down, so a drag spends its
+   *   frames on rendering.
+   * - A tap must be quick, nearly still and single-pointer (see `isTap`), so
+   *   the end of a pinch or a hesitant drag never counts as a click.
+   * - A tap on land waits out the double-tap window before focusing a country,
+   *   so a double tap to zoom never also changes the filters.
+   */
   useEffect(() => {
     const globe = globeRef.current
     if (!ready || !globe) return
     const dom = globe.renderer().domElement
+    const active = new Map<number, { x: number; y: number }>()
+    let gesture: { x: number; y: number; at: number; maxPointers: number; moved: number } | null = null
+    let lastTap: { at: number; x: number; y: number } | null = null
+    let pendingTap = 0
     let frame = 0
     let last: PointerEvent | null = null
-    let down: { x: number; y: number } | null = null
 
     const local = (event: PointerEvent | MouseEvent) => {
       const rect = dom.getBoundingClientRect()
@@ -870,18 +975,25 @@ export function GlobeCanvas({
 
     const run = () => {
       frame = 0
-      if (!last) return
+      if (!last || active.size > 0) return
       const { x, y } = local(last)
-      const hit = down ? null : pick(x, y)
+      const hit = pick(x, y)
       setHover(hit ? { hit, x, y } : null)
       const coords = globe.toGlobeCoords(x, y)
       setPointer(coords ? { lat: coords.lat, lng: coords.lng } : null)
       const shape = !hit && coords ? countryAt(coords.lat, coords.lng) : null
-      setHoverCountry(shape?.iso3 && shape.iso3 in countries ? shape.iso3 : null)
-      dom.style.cursor = hit || (shape?.iso3 && shape.iso3 in countries) ? 'pointer' : 'grab'
+      const known = shape?.iso3 && shape.iso3 in countries ? shape.iso3 : null
+      setHoverCountry(known)
+      dom.style.cursor = hit || known ? 'pointer' : 'grab'
     }
 
     const onMove = (event: PointerEvent) => {
+      markInteraction()
+      if (gesture && active.has(event.pointerId)) {
+        const p = local(event)
+        gesture.moved = Math.max(gesture.moved, Math.hypot(p.x - gesture.x, p.y - gesture.y))
+        return
+      }
       last = event
       if (!frame) frame = requestAnimationFrame(run)
     }
@@ -892,40 +1004,90 @@ export function GlobeCanvas({
       setHoverCountry(null)
     }
     const onDown = (event: PointerEvent) => {
-      down = local(event)
+      markInteraction()
+      pointerDownRef.current = true
+      globe.controls().autoRotate = false
+      const p = local(event)
+      active.set(event.pointerId, p)
+      if (gesture) gesture.maxPointers = Math.max(gesture.maxPointers, active.size)
+      else gesture = { x: p.x, y: p.y, at: performance.now(), maxPointers: 1, moved: 0 }
+      setHover(null)
+      dom.style.cursor = 'grabbing'
+    }
+    const release = (event: PointerEvent): typeof gesture => {
+      if (!active.has(event.pointerId)) return null
+      active.delete(event.pointerId)
+      if (active.size > 0) return null
+      pointerDownRef.current = false
+      markInteraction()
+      dom.style.cursor = 'grab'
+      const g = gesture
+      gesture = null
+      return g
     }
     const onUp = (event: PointerEvent) => {
-      const start = down
-      down = null
-      if (!start) return
-      const { x, y } = local(event)
-      // A drag that rotated the globe is not a click.
-      if (Math.hypot(x - start.x, y - start.y) > 5) return
-      const hit = pick(x, y)
+      const g = release(event)
+      if (!g) return
+      const p = local(event)
+      const now = performance.now()
+      const moved = Math.max(g.moved, Math.hypot(p.x - g.x, p.y - g.y))
+      if (!isTap({ durationMs: now - g.at, movedPx: moved, maxPointers: g.maxPointers })) {
+        lastTap = null
+        return
+      }
+      const tap = { at: now, x: p.x, y: p.y }
+      if (isDoubleTap(lastTap, tap)) {
+        lastTap = null
+        window.clearTimeout(pendingTap)
+        zoomBy(ZOOM_STEP, p)
+        return
+      }
+      lastTap = tap
+      const hit = pick(p.x, p.y)
       if (hit) {
         setKeyboardActive(false)
         if (hit.kind === 'facility') onSelectPoint(hit.point)
         else onSelectArc(hit.arc)
         return
       }
-      const coords = globe.toGlobeCoords(x, y)
-      const shape = coords ? countryAt(coords.lat, coords.lng) : null
-      if (shape?.iso3 && shape.iso3 in countries) onSelectCountry(shape.iso3)
-      else onClearSelection()
+      window.clearTimeout(pendingTap)
+      pendingTap = window.setTimeout(() => {
+        const coords = globe.toGlobeCoords(p.x, p.y)
+        const shape = coords ? countryAt(coords.lat, coords.lng) : null
+        if (shape?.iso3 && shape.iso3 in countries) {
+          clickedCountryRef.current = shape.iso3
+          onSelectCountry(shape.iso3)
+        } else {
+          onClearSelection()
+        }
+      }, DOUBLE_TAP_MS)
+    }
+    const onCancel = (event: PointerEvent) => {
+      release(event)
+      lastTap = null
+    }
+    const onWheel = () => {
+      markInteraction()
+      globe.controls().autoRotate = false
     }
 
     dom.addEventListener('pointermove', onMove)
     dom.addEventListener('pointerleave', onLeave)
     dom.addEventListener('pointerdown', onDown)
     dom.addEventListener('pointerup', onUp)
+    dom.addEventListener('pointercancel', onCancel)
+    dom.addEventListener('wheel', onWheel, { passive: true })
     return () => {
       cancelAnimationFrame(frame)
+      window.clearTimeout(pendingTap)
       dom.removeEventListener('pointermove', onMove)
       dom.removeEventListener('pointerleave', onLeave)
       dom.removeEventListener('pointerdown', onDown)
       dom.removeEventListener('pointerup', onUp)
+      dom.removeEventListener('pointercancel', onCancel)
+      dom.removeEventListener('wheel', onWheel)
     }
-  }, [ready, pick, countries, onSelectPoint, onSelectArc, onSelectCountry, onClearSelection])
+  }, [ready, pick, countries, markInteraction, zoomBy, onSelectPoint, onSelectArc, onSelectCountry, onClearSelection])
 
   /* ------------------------------------------------------------ keyboard */
 
@@ -947,6 +1109,19 @@ export function GlobeCanvas({
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
+      markInteraction()
+      if (event.key === '+' || event.key === '=') {
+        event.preventDefault()
+        return zoomBy(ZOOM_STEP)
+      }
+      if (event.key === '-' || event.key === '_') {
+        event.preventDefault()
+        return zoomBy(1 / ZOOM_STEP)
+      }
+      if (event.key === '0') {
+        event.preventDefault()
+        return goHome()
+      }
       if (walk.length === 0) return
       const step = (delta: number) => {
         event.preventDefault()
@@ -981,7 +1156,7 @@ export function GlobeCanvas({
           return
       }
     },
-    [walk, current, onSelectPoint, onSelectArc, onClearSelection],
+    [walk, current, onSelectPoint, onSelectArc, onClearSelection, markInteraction, zoomBy, goHome],
   )
 
   /* -------------------------------------------------------------- render */
@@ -990,7 +1165,7 @@ export function GlobeCanvas({
     <div
       ref={containerRef}
       role="application"
-      aria-label="Globe. Drag to rotate, scroll to zoom, click a flow, site or country. With the keyboard, arrow keys move between flows and sites and Enter opens one."
+      aria-label="Globe. Drag to rotate, scroll or pinch to zoom, double-click to zoom in, click a flow, site or country. With the keyboard, arrow keys move between flows and sites, Enter opens one, plus and minus zoom, zero resets the view."
       tabIndex={0}
       onKeyDown={onKeyDown}
       onBlur={() => setKeyboardActive(false)}
@@ -1014,6 +1189,7 @@ export function GlobeCanvas({
       )}
 
       <Hud view={view} pointer={pointer} hoverCountry={hoverCountry} countries={countries} />
+      <CameraButtons onZoomIn={() => zoomBy(ZOOM_STEP)} onZoomOut={() => zoomBy(1 / ZOOM_STEP)} onHome={goHome} />
 
       {hover && <Tooltip hit={hover.hit} x={hover.x} y={hover.y} width={size.width} countries={countries} />}
 
@@ -1032,6 +1208,27 @@ export function GlobeCanvas({
 }
 
 /* -------------------------------------------------------------------- HUD */
+
+function CameraButtons({ onZoomIn, onZoomOut, onHome }: { onZoomIn: () => void; onZoomOut: () => void; onHome: () => void }) {
+  const cls =
+    'flex h-8 w-8 items-center justify-center border-b border-line-strong text-dim last:border-b-0 hover:bg-accent/10 hover:text-accent'
+  return (
+    <div className="panel absolute top-5 left-5 z-10 flex flex-col sm:top-16 sm:left-6" role="group" aria-label="Camera">
+      <button type="button" onClick={onZoomIn} className={cls} aria-label="Zoom in" title="Zoom in (+)">
+        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.4" /></svg>
+      </button>
+      <button type="button" onClick={onZoomOut} className={cls} aria-label="Zoom out" title="Zoom out (−)">
+        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M1 6h10" stroke="currentColor" strokeWidth="1.4" /></svg>
+      </button>
+      <button type="button" onClick={onHome} className={cls} aria-label="Reset view" title="Reset view (0)">
+        <svg aria-hidden="true" width="13" height="13" viewBox="0 0 13 13">
+          <circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M6.5 0v3M6.5 10v3M0 6.5h3M10 6.5h3" stroke="currentColor" strokeWidth="1.2" />
+        </svg>
+      </button>
+    </div>
+  )
+}
 
 function Hud({
   view,
@@ -1071,7 +1268,7 @@ function Hud({
             )}
           </>
         ) : (
-          <span className="text-muted">DRAG · SCROLL · CLICK</span>
+          <span className="text-muted">DRAG · SCROLL · DOUBLE-CLICK</span>
         )}
       </div>
     </div>
