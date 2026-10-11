@@ -59,6 +59,8 @@ export interface MapCanvasProps {
   centralMeridian: number
   /** Pixels covered by a panel on the right; the map keeps its content clear of them. */
   insetRight: number
+  /** Which terrain layers to draw under the data. */
+  terrainLayers: TerrainLayers
   reducedMotion: boolean
   onSelectPoint: (point: PointDatum) => void
   onSelectArc: (arc: ArcDatum) => void
@@ -69,19 +71,60 @@ export interface MapCanvasProps {
 /* ------------------------------------------------------------------ palette */
 
 const ACCENT = '#5ad8f0'
+/** Shown only until the relief image arrives, or with relief switched off. */
 const OCEAN_FILL = 'rgba(9, 17, 27, 0.75)'
 const GRATICULE = 'rgba(90, 216, 240, 0.06)'
 const LAND_UNDERFILL = 'rgba(14, 30, 44, 0.9)'
-const LAND_DOT = '#4a7391'
-const BORDER = 'rgba(127, 154, 184, 0.28)'
+/** Tectonic plate boundaries: a muted violet, apart from data (copper) and interface (cyan). */
+const PLATE = 'rgba(176, 150, 255, 0.42)'
+const RANGE_LABEL = 'rgba(176, 205, 228, 0.42)'
+/**
+ * Borders are engraved into the dot matrix: a narrow channel is cleared along
+ * each one, and a crisp hairline runs down its middle. Coastlines get a softer
+ * line of their own, so land reads as shapes and countries as countries.
+ */
+const BORDER = 'rgba(150, 196, 226, 0.62)'
+const BORDER_CHANNEL_PX = 3.4
+const BORDER_WIDTH_PX = 0.85
+const COASTLINE = 'rgba(110, 170, 205, 0.4)'
+const COASTLINE_WIDTH_PX = 0.8
 const COMET = '255, 244, 225'
 const PULSE = '255, 201, 138'
 
 /* ---------------------------------------------------------------- geometry */
 
 const topology = countriesTopology as unknown as Topology
-const LAND = feature(topology, topology.objects.land!) as unknown as GeoPermissibleObjects
-const BORDERS = mesh(topology, topology.objects.countries as never, (a, b) => a !== b) as unknown as GeoPermissibleObjects
+interface Outlines {
+  land: GeoPermissibleObjects
+  borders: GeoPermissibleObjects
+}
+
+function outlinesOf(t: Topology): Outlines {
+  return {
+    land: feature(t, t.objects.land!) as unknown as GeoPermissibleObjects,
+    borders: mesh(t, t.objects.countries as never, (a, b) => a !== b) as unknown as GeoPermissibleObjects,
+  }
+}
+
+/** Natural Earth 1:110m: bundled, and plenty at world scale. */
+const OUTLINES = outlinesOf(topology)
+
+/**
+ * Natural Earth 1:50m, for borders that stay smooth when zoomed in. About
+ * 236 kB compressed, so it is fetched only the first time someone zooms past
+ * `DETAIL_ZOOM`, as its own chunk, never on first paint.
+ */
+const DETAIL_ZOOM = 2
+let detailOutlines: Outlines | null = null
+let detailRequest: Promise<Outlines> | null = null
+
+function loadDetailOutlines(): Promise<Outlines> {
+  detailRequest ??= import('world-atlas/countries-50m.json').then((m) => {
+    detailOutlines = outlinesOf((m.default ?? m) as unknown as Topology)
+    return detailOutlines
+  })
+  return detailRequest
+}
 const GRATICULE_LINES = geoGraticule10()
 
 /** Country outlines by ISO3, for the hover and focus fills. */
@@ -130,69 +173,69 @@ function fitProjection(width: number, height: number, centralMeridian: number): 
   return { projection, s, tx, ty, mapW: 2 * Math.PI * s, centralMeridian }
 }
 
-/* ---------------------------------------------------------------- land mask */
+/* --------------------------------------------------------------- terrain */
 
 /**
- * Land as a lat/lng bitmap, painted once, so the dot matrix can ask "is this
- * point land?" for any view without drawing a mask per frame.
+ * The terrain base map, built offline by tools/build_basemap.py into
+ * public/basemap/: a shaded-relief image (land and sea floor) already in Web
+ * Mercator, tectonic plate boundaries, and named mountain ranges. All three
+ * load after first paint; until the relief arrives the map draws flat land.
  */
-const MASK_W = 4096
-const MASK_H = 2048
-let landMask: Uint8Array | null = null
-
-function isLand(lat: number, lng: number): boolean {
-  if (!landMask) {
-    const canvas = document.createElement('canvas')
-    canvas.width = MASK_W
-    canvas.height = MASK_H
-    const ctx = canvas.getContext('2d', { willReadFrequently: true })!
-    ctx.fillStyle = '#fff'
-    // A ring that crosses the 180th meridian (Russia's Chukotka, Fiji) jumps
-    // from +180 to -180 between two points; traced naively that jump draws a
-    // sliver across the whole map, which the even-odd fill turns into stripes.
-    // Unwrap each ring so it stays continuous, then paint it once in place and
-    // once a world to either side, so whatever lands past an edge comes back in.
-    for (const shape of COUNTRY_SHAPES) {
-      for (const polygon of shape.polygons) {
-        const rings = polygon.map((ring) => {
-          let prev = ring[0]?.[0] ?? 0
-          return ring.map(([x, y]) => {
-            let lng = x
-            while (lng - prev > 180) lng -= 360
-            while (lng - prev < -180) lng += 360
-            prev = lng
-            return [lng, y] as const
-          })
-        })
-        for (const shift of [-360, 0, 360]) {
-          ctx.beginPath()
-          for (const ring of rings) {
-            ring.forEach(([x, y], i) => {
-              const px = ((x + shift + 180) / 360) * MASK_W
-              const py = ((90 - y) / 180) * MASK_H
-              if (i === 0) ctx.moveTo(px, py)
-              else ctx.lineTo(px, py)
-            })
-            ctx.closePath()
-          }
-          ctx.fill('evenodd')
-        }
-      }
-    }
-    const rgba = ctx.getImageData(0, 0, MASK_W, MASK_H).data
-    landMask = new Uint8Array(MASK_W * MASK_H)
-    for (let i = 0; i < landMask.length; i++) landMask[i] = rgba[i * 4]! > 127 ? 1 : 0
-  }
-  const x = Math.min(MASK_W - 1, Math.max(0, Math.floor(((wrapLng(lng) + 180) / 360) * MASK_W)))
-  const y = Math.min(MASK_H - 1, Math.max(0, Math.floor(((90 - lat) / 180) * MASK_H)))
-  return landMask[y * MASK_W + x] === 1
+export interface TerrainLayers {
+  relief: boolean
+  plates: boolean
+  ranges: boolean
 }
+
+interface Terrain {
+  relief: HTMLImageElement | null
+  plates: GeoPermissibleObjects | null
+  ranges: { name: string; rank: number; lng: number; lat: number }[]
+}
+
+const terrain: Terrain = { relief: null, plates: null, ranges: [] }
+let terrainRequest: Promise<void> | null = null
+
+function basemapUrl(file: string): string {
+  const base = import.meta.env.BASE_URL
+  return (base.endsWith('/') ? base : base + '/') + 'basemap/' + file
+}
+
+function loadTerrain(): Promise<void> {
+  terrainRequest ??= Promise.all([
+    new Promise<void>((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        terrain.relief = img
+        resolve()
+      }
+      // Without relief the map still works on flat land; nothing to report.
+      img.onerror = () => resolve()
+      img.src = basemapUrl('relief.webp')
+    }),
+    fetch(basemapUrl('plates.json'))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: unknown) => {
+        terrain.plates = (d as GeoPermissibleObjects | null) ?? null
+      })
+      .catch(() => undefined),
+    fetch(basemapUrl('ranges.json'))
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d: unknown) => {
+        terrain.ranges = Array.isArray(d) ? (d as Terrain['ranges']) : []
+      })
+      .catch(() => undefined),
+  ]).then(() => undefined)
+  return terrainRequest
+}
+
+/** The relief image's latitude span, matching tools/build_basemap.py. */
+const RELIEF_LAT_TOP = 80
+const RELIEF_LAT_BOTTOM = -58
 
 /** Margins of the cached static layer beyond the viewport, as fractions of its size. */
 const STATIC_MARGIN_X = 0.35
 const STATIC_MARGIN_Y = 0.2
-const DOT_SPACING = 4.4
-const DOT_RADIUS = 1.05
 
 /* -------------------------------------------------------------- arc model */
 
@@ -314,6 +357,7 @@ export function MapCanvas({
   focusCountry,
   centralMeridian,
   insetRight,
+  terrainLayers,
   reducedMotion,
   onSelectPoint,
   onSelectArc,
@@ -401,6 +445,9 @@ export function MapCanvas({
 
   /* ------------------------------------------------------- static layer */
 
+  const [detailReady, setDetailReady] = useState(false)
+  const [terrainReady, setTerrainReady] = useState(false)
+
   const renderStatic = useCallback(() => {
     if (!fitted || !mapRect || size.width === 0) return
     const v = { ...viewRef.current }
@@ -415,58 +462,132 @@ export function MapCanvas({
     const path = geoPath(fitted.projection, ctx)
     const period = fitted.mapW * v.k
     const offsets = copyOffsets(mapRect.left * v.k + v.x, mapRect.right * v.k + v.x, period, -mx, W + mx)
+    const outlines = v.k > DETAIL_ZOOM && detailReady && detailOutlines ? detailOutlines : OUTLINES
     const atCopy = (off: number) =>
       ctx.setTransform(dpr * v.k, 0, 0, dpr * v.k, dpr * (v.x + off + mx), dpr * (v.y + my))
 
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
+    const relief = terrainLayers.relief && terrainReady ? terrain.relief : null
     for (const off of offsets) {
       atCopy(off)
-      ctx.fillStyle = OCEAN_FILL
-      ctx.fillRect(mapRect.left, mapRect.top, fitted.mapW, mapRect.bottom - mapRect.top)
+      if (relief) {
+        // The image spans longitude -180..180 from its left edge, already in
+        // Mercator rows; place it by where -180 falls in this rotated map,
+        // once, and once a world to the left, to cover the copy.
+        const x0 = fitted.tx + fitted.s * ((wrapLng(-180 - fitted.centralMeridian) * Math.PI) / 180)
+        const top = fitted.projection([fitted.centralMeridian, RELIEF_LAT_TOP])![1]
+        const bottom = fitted.projection([fitted.centralMeridian, RELIEF_LAT_BOTTOM])![1]
+        ctx.imageSmoothingQuality = 'high'
+        for (const shift of [0, -fitted.mapW]) {
+          ctx.drawImage(relief, x0 + shift, top, fitted.mapW, bottom - top)
+        }
+      } else {
+        ctx.fillStyle = OCEAN_FILL
+        ctx.fillRect(mapRect.left, mapRect.top, fitted.mapW, mapRect.bottom - mapRect.top)
+        ctx.beginPath()
+        path(outlines.land)
+        ctx.fillStyle = LAND_UNDERFILL
+        ctx.fill()
+      }
       ctx.beginPath()
       path(GRATICULE_LINES)
       ctx.strokeStyle = GRATICULE
       ctx.lineWidth = 1 / v.k
       ctx.stroke()
-      ctx.beginPath()
-      path(LAND)
-      ctx.fillStyle = LAND_UNDERFILL
-      ctx.fill()
     }
 
-    // The dot matrix: an even screen grid, anchored to the map so the dots
-    // ride with it while panning, lit wherever the land mask says land. One
-    // path, one fill.
-    ctx.setTransform(dpr, 0, 0, dpr, dpr * mx, dpr * my)
-    ctx.beginPath()
-    const startX = (((v.x % DOT_SPACING) + DOT_SPACING) % DOT_SPACING) - mx
-    const startY = (((v.y % DOT_SPACING) + DOT_SPACING) % DOT_SPACING) - my
-    for (let y = startY; y < H + my; y += DOT_SPACING) {
-      const row = Math.round((y - v.y) / DOT_SPACING)
-      const shift = row % 2 ? DOT_SPACING / 2 : 0
-      for (let x = startX + shift; x < W + mx; x += DOT_SPACING) {
-        const ll = baseToLatLng((x - v.x) / v.k, (y - v.y) / v.k)
-        if (!ll || !isLand(ll.lat, ll.lng)) continue
-        ctx.moveTo(x + DOT_RADIUS, y)
-        ctx.arc(x, y, DOT_RADIUS, 0, Math.PI * 2)
-      }
-    }
-    ctx.fillStyle = LAND_DOT
-    ctx.fill()
-
+    // Line widths are in screen pixels at any zoom, and grow a touch when
+    // zoomed in so borders stay legible.
+    const lineScale = (1 + 0.15 * Math.log2(v.k)) / v.k
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
     for (const off of offsets) {
       atCopy(off)
+      // Cut a narrow dark channel along each border, engraved into the terrain.
+      ctx.globalCompositeOperation = 'destination-out'
       ctx.beginPath()
-      path(BORDERS)
+      path(outlines.borders)
+      ctx.strokeStyle = '#000'
+      ctx.lineWidth = BORDER_CHANNEL_PX * lineScale
+      ctx.stroke()
+      ctx.globalCompositeOperation = 'source-over'
+
+      ctx.beginPath()
+      path(outlines.land)
+      ctx.strokeStyle = COASTLINE
+      ctx.lineWidth = COASTLINE_WIDTH_PX * lineScale
+      ctx.stroke()
+
+      ctx.beginPath()
+      path(outlines.borders)
       ctx.strokeStyle = BORDER
-      ctx.lineWidth = 0.6 / v.k
+      ctx.lineWidth = BORDER_WIDTH_PX * lineScale
       ctx.stroke()
     }
 
+    if (terrainLayers.plates && terrain.plates) {
+      for (const off of offsets) {
+        atCopy(off)
+        ctx.beginPath()
+        path(terrain.plates)
+        ctx.setLineDash([6 * lineScale, 4 * lineScale])
+        ctx.strokeStyle = PLATE
+        ctx.lineWidth = 1.1 * lineScale
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
+    }
+
+    // Mountain range names: the biggest at world scale, more as you zoom in.
+    if (terrainLayers.ranges && terrain.ranges.length > 0) {
+      const maxRank = v.k < 1.6 ? 1 : v.k < 3 ? 2 : v.k < 5 ? 4 : 9
+      ctx.setTransform(dpr, 0, 0, dpr, dpr * mx, dpr * my)
+      ctx.font = '500 10px "IBM Plex Mono", ui-monospace, monospace'
+      ;(ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = '2.5px'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = RANGE_LABEL
+      // Ranges are sorted most important first; a label that would overlap
+      // one already placed is skipped rather than drawn on top of it.
+      const placed: Rect[] = []
+      for (const range of terrain.ranges) {
+        if (range.rank > maxRank) continue
+        const p = fitted.projection([range.lng, range.lat])
+        if (!p) continue
+        const text = range.name.toUpperCase()
+        const half = ctx.measureText(text).width / 2 + 6
+        const sx0 = p[0] * v.k + v.x
+        const sy = p[1] * v.k + v.y
+        for (const off of copyOffsets(sx0, sx0, period, -mx, W + mx)) {
+          const box = { left: sx0 + off - half, right: sx0 + off + half, top: sy - 8, bottom: sy + 8 }
+          if (placed.some((b) => b.left < box.right && box.left < b.right && b.top < box.bottom && box.top < b.bottom))
+            continue
+          placed.push(box)
+          ctx.fillText(text, sx0 + off, sy)
+        }
+      }
+      ;(ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = '0px'
+    }
+
     staticRef.current = { canvas, view: v, mx, my, at: performance.now() }
-  }, [fitted, mapRect, size.width, size.height, dpr, baseToLatLng])
+  }, [fitted, mapRect, size.width, size.height, dpr, detailReady, terrainReady, terrainLayers])
+
+  /* Load the terrain once, then redraw with it. */
+  useEffect(() => {
+    let live = true
+    void loadTerrain().then(() => live && setTerrainReady(true))
+    return () => {
+      live = false
+    }
+  }, [])
+  /* Redraw whenever what the static layer depends on changes: detail or
+     terrain arriving, or a terrain layer switched. */
+  useEffect(() => {
+    renderStatic()
+  }, [renderStatic])
+
 
   /* ------------------------------------------------------------ the view */
 
@@ -480,6 +601,9 @@ export function MapCanvas({
     (next: View) => {
       if (!mapRect) return
       viewRef.current = clampWrapView(next, visible, mapRect)
+      if (viewRef.current.k > DETAIL_ZOOM && !detailOutlines) {
+        void loadDetailOutlines().then(() => setDetailReady(true))
+      }
       const now = performance.now()
       if (now - lastReportRef.current > 100) {
         lastReportRef.current = now

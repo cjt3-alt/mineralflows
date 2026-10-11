@@ -11,6 +11,10 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    // The largest chunk is Natural Earth's 1:50m country outlines (~760 kB raw,
+    // ~240 kB gzipped), which the map fetches only when zoomed in. It is data,
+    // not code, so the default 500 kB warning would only ever flag it.
+    chunkSizeWarningLimit: 800,
   },
   test: {
     environment: 'node',

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { MapCanvas } from './MapCanvas.tsx'
+import { MapCanvas, type TerrainLayers } from './MapCanvas.tsx'
 import { chooseSeam, wrapLng } from './mapDynamics.ts'
 import { isOpenOceanMeridian } from '../data/geo.ts'
 import { Banner, TopBar } from './TopBar.tsx'
@@ -81,6 +81,11 @@ export function AppShell() {
   const [hoverId, setHoverId] = useState<string | null>(null)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [terrainLayers, setTerrainLayers] = useState<TerrainLayers>({ relief: true, plates: true, ranges: true })
+  const onToggleTerrain = useCallback(
+    (layer: keyof TerrainLayers) => setTerrainLayers((t) => ({ ...t, [layer]: !t[layer] })),
+    [],
+  )
 
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   const isSmall = useMediaQuery('(max-width: 767px)')
@@ -303,6 +308,8 @@ export function AppShell() {
     onHoverFlow: setHoverId,
     onSelectFlow: onSelectArc,
     shade: v.shade,
+    terrainLayers,
+    onToggleTerrain,
   }
 
   const legend = (
@@ -356,6 +363,7 @@ export function AppShell() {
             externalHoverId={hoverId}
             focusCountry={filters.country}
             centralMeridian={centralMeridian}
+            terrainLayers={terrainLayers}
             // The floating panel is 23rem wide with a 1rem gap; on phones it is a sheet instead.
             insetRight={!isSmall && panelSelection !== null ? 23 * 16 + 16 : 0}
             reducedMotion={reducedMotion}

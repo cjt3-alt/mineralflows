@@ -7,6 +7,7 @@ import {
   type ArcDatum,
 } from '../data/derive.ts'
 import { STAGES, type Country, type Stage } from '../data/schema.ts'
+import type { TerrainLayers } from './MapCanvas.tsx'
 
 /**
  * The control column: what is on screen, what can be switched on and off, and
@@ -56,6 +57,9 @@ export interface FilterRailProps {
 
   /** Stage shades of the active mineral, for swatches that match the map. */
   shade: Record<Stage, string>
+
+  terrainLayers: TerrainLayers
+  onToggleTerrain: (layer: keyof TerrainLayers) => void
 }
 
 function Section({ index, title, children, aside }: { index: string; title: string; children: ReactNode; aside?: ReactNode }) {
@@ -232,6 +236,8 @@ export function FilterRail(props: FilterRailProps) {
     onHoverFlow,
     onSelectFlow,
     shade,
+    terrainLayers,
+    onToggleTerrain,
   } = props
 
   const stageOn = (s: Stage) => stages.length === 0 || stages.includes(s)
@@ -337,7 +343,42 @@ export function FilterRail(props: FilterRailProps) {
         <p className="mt-2 text-xs text-muted">Largest flows by value. Arc width is value.</p>
       </Section>
 
-      <Section index="05" title="Largest flows">
+      <Section index="05" title="Terrain">
+        <div className="flex flex-col">
+          <LayerRow
+            on={terrainLayers.relief}
+            onClick={() => onToggleTerrain('relief')}
+            swatch={
+              <span
+                className="inline-block h-3 w-7"
+                style={{ background: 'linear-gradient(90deg, #0b1726, #2e4256 45%, #5a7690 55%, #1d2f40)' }}
+              />
+            }
+            label="Relief & sea floor"
+            value=""
+          />
+          <LayerRow
+            on={terrainLayers.plates}
+            onClick={() => onToggleTerrain('plates')}
+            swatch={<span className="inline-block w-7 border-t-2 border-dashed" style={{ borderColor: 'rgba(176, 150, 255, 0.8)' }} />}
+            label="Tectonic plate boundaries"
+            value=""
+          />
+          <LayerRow
+            on={terrainLayers.ranges}
+            onClick={() => onToggleTerrain('ranges')}
+            swatch={<span className="font-mono text-[9px] tracking-widest text-dim">ABC</span>}
+            label="Mountain ranges"
+            value=""
+          />
+        </div>
+        <p className="mt-2 text-xs text-muted">
+          Most mined copper comes from porphyry deposits, formed above subduction zones where plates
+          converge. That is why the Andes line up with Chile and Peru.
+        </p>
+      </Section>
+
+      <Section index="06" title="Largest flows">
         {topFlows.length === 0 ? (
           <p className="text-xs text-muted">No flows match these filters.</p>
         ) : (

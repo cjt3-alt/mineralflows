@@ -32,6 +32,16 @@ branch, built on top of `design/polish`, which swaps the globe for a flat map.
   screen (`copyOffsets`). Vertical pan is clamped (`clampWrapView`). The static layer is cached with
   a margin and re-rendered when a pan nears it; land for the dot matrix comes from a lat/lng mask
   painted once (rings crossing the 180th meridian are unwrapped first, or they paint stripes).
+- **Terrain base map instead of the dot matrix.** `tools/build_basemap.py` (run by hand; needs numpy
+  and Pillow) builds `public/basemap/`: `relief.webp` (shaded relief of land and sea floor from the
+  AWS Terrain Tiles, zoom 4, tinted to the palette, already in Web Mercator), `plates.json` (PB2002
+  plate boundaries, ODC-BY) and `ranges.json` (Natural Earth mountain ranges as label points). The
+  map loads them after first paint; a "Terrain" section in the control column switches each on and
+  off. Natural Earth's own download host is blocked by this environment's network policy, so the
+  relief comes from the AWS tiles rather than Natural Earth's shaded-relief raster.
+- **Borders** are engraved: a dark channel cut along each border with a bright hairline, plus a soft
+  coastline. Zoomed past 2×, the map lazily loads Natural Earth 1:50m outlines (its own ~240 kB
+  chunk) so borders stay smooth.
 - **Panels:** an open dossier panel counts as covering the right of the map (`insetRight`), so the
   map slides out from under it and a focused country is fitted, with its partners, into what is
   visible. Pan and zoom rules are in `mapDynamics.ts` with tests.
