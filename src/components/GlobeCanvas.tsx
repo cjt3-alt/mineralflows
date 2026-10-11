@@ -29,6 +29,7 @@ import {
 import { COUNTRY_SHAPES, countryAt } from '../data/geo.ts'
 import {
   DAMPING,
+  aimToward,
   DOUBLE_TAP_MS,
   ZOOM_STEP,
   clampAltitude,
@@ -769,7 +770,10 @@ export function GlobeCanvas({
     return clampAltitude(globe.pointOfView().altitude, width, height)
   }, [])
 
-  /* Fly to a country focused from search or a dossier link — not one just clicked on the globe. */
+  /**
+   * Fly to a country focused from search or a dossier link — not one just
+   * clicked on the globe — leaning toward its trade partners (see `aimToward`).
+   */
   useEffect(() => {
     const globe = globeRef.current
     if (!ready || !globe || focusCountry === null) return
@@ -780,7 +784,16 @@ export function GlobeCanvas({
     clickedCountryRef.current = null
     const c = countries[focusCountry]
     if (!c) return
-    globe.pointOfView({ lat: c.lat, lng: c.lon, altitude: currentAltitude() }, reducedMotion ? 0 : 1000)
+    // Under a focus the arcs are already just this country's trade.
+    const partners = arcs.map((arc) =>
+      arc.flow.from_iso3 === focusCountry
+        ? { lat: arc.endLat, lng: arc.endLng, weight: arc.value.usd ?? 0 }
+        : { lat: arc.startLat, lng: arc.startLng, weight: arc.value.usd ?? 0 },
+    )
+    const aim = aimToward({ lat: c.lat, lng: c.lon }, partners)
+    globe.pointOfView({ ...aim, altitude: currentAltitude() }, reducedMotion ? 0 : 1000)
+    // The arcs are read once per flight, not re-flown every time a layer toggles.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, focusCountry, countries, reducedMotion, currentAltitude])
 
   /**

@@ -106,3 +106,64 @@ export function shouldAutoRotate(state: {
   if (state.reducedMotion || state.pointerDown || state.busy) return false
   return state.lastInteraction === null || state.now - state.lastInteraction >= IDLE_RESUME_MS
 }
+
+/** How far from a focused country toward its trade partners the camera aims. */
+export const FOCUS_LEAN = 0.33
+/**
+ * Never lean further than this, in degrees, so the country stays well inside
+ * the view even when its partners are on the far side of the world (Chile's
+ * are about 170 degrees away).
+ */
+export const FOCUS_LEAN_MAX_DEGREES = 40
+
+type LatLng = { lat: number; lng: number }
+
+function toVec({ lat, lng }: LatLng): [number, number, number] {
+  const phi = (lat * Math.PI) / 180
+  const lambda = (lng * Math.PI) / 180
+  return [Math.cos(phi) * Math.cos(lambda), Math.cos(phi) * Math.sin(lambda), Math.sin(phi)]
+}
+
+function toLatLng([x, y, z]: [number, number, number]): LatLng {
+  const len = Math.hypot(x, y, z)
+  return {
+    lat: (Math.asin(Math.max(-1, Math.min(1, z / len))) * 180) / Math.PI,
+    lng: (Math.atan2(y, x) * 180) / Math.PI,
+  }
+}
+
+/**
+ * Where to point the camera when flying to a country. Aiming straight down at
+ * it puts the camera in the plane of every arc that starts there, and a
+ * great-circle arc seen from inside its own plane projects to a straight line,
+ * so the arcs read as flat spikes. Leaning part of the way toward the
+ * value-weighted centre of its partners keeps the country on screen, shows
+ * the arcs' curve, and faces the view toward where the material goes.
+ *
+ * The lean is capped at FOCUS_LEAN_MAX_DEGREES. Falls back to the country itself when there are no partners, or when they
+ * balance out on opposite sides of the globe.
+ */
+export function aimToward(country: LatLng, partners: (LatLng & { weight: number })[], lean = FOCUS_LEAN): LatLng {
+  const c = toVec(country)
+  const sum: [number, number, number] = [0, 0, 0]
+  for (const p of partners) {
+    if (!(p.weight > 0)) continue
+    const v = toVec(p)
+    sum[0] += v[0] * p.weight
+    sum[1] += v[1] * p.weight
+    sum[2] += v[2] * p.weight
+  }
+  const len = Math.hypot(...sum)
+  const total = partners.reduce((n, p) => n + (p.weight > 0 ? p.weight : 0), 0)
+  if (total === 0 || len < 0.15 * total) return { ...country }
+  const target: [number, number, number] = [sum[0] / len, sum[1] / len, sum[2] / len]
+
+  // Spherical interpolation from the country toward the partners' centre.
+  const dot = Math.max(-1, Math.min(1, c[0] * target[0] + c[1] * target[1] + c[2] * target[2]))
+  const angle = Math.acos(dot)
+  if (angle < 1e-6 || Math.PI - angle < 1e-3) return { ...country }
+  const t = Math.min(lean, (FOCUS_LEAN_MAX_DEGREES * Math.PI) / 180 / angle)
+  const wa = Math.sin((1 - t) * angle) / Math.sin(angle)
+  const wb = Math.sin(t * angle) / Math.sin(angle)
+  return toLatLng([c[0] * wa + target[0] * wb, c[1] * wa + target[1] * wb, c[2] * wa + target[2] * wb])
+}
