@@ -9,6 +9,10 @@ import {
   makeWidthScale,
   resolveValue,
   toArcData,
+  EMPTY_FILTERS,
+  flowKind,
+  stageShade,
+  summarizeCountry,
   type Filters,
 } from './derive.ts'
 import type { FacilityFeature, Flow, Mineral, Price } from './schema.ts'
@@ -71,7 +75,7 @@ function flow(over: Partial<Flow> = {}): Flow {
   }
 }
 
-const noFilters: Filters = { mineralIds: [], stages: [], minValueUsd: 0 }
+const noFilters: Filters = EMPTY_FILTERS
 
 describe('filtering', () => {
   it('treats an empty filter as no filter, not as nothing selected', () => {
@@ -86,29 +90,79 @@ describe('filtering', () => {
 
   it('keeps a multi-mineral facility when either mineral is selected', () => {
     const facilities = [facility({ id: 'a', mineral_ids: ['copper', 'cobalt'] })]
-    const filters: Filters = { mineralIds: ['cobalt'], stages: [], minValueUsd: 0 }
+    const filters: Filters = { ...EMPTY_FILTERS, mineralIds: ['cobalt'] }
     expect(filterFacilities(facilities, filters, activeIds)).toHaveLength(1)
   })
 
-  it('matches a flow when either endpoint is at a selected stage', () => {
-    const flows = [flow({ stage_from: 'mine', stage_to: 'process' })]
-    expect(
-      filterFlows(flows, { mineralIds: [], stages: ['process'], minValueUsd: 0 }, activeIds),
-    ).toHaveLength(1)
-    expect(
-      filterFlows(flows, { mineralIds: [], stages: ['refine'], minValueUsd: 0 }, activeIds),
-    ).toHaveLength(0)
+  it('filters facilities by their own stage only', () => {
+    const facilities = [facility({ id: 'a', stage: 'mine' }), facility({ id: 'b', stage: 'refine' })]
+    const filters: Filters = { ...EMPTY_FILTERS, stages: ['refine'] }
+    expect(filterFacilities(facilities, filters, activeIds).map((f) => f.properties.id)).toEqual(['b'])
   })
 
-  /** The rare-earths case: a mineral that only trades at one stage. */
-  it('keeps a refine-only mineral visible under a refine filter and empty under mine', () => {
+  it('names a flow by the stage it leaves', () => {
+    expect(flowKind(flow({ stage_from: 'mine', stage_to: 'process' }))).toBe('mine')
+    expect(flowKind(flow({ stage_from: 'refine', stage_to: 'refine' }))).toBe('refine')
+  })
+
+  it('filters flows by kind, independently of the facility stages', () => {
+    const flows = [flow({ stage_from: 'mine', stage_to: 'process' })]
+    const refineriesOnly: Filters = { ...EMPTY_FILTERS, stages: ['refine'] }
+    expect(filterFlows(flows, refineriesOnly, activeIds)).toHaveLength(1)
+    expect(filterFlows(flows, { ...EMPTY_FILTERS, flowKinds: ['mine'] }, activeIds)).toHaveLength(1)
+    expect(filterFlows(flows, { ...EMPTY_FILTERS, flowKinds: ['refine'] }, activeIds)).toHaveLength(0)
+  })
+
+  /** The rare-earths case: a mineral that only trades refined metal. */
+  it('keeps a refine-only mineral visible under refined metal and empty under ore', () => {
     const flows = [flow({ mineral_id: 'cobalt', stage_from: 'refine', stage_to: 'refine' })]
-    expect(
-      filterFlows(flows, { mineralIds: [], stages: ['refine'], minValueUsd: 0 }, activeIds),
-    ).toHaveLength(1)
-    expect(
-      filterFlows(flows, { mineralIds: [], stages: ['mine'], minValueUsd: 0 }, activeIds),
-    ).toHaveLength(0)
+    expect(filterFlows(flows, { ...EMPTY_FILTERS, flowKinds: ['refine'] }, activeIds)).toHaveLength(1)
+    expect(filterFlows(flows, { ...EMPTY_FILTERS, flowKinds: ['mine'] }, activeIds)).toHaveLength(0)
+  })
+
+  it('narrows flows to a focused country at either end', () => {
+    const flows = [
+      flow({ id: 'out', from_iso3: 'CHL', to_iso3: 'CHN' }),
+      flow({ id: 'in', from_iso3: 'PER', to_iso3: 'CHL' }),
+      flow({ id: 'other', from_iso3: 'PER', to_iso3: 'CHN' }),
+    ]
+    const ids = filterFlows(flows, { ...EMPTY_FILTERS, country: 'CHL' }, activeIds).map((f) => f.id)
+    expect(ids).toEqual(['out', 'in'])
+  })
+})
+
+describe('summarizeCountry', () => {
+  const flows = [
+    flow({ id: 'a', from_iso3: 'CHL', to_iso3: 'CHN', value_usd: 600 }),
+    flow({ id: 'b', from_iso3: 'CHL', to_iso3: 'USA', value_usd: 200, stage_from: 'refine', stage_to: 'refine' }),
+    flow({ id: 'c', from_iso3: 'PER', to_iso3: 'CHL', value_usd: 200 }),
+  ]
+
+  it('totals exports and imports by kind and ranks partners', () => {
+    const s = summarizeCountry('CHL', flows, [facility({ country_iso3: 'CHL' })], () => undefined)
+    expect(s.exportsUsd).toBe(800)
+    expect(s.importsUsd).toBe(200)
+    expect(s.exportsByKind).toEqual({ mine: 600, process: 0, refine: 200 })
+    expect(s.topDestinations.map((p) => p.iso3)).toEqual(['CHN', 'USA'])
+    expect(s.topOrigins).toEqual([{ iso3: 'PER', usd: 200 }])
+    expect(s.facilities.mine).toBe(1)
+    expect(s.shareOfExports).toBe(0.8)
+  })
+
+  it('reports zeros, not NaN, for a country with no trade', () => {
+    const s = summarizeCountry('ZZZ', flows, [], () => undefined)
+    expect(s.exportsUsd).toBe(0)
+    expect(s.shareOfImports).toBe(0)
+  })
+})
+
+describe('stageShade', () => {
+  it('darkens raw material and lightens refined metal around the mineral colour', () => {
+    const base = '#ff7a45'
+    const lum = (hex: string) => parseInt(hex.slice(1, 3), 16) + parseInt(hex.slice(3, 5), 16) + parseInt(hex.slice(5, 7), 16)
+    expect(stageShade(base, 'process')).toBe(base)
+    expect(lum(stageShade(base, 'mine'))).toBeLessThan(lum(base))
+    expect(lum(stageShade(base, 'refine'))).toBeGreaterThan(lum(base))
   })
 })
 
@@ -226,20 +280,18 @@ describe('toArcData', () => {
     expect(result.arcs).toHaveLength(0)
   })
 
-  it('drops flows below the value threshold before sorting and capping', () => {
+  it('colours and weights arcs by kind and value', () => {
     const flows = [
       flow({ id: 'small', value_usd: 10 }),
-      flow({ id: 'big', value_usd: 1000, from_iso3: 'PER' }),
+      flow({ id: 'big', value_usd: 1000, from_iso3: 'PER', stage_from: 'refine', stage_to: 'refine' }),
     ]
-    const result = toArcData(flows, dataset, 300, 500)
-    expect(result.arcs.map((a) => a.id)).toEqual(['big'])
-    expect(result.totalMatching).toBe(1)
-    expect(result.truncated).toBe(false)
-  })
-
-  it('treats a zero threshold as no filter at all', () => {
-    const result = toArcData([flow({ value_usd: 1 })], dataset, 300, 0)
-    expect(result.arcs).toHaveLength(1)
+    const result = toArcData(flows, dataset, 300)
+    const big = result.arcs.find((a) => a.id === 'big')!
+    const small = result.arcs.find((a) => a.id === 'small')!
+    expect(big.kind).toBe('refine')
+    expect(big.weight).toBe(1)
+    expect(small.weight).toBeCloseTo(0.1)
+    expect(big.color).not.toBe(small.color)
   })
 })
 

@@ -10,6 +10,34 @@ Live: <https://cjt3-alt.github.io/mineralflows/>
 
 ---
 
+## 0a. Update, 11 October 2026 — interface overhaul
+
+Supersedes the globe and layout notes in section 0 below where they disagree. The previous version is
+preserved on the `backup/pre-redesign` branch and the `pre-redesign-2026-10-11` tag.
+
+- **Fixed a real bug: arcs never drew on first load.** The arc-building effect was keyed on `arcs`,
+  which is already populated on `GlobeCanvas`'s first render, before the globe exists, so it ran once,
+  bailed, and never ran again until a filter changed. Every scene effect is now keyed on a `ready`
+  flag set from a callback ref on the globe. (Section 0's "polling every frame" workaround for points
+  is gone with the points layer it patched.)
+- **Bloom removed.** At 300 arcs with additive blending it turned the globe into a white mass. Arcs
+  now use normal blending, so overlaps converge on the arc colour rather than white.
+- **Points are one `THREE.Points` draw call** with round sprites (filled = documented, hollow ring =
+  low confidence), replacing globe.gl's cylinder points layer, its ring layer and the material patch.
+- **Hover tooltips and click picking run in screen space** against cached positions (points first,
+  then arc samples), so there is no per-move raycasting. Clicking land focuses that country; the
+  ISO-numeric to ISO3 table in `src/data/geo.ts` was generated once with pycountry.
+- **Filters split**: `stages` now picks site layers only; new `flowKinds` picks flows by the stage they
+  leave (ore and concentrate / smelted intermediates / refined metal). The dollar slider and
+  `?minValue=` are retired in favour of `topN` (25/100/300, `?top=`); `?country=` focuses a country.
+- **New UI**: classification-style banner, console top bar with UTC clock, a control column (overview
+  numbers, country search, layer switches, largest-flows list), a floating legend, a dossier panel with
+  a country view (exports, imports, partners, sites), a sources footer and a "Sources & method" dialog.
+  Tokens and rationale are in `src/styles/tokens.css`.
+- **Tuning knobs** now live at the top of `GlobeCanvas.tsx`: `HOME_VIEW`, `FILL`, the `OCEAN`/`LAND`
+  texture colours, `BORDER_BASE_ALPHA`, the arc `base` alpha in `ARC_FRAGMENT_SHADER`,
+  `ARC_RADIUS_SCALE`, and `POINT_REFERENCE_DISTANCE`. Stage shades are `stageShade` in `derive.ts`.
+
 ## 0. Update, 13 September 2026 — copper-only, real data, and a rebuilt globe
 
 Start here; this supersedes the counts in sections 3 and 6 below. Everything in this section is

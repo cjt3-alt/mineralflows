@@ -2,131 +2,110 @@ import { formatUsd, valueScaleFraction } from '../data/derive.ts'
 import type { Meta } from '../data/schema.ts'
 
 /**
- * What arc width means in dollars, and how old each source is. Sources update
- * on genuinely different cadences, so this shows a vintage per source rather
- * than one build date pretending to cover all of them.
+ * Two pieces of standing context. `Legend` floats over the globe and says what
+ * the marks mean that the control column does not already say (arc width,
+ * dashed arcs, hollow rings, the cap). `StatusBar` credits every source by its
+ * own name, with its own vintage, because the sources update on different
+ * cadences and several require attribution wherever their data is reproduced.
  */
 
-export interface LegendBarProps {
-  maxValueUsd: number
-  /** True when the arc cap dropped some flows, so the bar can say so. */
-  truncated: boolean
-  shownArcCount: number
-  totalArcCount: number
-  /** True when any visible flow value came from volume x price. */
-  hasEstimatedValues: boolean
-  meta: Meta
-  /**
-   * Narrow viewports fold the per-source vintages behind a disclosure. Six
-   * sources laid out flat can eat a third of a phone screen, and the scale is
-   * what has to stay visible; the vintages are a lookup.
-   */
-  compact?: boolean
-}
-
-/** Swatch widths use the same scale as the globe, via valueScaleFraction. */
 const SWATCH_MIN_PX = 1
 const SWATCH_MAX_PX = 7
 
-function Swatch({ valueUsd, maxValueUsd }: { valueUsd: number; maxValueUsd: number }) {
-  const t = valueScaleFraction(valueUsd, maxValueUsd)
-  const height = SWATCH_MIN_PX + (SWATCH_MAX_PX - SWATCH_MIN_PX) * t
-  return (
-    <span className="flex items-center gap-1.5">
-      <span
-        aria-hidden="true"
-        className="inline-block w-8 bg-dim"
-        style={{ height: height + 'px' }}
-      />
-      <span className="font-mono text-2xs text-muted">{formatUsd(valueUsd)}</span>
-    </span>
-  )
+export interface LegendProps {
+  maxValueUsd: number
+  shownArcCount: number
+  totalArcCount: number
+  hasEstimatedValues: boolean
+  hasLowConfidenceFlows: boolean
+  /** Swatch colour: the mid shade of the active mineral. */
+  color: string
 }
 
-/**
- * One entry per source, with its own vintage. Sources genuinely update on
- * different cadences, so a single build date would be the dishonest version.
- */
-function Vintages({ meta }: { meta: Meta }) {
-  return (
-    <>
-      {meta.sources.map((source) => (
-        // The id is what fits; the full name is the actual credit, so it rides
-        // in the tooltip. Several sources require attribution wherever their
-        // data is reproduced, and a trade map is a reproduction.
-        <span
-          key={source.id}
-          className="font-mono text-2xs text-muted"
-          title={source.name + ' — ' + source.coverage}
-        >
-          {source.id} <span className="text-dim">{source.vintage}</span>
-        </span>
-      ))}
-    </>
-  )
-}
-
-export function LegendBar({
+export function Legend({
   maxValueUsd,
-  truncated,
   shownArcCount,
   totalArcCount,
   hasEstimatedValues,
-  meta,
-  compact = false,
-}: LegendBarProps) {
+  hasLowConfidenceFlows,
+  color,
+}: LegendProps) {
   // Three reference points across the square-root scale, not evenly spaced in
   // dollars, because the scale is not linear.
   const steps = [maxValueUsd / 100, maxValueUsd / 10, maxValueUsd].filter((v) => v > 0)
 
   return (
-    <footer className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-2 border-t border-line px-4 py-2">
+    <div className="panel pointer-events-auto w-60 px-3 py-2.5">
+      <p className="hud-label mb-2 text-dim">Legend</p>
       {steps.length > 0 ? (
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted">Arc width</span>
-          {steps.map((value) => (
-            <Swatch key={value} valueUsd={value} maxValueUsd={maxValueUsd} />
-          ))}
+        <div className="flex flex-col gap-1.5">
+          {steps
+            .slice()
+            .reverse()
+            .map((value) => {
+              const t = valueScaleFraction(value, maxValueUsd)
+              return (
+                <div key={value} className="flex items-center gap-2">
+                  <span className="flex w-10 items-center">
+                    <span
+                      aria-hidden="true"
+                      className="inline-block w-10"
+                      style={{ height: SWATCH_MIN_PX + (SWATCH_MAX_PX - SWATCH_MIN_PX) * t + 'px', backgroundColor: color }}
+                    />
+                  </span>
+                  <span className="font-mono text-xs text-dim">{formatUsd(value)}</span>
+                </div>
+              )
+            })}
         </div>
       ) : (
-        // Reached whenever the filters select a stage a mineral does not trade
-        // at. Rare earths have no mine-stage trade at all, so this is a normal
-        // state, not an error, and it says so.
-        <p className="text-xs text-muted">
-          No flows at this stage for the minerals selected. Facilities still show.
-        </p>
+        <p className="text-xs text-muted">No flows match these filters. Sites still show.</p>
       )}
 
-      {hasEstimatedValues && (
-        <p className="text-xs text-muted">
-          Some values are <span className="text-dim">estimated</span> from volume times average
-          price.
+      <div className="mt-2.5 flex flex-col gap-1 border-t border-line pt-2 text-xs text-muted">
+        {hasLowConfidenceFlows && (
+          <p className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="inline-block h-0 w-10 border-t-2 border-dashed"
+              style={{ borderColor: color }}
+            />
+            Importer-reported only
+          </p>
+        )}
+        {hasEstimatedValues && (
+          <p>
+            <span className="text-alert">*</span> Estimated from volume × price
+          </p>
+        )}
+        <p>
+          Top <span className="font-mono text-dim">{shownArcCount}</span> of{' '}
+          <span className="font-mono text-dim">{totalArcCount}</span> flows drawn
         </p>
-      )}
+      </div>
+    </div>
+  )
+}
 
-      {truncated && (
-        <p className="text-xs text-muted">
-          Showing the top{' '}
-          <span className="font-mono text-dim">{shownArcCount}</span> flows by value of{' '}
-          <span className="font-mono text-dim">{totalArcCount}</span>.
-        </p>
-      )}
-
-      {compact ? (
-        <details className="ml-auto w-full">
-          <summary className="cursor-pointer text-xs text-muted">
-            Data vintage ({meta.sources.length} sources)
-          </summary>
-          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
-            <Vintages meta={meta} />
-          </div>
-        </details>
-      ) : (
-        <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span className="text-xs text-muted">Data vintage</span>
-          <Vintages meta={meta} />
-        </div>
-      )}
+export function StatusBar({ meta, onOpenAbout }: { meta: Meta; onOpenAbout: () => void }) {
+  // Hand-authored seed rows only stand in for sources that are unreachable or
+  // for minerals that are switched off; they are credited in the About dialog
+  // rather than presented here as a source of what is on screen.
+  const sources = meta.sources.filter((s) => !s.id.startsWith('seed'))
+  return (
+    <footer className="flex h-7 shrink-0 items-center gap-3 overflow-hidden border-t border-line bg-surface px-4">
+      <span className="hud-label shrink-0 text-muted">Sources</span>
+      <p className="min-w-0 flex-1 truncate text-xs text-muted">
+        {sources.map((s, i) => (
+          <span key={s.id} title={s.coverage}>
+            {i > 0 && <span className="mx-2 text-line-strong">/</span>}
+            <span className="text-dim">{s.name}</span> <span className="font-mono">{s.vintage}</span>
+          </span>
+        ))}
+      </p>
+      <button type="button" onClick={onOpenAbout} className="hud-label shrink-0 text-muted hover:text-accent">
+        Method →
+      </button>
     </footer>
   )
 }

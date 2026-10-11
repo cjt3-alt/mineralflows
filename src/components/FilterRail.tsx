@@ -1,265 +1,379 @@
-import { useId, type ReactNode } from 'react'
-import { formatUsd, valueScaleFraction } from '../data/derive.ts'
-import { STAGES, type Stage } from '../data/schema.ts'
+import { useId, useState, type ReactNode } from 'react'
+import {
+  FLOW_KIND_LABEL,
+  STAGE_LABEL,
+  TOP_N_OPTIONS,
+  formatUsd,
+  type ArcDatum,
+} from '../data/derive.ts'
+import { STAGES, type Country, type Stage } from '../data/schema.ts'
 
 /**
- * Stage filter today; year, region and confidence are coming. `FilterGroup` is
- * the seam for that: a new group is a new block here, not a new layout.
+ * The control column: what is on screen, what can be switched on and off, and
+ * the largest flows as a list you can point at. Everything here is a view of
+ * state the shell owns.
  *
- * Two presentations of the same controls. A 13rem column alongside a globe and
- * a detail panel does not fit a phone, so on a narrow viewport the rail becomes
- * a single horizontal strip under the top bar. Which one to draw is the shell's
- * call, but how each one looks is this component's business.
+ * Sites and flows are separate layer groups. Each row is a switch that is on
+ * by default; turning one off hides that layer. The last layer in a group
+ * cannot be switched off, because an empty group would only ever mean
+ * "show nothing", which is never what anyone wants from a click.
  */
+
+export interface Overview {
+  /** Value of every flow that passes the filters, before the top-N cap. */
+  tradeUsd: number
+  flowsDrawn: number
+  flowsTotal: number
+  sites: number
+  countries: number
+}
 
 export interface FilterRailProps {
-  /** Empty means every stage is showing. */
-  selectedStages: Stage[]
-  onToggleStage: (stage: Stage) => void
-  onClearStages: () => void
-  /** Facility count per stage, after the mineral filter but before the stage filter. */
+  overview: Overview
+  countries: Record<string, Country>
+  /** ISO3 codes a search can land on: anything with a flow or a site. */
+  searchableCountries: string[]
+  focusCountry: string | null
+  onFocusCountry: (iso3: string) => void
+  onClearFocus: () => void
+
+  /** Layers on. Empty means all. */
+  stages: Stage[]
   facilityCounts: Record<Stage, number>
-  visibleFacilityCount: number
-  visibleFlowCount: number
-  /** 0 means no threshold: every flow that clears the other filters is showing. */
-  minValueUsd: number
-  /** The highest resolved value among flows the mineral/stage filters currently allow. */
-  maxValueUsd: number
-  onChangeMinValue: (minValueUsd: number) => void
-  onClearMinValue: () => void
-  /** `strip` is the narrow-viewport layout: one horizontal row, no side column. */
-  variant?: 'rail' | 'strip'
+  onToggleStage: (stage: Stage) => void
+
+  flowKinds: Stage[]
+  valueByKind: Record<Stage, number>
+  onToggleFlowKind: (kind: Stage) => void
+
+  topN: number
+  onChangeTopN: (n: number) => void
+
+  topFlows: ArcDatum[]
+  selectedId: string | null
+  onHoverFlow: (id: string | null) => void
+  onSelectFlow: (arc: ArcDatum) => void
+
+  /** Stage shades of the active mineral, for swatches that match the globe. */
+  shade: Record<Stage, string>
 }
 
-/**
- * A linear slider would waste almost all of its travel: flow values here span
- * $1k to $21B, so a straight 0-1 mapping puts every flow that matters in the
- * first percent of the track. Squaring the slider's own 0-1 position back into
- * a dollar figure is the inverse of `valueScaleFraction`, the same square-root
- * curve arc width already uses, so "drag the slider a third of the way" feels
- * about as consequential regardless of where on the range you start.
- */
-const SLIDER_RESOLUTION = 1000
-
-function ValueSlider({
-  minValueUsd,
-  maxValueUsd,
-  onChange,
-  onClear,
-  compact = false,
-}: {
-  minValueUsd: number
-  maxValueUsd: number
-  onChange: (usd: number) => void
-  onClear: () => void
-  compact?: boolean
-}) {
-  const id = useId()
-  if (!(maxValueUsd > 0)) return null
-
-  const position = Math.round(valueScaleFraction(minValueUsd, maxValueUsd) * SLIDER_RESOLUTION)
-
-  return (
-    <div className={compact ? 'flex shrink-0 items-center gap-2' : 'flex flex-col gap-1.5'}>
-      <div className="flex items-center justify-between gap-2">
-        <label htmlFor={id} className={compact ? 'shrink-0 text-2xs text-muted' : 'text-xs text-dim'}>
-          {minValueUsd > 0 ? `Above ${formatUsd(minValueUsd)}` : compact ? 'Min value' : 'No minimum'}
-        </label>
-        {!compact && minValueUsd > 0 && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="text-2xs text-muted underline-offset-2 hover:text-dim hover:underline"
-          >
-            Clear
-          </button>
-        )}
-      </div>
-      <input
-        id={id}
-        type="range"
-        min={0}
-        max={SLIDER_RESOLUTION}
-        step={1}
-        value={position}
-        onChange={(e) => {
-          const fraction = Number(e.target.value) / SLIDER_RESOLUTION
-          onChange(Math.round(fraction * fraction * maxValueUsd))
-        }}
-        aria-valuetext={minValueUsd > 0 ? `Above ${formatUsd(minValueUsd)}` : 'No minimum'}
-        className={compact ? 'w-24 shrink-0' : 'w-full'}
-        style={{ accentColor: 'var(--mf-text-dim)' }}
-      />
-    </div>
-  )
-}
-
-const STAGE_LABELS: Record<Stage, string> = {
-  mine: 'Mine',
-  process: 'Process',
-  refine: 'Refine',
-}
-
-function StageChip({
-  label,
-  count,
-  active,
-  onClick,
-}: {
-  label: string
-  count?: number
-  active: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={
-        'flex shrink-0 items-center gap-1.5 border px-2 py-1 text-xs ' +
-        (active ? 'border-line-strong text-ink' : 'border-line text-muted')
-      }
-      style={{ borderRadius: 'var(--mf-radius)' }}
-    >
-      {label}
-      {count !== undefined && <span className="font-mono text-2xs text-muted">{count}</span>}
-    </button>
-  )
-}
-
-function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
+function Section({ index, title, children, aside }: { index: string; title: string; children: ReactNode; aside?: ReactNode }) {
   return (
     <section className="border-b border-line px-4 py-4">
-      <h2 className="mb-2 text-xs font-medium text-dim">{label}</h2>
+      <div className="mb-3 flex items-center gap-3">
+        <h2 className="section-title flex-1">
+          <span className="index">{index}</span>
+          <span>{title}</span>
+        </h2>
+        {aside}
+      </div>
       {children}
     </section>
   )
 }
 
-export function FilterRail({
-  selectedStages,
-  onToggleStage,
-  onClearStages,
-  facilityCounts,
-  visibleFacilityCount,
-  visibleFlowCount,
-  minValueUsd,
-  maxValueUsd,
-  onChangeMinValue,
-  onClearMinValue,
-  variant = 'rail',
-}: FilterRailProps) {
-  const showingAll = selectedStages.length === 0
+function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="border border-line bg-surface-raised/60 px-2.5 py-2">
+      <dt className="hud-label text-muted">{label}</dt>
+      <dd className="mt-0.5 font-display text-xl leading-tight font-medium text-ink">{value}</dd>
+      {sub && <dd className="hud-label mt-0.5 text-muted">{sub}</dd>}
+    </div>
+  )
+}
 
-  if (variant === 'strip') {
-    return (
-      <nav
-        aria-label="Filters"
-        className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-line px-3 py-2"
+function LayerRow({
+  on,
+  onClick,
+  swatch,
+  label,
+  value,
+}: {
+  on: boolean
+  onClick: () => void
+  swatch: ReactNode
+  label: string
+  value: string
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={onClick}
+      className={
+        'group flex w-full items-center gap-2.5 border px-2 py-1.5 text-left transition-colors ' +
+        (on ? 'border-line bg-surface-raised/50 text-ink' : 'border-transparent text-muted hover:text-dim')
+      }
+      style={{ borderRadius: 'var(--mf-radius)' }}
+    >
+      <span
+        aria-hidden="true"
+        className={
+          'flex h-3.5 w-3.5 shrink-0 items-center justify-center border ' +
+          (on ? 'border-accent/70' : 'border-line-strong')
+        }
+        style={{ borderRadius: '1px' }}
       >
-        <span className="shrink-0 text-2xs text-muted">Stage</span>
-        <StageChip label="All" active={showingAll} onClick={onClearStages} />
-        {STAGES.map((stage) => (
-          <StageChip
-            key={stage}
-            label={STAGE_LABELS[stage]}
-            count={facilityCounts[stage]}
-            active={selectedStages.includes(stage)}
-            onClick={() => onToggleStage(stage)}
-          />
-        ))}
-        <ValueSlider
-          compact
-          minValueUsd={minValueUsd}
-          maxValueUsd={maxValueUsd}
-          onChange={onChangeMinValue}
-          onClear={onClearMinValue}
-        />
-        <span className="ml-auto shrink-0 pl-2 font-mono text-2xs text-muted">
-          {visibleFacilityCount} sites · {visibleFlowCount} flows
-        </span>
-      </nav>
-    )
+        {on && <span className="h-1.5 w-1.5 bg-accent" />}
+      </span>
+      <span className="flex w-7 shrink-0 items-center justify-center" style={{ opacity: on ? 1 : 0.35 }}>
+        {swatch}
+      </span>
+      <span className="flex-1 text-[13px]">{label}</span>
+      <span className="font-mono text-xs text-muted">{value}</span>
+    </button>
+  )
+}
+
+function Dot({ color, size }: { color: string; size: number }) {
+  return <span className="inline-block rounded-full" style={{ width: size, height: size, backgroundColor: color }} />
+}
+
+function Line({ color, thickness }: { color: string; thickness: number }) {
+  return <span className="inline-block w-7" style={{ height: thickness, backgroundColor: color }} />
+}
+
+const DOT_SIZE: Record<Stage, number> = { mine: 5, process: 8, refine: 10 }
+const LINE_THICKNESS: Record<Stage, number> = { mine: 3, process: 3, refine: 3 }
+
+function CountrySearch({
+  countries,
+  searchable,
+  onPick,
+}: {
+  countries: Record<string, Country>
+  searchable: string[]
+  onPick: (iso3: string) => void
+}) {
+  const id = useId()
+  const [text, setText] = useState('')
+  const byName = new Map(searchable.map((iso3) => [(countries[iso3]?.name ?? iso3).toLowerCase(), iso3]))
+
+  const commit = (value: string) => {
+    const v = value.trim().toLowerCase()
+    const hit = byName.get(v) ?? searchable.find((iso3) => iso3.toLowerCase() === v)
+    if (hit) {
+      onPick(hit)
+      setText('')
+    }
   }
 
   return (
-    <nav
-      aria-label="Filters"
-      className="flex shrink-0 flex-col overflow-y-auto border-r border-line"
-      style={{ width: 'var(--mf-rail-width)' }}
-    >
-      <FilterGroup label="Stage">
-        <ul className="flex flex-col gap-0.5">
-          <li>
+    <div>
+      <label htmlFor={id} className="sr-only">
+        Focus a country
+      </label>
+      <div className="flex items-center gap-2 border border-line-strong bg-void px-2 focus-within:border-accent">
+        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" className="shrink-0 text-muted">
+          <circle cx="5" cy="5" r="3.75" fill="none" stroke="currentColor" strokeWidth="1.25" />
+          <path d="M8 8l3 3" stroke="currentColor" strokeWidth="1.25" />
+        </svg>
+        <input
+          id={id}
+          list={id + '-list'}
+          value={text}
+          placeholder="Search a country…"
+          onChange={(e) => {
+            setText(e.target.value)
+            // A datalist pick arrives as a change with the full name.
+            if (byName.has(e.target.value.trim().toLowerCase())) commit(e.target.value)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit(text)
+          }}
+          className="w-full bg-transparent py-1.5 text-[13px] text-ink placeholder:text-muted focus:outline-none"
+          autoComplete="off"
+        />
+        <datalist id={id + '-list'}>
+          {searchable
+            .map((iso3) => countries[iso3]?.name ?? iso3)
+            .sort((a, b) => a.localeCompare(b))
+            .map((name) => (
+              <option key={name} value={name} />
+            ))}
+        </datalist>
+      </div>
+      <p className="mt-1.5 text-xs text-muted">Or click any country on the globe.</p>
+    </div>
+  )
+}
+
+export function FilterRail(props: FilterRailProps) {
+  const {
+    overview,
+    countries,
+    searchableCountries,
+    focusCountry,
+    onFocusCountry,
+    onClearFocus,
+    stages,
+    facilityCounts,
+    onToggleStage,
+    flowKinds,
+    valueByKind,
+    onToggleFlowKind,
+    topN,
+    onChangeTopN,
+    topFlows,
+    selectedId,
+    onHoverFlow,
+    onSelectFlow,
+    shade,
+  } = props
+
+  const stageOn = (s: Stage) => stages.length === 0 || stages.includes(s)
+  const kindOn = (k: Stage) => flowKinds.length === 0 || flowKinds.includes(k)
+  const maxTop = topFlows[0]?.value.usd ?? 0
+  const name = (iso3: string) => countries[iso3]?.name ?? iso3
+
+  return (
+    <>
+      <Section index="01" title="Overview">
+        <dl className="grid grid-cols-2 gap-2">
+          <Kpi label="Trade value" value={formatUsd(overview.tradeUsd)} sub={focusCountry ? name(focusCountry) : 'All flows'} />
+          <Kpi label="Flows drawn" value={String(overview.flowsDrawn)} sub={`of ${overview.flowsTotal}`} />
+          <Kpi label="Sites" value={overview.sites.toLocaleString('en-US')} sub="Mines to refineries" />
+          <Kpi label="Countries" value={String(overview.countries)} sub="With trade or sites" />
+        </dl>
+      </Section>
+
+      <Section
+        index="02"
+        title="Focus"
+        aside={
+          focusCountry && (
+            <button type="button" onClick={onClearFocus} className="hud-label text-muted hover:text-ink">
+              Clear
+            </button>
+          )
+        }
+      >
+        {focusCountry ? (
+          <div className="bracketed flex items-center justify-between border border-accent/40 bg-accent/5 px-3 py-2">
+            <div>
+              <p className="hud-label text-accent">Country · {focusCountry}</p>
+              <p className="text-sm text-ink">{name(focusCountry)}</p>
+            </div>
             <button
               type="button"
-              aria-pressed={showingAll}
-              onClick={onClearStages}
-              className={
-                'flex w-full items-center justify-between px-1.5 py-1 text-left text-sm ' +
-                (showingAll ? 'text-ink' : 'text-muted hover:text-dim')
-              }
+              onClick={onClearFocus}
+              aria-label={'Clear focus on ' + name(focusCountry)}
+              className="px-1 text-lg leading-none text-muted hover:text-ink"
             >
-              <span>All stages</span>
+              ×
             </button>
-          </li>
-          {STAGES.map((stage) => {
-            const active = selectedStages.includes(stage)
-            const count = facilityCounts[stage]
-            return (
-              <li key={stage}>
-                <button
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => onToggleStage(stage)}
-                  className={
-                    'flex w-full items-center justify-between px-1.5 py-1 text-left text-sm ' +
-                    (active ? 'text-ink' : 'text-muted hover:text-dim')
-                  }
-                >
-                  <span className="flex items-center gap-2">
-                    <span
-                      aria-hidden="true"
-                      className="inline-block border border-line-strong"
-                      style={{
-                        width: stage === 'mine' ? 5 : stage === 'process' ? 7 : 9,
-                        height: stage === 'mine' ? 5 : stage === 'process' ? 7 : 9,
-                        borderRadius: '50%',
-                        backgroundColor: active ? 'var(--mf-text-dim)' : 'transparent',
-                      }}
-                    />
-                    {STAGE_LABELS[stage]}
-                  </span>
-                  <span className="font-mono text-2xs text-muted">{count}</span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      </FilterGroup>
-
-      <FilterGroup label="Value">
-        <ValueSlider
-          minValueUsd={minValueUsd}
-          maxValueUsd={maxValueUsd}
-          onChange={onChangeMinValue}
-          onClear={onClearMinValue}
-        />
-      </FilterGroup>
-
-      <div className="mt-auto px-4 py-4">
-        <dl className="flex flex-col gap-1 font-mono text-2xs text-muted">
-          <div className="flex justify-between">
-            <dt>Facilities</dt>
-            <dd className="text-dim">{visibleFacilityCount}</dd>
           </div>
-          <div className="flex justify-between">
-            <dt>Flows</dt>
-            <dd className="text-dim">{visibleFlowCount}</dd>
+        ) : (
+          <CountrySearch countries={countries} searchable={searchableCountries} onPick={onFocusCountry} />
+        )}
+      </Section>
+
+      <Section index="03" title="Sites">
+        <div className="flex flex-col gap-1">
+          {STAGES.map((s) => (
+            <LayerRow
+              key={s}
+              on={stageOn(s)}
+              onClick={() => onToggleStage(s)}
+              swatch={<Dot color={shade[s]} size={DOT_SIZE[s]} />}
+              label={STAGE_LABEL[s]}
+              value={facilityCounts[s].toLocaleString('en-US')}
+            />
+          ))}
+        </div>
+        <p className="mt-2 flex items-center gap-2 text-xs text-muted">
+          <span aria-hidden="true" className="inline-block h-2.5 w-2.5 rounded-full border border-dim" />
+          Hollow ring = location poorly documented
+        </p>
+      </Section>
+
+      <Section index="04" title="Flows">
+        <div className="flex flex-col gap-1">
+          {STAGES.map((k) => (
+            <LayerRow
+              key={k}
+              on={kindOn(k)}
+              onClick={() => onToggleFlowKind(k)}
+              swatch={<Line color={shade[k]} thickness={LINE_THICKNESS[k]} />}
+              label={FLOW_KIND_LABEL[k]}
+              value={formatUsd(valueByKind[k])}
+            />
+          ))}
+        </div>
+
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <span className="hud-label text-muted" id="topn-label">
+            Draw
+          </span>
+          <div role="radiogroup" aria-labelledby="topn-label" className="flex flex-1 border border-line-strong">
+            {TOP_N_OPTIONS.map((n) => (
+              <button
+                key={n}
+                type="button"
+                role="radio"
+                aria-checked={topN === n}
+                aria-pressed={topN === n}
+                onClick={() => onChangeTopN(n)}
+                className="toggle flex-1 border-r border-line-strong py-1 font-mono text-xs text-dim last:border-r-0 hover:text-ink"
+              >
+                Top {n}
+              </button>
+            ))}
           </div>
-        </dl>
-      </div>
-    </nav>
+        </div>
+        <p className="mt-2 text-xs text-muted">Largest flows by value. Arc width is value.</p>
+      </Section>
+
+      <Section index="05" title="Largest flows">
+        {topFlows.length === 0 ? (
+          <p className="text-xs text-muted">No flows match these filters.</p>
+        ) : (
+          <ol className="flex flex-col" onMouseLeave={() => onHoverFlow(null)}>
+            {topFlows.map((arc, i) => {
+              const fraction = maxTop > 0 ? (arc.value.usd ?? 0) / maxTop : 0
+              const selected = arc.id === selectedId
+              return (
+                <li key={arc.id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelectFlow(arc)}
+                    onMouseEnter={() => onHoverFlow(arc.id)}
+                    onFocus={() => onHoverFlow(arc.id)}
+                    onBlur={() => onHoverFlow(null)}
+                    className={
+                      'group grid w-full grid-cols-[1.25rem_1fr_auto] items-baseline gap-x-2 border-l-2 px-2 py-1.5 text-left hover:bg-accent/5 ' +
+                      (selected ? 'border-accent bg-accent/10' : 'border-transparent')
+                    }
+                  >
+                    <span className="font-mono text-xs text-muted">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="truncate text-[13px] text-ink">
+                      {name(arc.flow.from_iso3)} <span className="text-muted">→</span> {name(arc.flow.to_iso3)}
+                    </span>
+                    <span className="font-mono text-xs text-ink">
+                      {formatUsd(arc.value.usd)}
+                      {arc.value.estimated && <span className="text-alert">*</span>}
+                    </span>
+                    <span />
+                    <span className="col-span-2 mt-1 flex items-center gap-2">
+                      <span className="relative h-[3px] flex-1 bg-line">
+                        <span
+                          className="absolute inset-y-0 left-0"
+                          style={{ width: `${Math.max(2, fraction * 100)}%`, backgroundColor: arc.color }}
+                        />
+                      </span>
+                      <span className="w-32 shrink-0 truncate text-right text-[11px] text-muted">
+                        {FLOW_KIND_LABEL[arc.kind]}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
+        )}
+      </Section>
+    </>
   )
 }

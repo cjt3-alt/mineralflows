@@ -37,7 +37,8 @@ function facilityPoint(over: Partial<PointDatum['facility']['properties']> = {})
     lat: -24.2667,
     lng: -69.0667,
     color: '#ff7a45',
-    radius: 0.45,
+    stage: 'mine',
+    size: 3.5,
     confidence: over.confidence ?? 'high',
     facility: {
       type: 'Feature',
@@ -70,6 +71,8 @@ function flowArc(estimated: boolean): ArcDatum {
     altitude: 0.3,
     width: 2,
     color: '#ff7a45',
+    kind: 'mine',
+    weight: 1,
     confidence: 'high',
     value: estimated
       ? {
@@ -172,6 +175,28 @@ describe('DetailPanel', () => {
     const onClose = renderPanel({ kind: 'facility', point: facilityPoint() })
     await userEvent.click(screen.getByRole('button', { name: /close detail panel/i }))
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('shows a country dossier with its trade position and partners', () => {
+    renderPanel({
+      kind: 'country',
+      iso3: 'CHL',
+      summary: {
+        iso3: 'CHL',
+        exportsUsd: 21_000_000_000,
+        importsUsd: 0,
+        exportsByKind: { mine: 21_000_000_000, process: 0, refine: 0 },
+        importsByKind: { mine: 0, process: 0, refine: 0 },
+        topDestinations: [{ iso3: 'CHN', usd: 21_000_000_000 }],
+        topOrigins: [],
+        facilities: { mine: 3, process: 0, refine: 0 },
+        shareOfImports: 0,
+        shareOfExports: 0.2,
+      },
+    })
+    expect(screen.getByRole('heading', { name: 'Chile' })).toBeTruthy()
+    expect(screen.getByText(/net exporter/)).toBeTruthy()
+    expect(screen.getByText('China')).toBeTruthy()
   })
 
   it('takes focus when it opens, so the keyboard lands somewhere useful', () => {

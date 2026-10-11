@@ -3,8 +3,9 @@
 A static, client-only web app that visualises critical mineral supply chains on an interactive 3D
 globe: where minerals are mined, processed, and refined, and how they move between countries. Flow
 lines are sized by market value, and every value derived from volume × price is labelled as an
-estimate wherever it appears. A value slider lets you filter flows below a dollar threshold, and the
-same filter round-trips through the URL as `?minValue=`.
+estimate wherever it appears. The interface is styled as an operations console: a control column of
+layers, a country search and the largest flows, a globe you can hover and click, and a dossier panel
+for whatever is selected.
 
 **Currently scoped to copper only.** The app and ETL support four minerals (copper, lithium, cobalt,
 rare earths) end to end, but as of 13 September 2026 lithium, cobalt, and rare earths are switched
@@ -20,10 +21,13 @@ database, no server rendering, no runtime API calls.
 
 ## What is here
 
-- **The app** — a dashboard with the globe as its centre: mineral chips across the top, a stage
-  filter down the left, a detail panel on the right, and a legend that maps arc width to dollars
-  and reports a vintage per source. Filters round-trip through the query string, so a view is a
-  link.
+- **The app** — a dashboard with the globe as its centre. The left column has headline numbers,
+  a country search, separate layer switches for sites (mines, smelters, refineries) and flows (ore
+  and concentrate, smelted intermediates, refined metal), a Top 25/100/300 control, and a clickable
+  list of the largest flows. Hover anything on the globe for a tooltip; click a flow or site for its
+  record, or a country for its dossier. Every source is credited by name in the footer and in the
+  "Sources & method" dialog. Filters round-trip through the query string (`minerals`, `stages`,
+  `flows`, `top`, `country`), so a view is a link.
 - **The data contract** — [`src/data/schema.ts`](src/data/schema.ts) is the single source of truth
   for the six files in `public/data/`. Everything validates against it on load and fails loudly,
   naming the record that broke.
@@ -34,7 +38,7 @@ database, no server rendering, no runtime API calls.
 
 As of 13 September 2026, `public/data/` is the output of a real `python etl/pipeline.py` run against
 the copper-only config above: 1,229 ICMM facilities and up to 500 ADB-WTO TiCM flows (the globe draws
-the top 300 of those by value, and the legend says so). Sources: ICMM v1.5, ADB-WTO TiCM 2024, World
+the largest 100 by default, up to 300, and the legend says so). Sources: ICMM v1.5, ADB-WTO TiCM 2024, World
 Bank Pink Sheet, World Bank country API — see the data sources table below.
 
 The hand-authored 30-facility seed dataset (`etl/seed/`) still exists and is still what the pipeline
@@ -67,36 +71,32 @@ python -m ruff check etl/ && python -m ruff format --check etl/
 
 ## How to read the globe
 
-- **Points are facilities**, coloured by mineral and sized by stage: mines smallest, refineries
-  largest, because refining is where the concentration this app is about actually sits. A facility
-  that handles more than one mineral takes the colour of its lowest `sort_order` visible mineral;
-  the detail panel lists all of them.
-- **Arcs are flows**, width on a square-root scale. Linear width would make copper a solid band and
-  everything else a hairline. Altitude rises with distance so a Chile-to-China arc clears the globe
-  rather than cutting through it. Each arc grows in once when it first appears and carries a
-  continuously traveling brightness band along its length — a steady connection with something
-  moving through it, not a dash animating end to end.
-- **The far side of the globe fades, it doesn't vanish.** Country borders, arcs, and facility points
-  all use a shader that dims a point smoothly based on whether it currently faces the camera, rather
-  than a hard cutoff at the horizon — so the far hemisphere is dimly visible through the globe and
-  the picture reads the same at any rotation, including while the camera's own slow idle turn (below)
-  is moving it. See [`HANDOFF.md`](HANDOFF.md), section 0, for the reasoning and the tuning knobs.
-- **Low confidence is visible without reading anything.** Low-confidence facilities are drawn dimmer
-  and flush against the sphere, with a slow ring, while verified ones stand proud of it and are
-  brighter; low-confidence flows are dashed and don't carry the traveling band. The difference
-  survives greyscale and colourblindness, and it never disappears under reduced motion.
+- **Data is warm, interface is cool.** Everything copper-to-gold is data. The one cyan accent
+  marks what you are pointing at — hover, selection, the focused country, the keyboard cursor — so
+  "what am I looking at" is always the cyan thing. Red only ever means caution.
+- **Points are sites**, round sprites shaded and sized by stage: small dark mines, larger mid-copper
+  smelters, the largest and brightest refineries, because processing is where the concentration this
+  app is about actually sits. Points have no capacity data, so size shows stage, not output.
+- **Arcs are flows**, coloured by what they carry (dark copper for ore and concentrate, mid copper
+  for smelted intermediates, pale gold for refined metal), width and opacity on a square-root value
+  scale. Altitude rises with distance so long hops clear the globe. Each arc grows in once and
+  carries a traveling brightness band from exporter to importer.
+- **Selecting dims everything else**, so the selected flow or site stands alone; focusing a country
+  narrows the flows to that country's trade and dims sites elsewhere.
+- **The far side of the globe fades, it doesn't vanish.** Borders and arcs use a shader that dims by
+  how much a point faces the camera; points are depth-tested against the opaque globe and fade near
+  the horizon.
+- **Low confidence is visible without reading anything.** Low-confidence sites are hollow rings;
+  importer-reported-only flows are dashed and carry no traveling band. Both survive greyscale and
+  reduced motion.
 - **Estimated values never look like traded ones.** A value derived from volume × price carries a
   badge, a plain-language warning, and the arithmetic that produced it.
-- **The camera turns slowly on its own** when nothing is selected and keyboard navigation isn't
-  active, and a drag imparts momentum that coasts to a stop rather than snapping back. It pauses
-  automatically the moment something is selected, so it never carries what you're looking at out of
-  view.
+- **The camera turns slowly on its own** and pauses whenever anything is hovered, selected or
+  focused.
 
-At most 300 arcs are drawn. Past that the frame rate collapses, so the set is capped by value and
-the legend says how many of how many are showing rather than quietly dropping the rest. The value
-slider filters flows below a dollar threshold before that cap is applied; facility points are not
-affected by it, since a flow records origin/destination country, not which specific mine or refinery
-it moved through.
+The globe draws the largest 25, 100 or 300 flows (100 by default); past a few hundred the picture is
+noise and the frame rate drops. The legend says how many of how many are drawn, and the totals in
+the control column count every flow, drawn or not.
 
 ## Keyboard and accessibility
 
@@ -107,12 +107,12 @@ it moved through.
   announced to a screen reader.
 - The detail panel takes focus when it opens, closes on Escape, and hands focus back.
 - Focus is always visible and always the same shape.
-- `prefers-reduced-motion` turns off bloom, the arc grow/traveling band, the low-confidence ring
-  pulse, the camera's idle auto-rotate, and the load camera move. The facing-based fade on borders,
+- `prefers-reduced-motion` turns off the arc grow/traveling band, the camera's idle auto-rotate, and
+  the camera moves. The facing-based fade on borders,
   arcs, and points is unaffected — it's a function of camera angle, not time, so there's nothing to
   turn off.
-- Below 768px the rail becomes a strip under the top bar and the panel becomes a sheet over the
-  globe. Nothing is hidden on a small screen. Bloom is switched off there too, on cost grounds.
+- Below 768px the control column moves into a "Layers & search" drawer and the dossier becomes a
+  sheet over the globe. Nothing is hidden on a small screen.
 - The globe camera works out how far back it has to sit for the sphere to fit the narrower axis, so
   a tall phone viewport does not crop it.
 
