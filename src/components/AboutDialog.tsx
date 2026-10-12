@@ -143,8 +143,16 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
               it appears.
             </li>
             <li>
-              The map draws the largest flows only (25, 100 or 300); the totals in the control panel
-              count every flow, drawn or not.
+              Trade covers three forms: ore and concentrate, smelted intermediates, and refined metal
+              (cathode, wire-bar, billet). Scrap and semi-finished or finished products, such as wire,
+              tube, sheet and copper inside cables and electronics, are not included. A country&rsquo;s
+              &ldquo;net importer&rdquo; or &ldquo;net exporter&rdquo; position is for those three forms
+              only, not its whole copper balance.
+            </li>
+            <li>
+              The data keeps each mineral&rsquo;s 500 largest country-to-country flows; the rest, each
+              small, are left out. The map draws the largest 25, 100 or 300 of those, and the totals in
+              the control panel count all 500, drawn or not.
             </li>
             <li>
               Site coverage follows the ICMM dataset. Small and informal operations are under-counted,

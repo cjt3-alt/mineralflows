@@ -365,7 +365,8 @@ function CountryDetail({
         Net position:{' '}
         <span className={net >= 0 ? 'text-ok' : 'text-alert'}>
           {net >= 0 ? 'net exporter' : 'net importer'} by {formatUsd(Math.abs(net))}
-        </span>
+        </span>{' '}
+        of ore, intermediates and refined metal. Scrap and finished products are not counted.
       </p>
 
       <SectionLabel>What it ships and buys</SectionLabel>
