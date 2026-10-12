@@ -75,8 +75,6 @@ const ACCENT = '#5ad8f0'
 const OCEAN_FILL = 'rgba(9, 17, 27, 0.75)'
 const GRATICULE = 'rgba(90, 216, 240, 0.06)'
 const LAND_UNDERFILL = 'rgba(14, 30, 44, 0.9)'
-/** Tectonic plate boundaries: a muted violet, apart from data (copper) and interface (cyan). */
-const PLATE = 'rgba(176, 150, 255, 0.42)'
 const RANGE_LABEL = 'rgba(176, 205, 228, 0.42)'
 /**
  * Borders are engraved into the dot matrix: a narrow channel is cleared along
@@ -178,22 +176,20 @@ function fitProjection(width: number, height: number, centralMeridian: number): 
 /**
  * The terrain base map, built offline by tools/build_basemap.py into
  * public/basemap/: a shaded-relief image (land and sea floor) already in Web
- * Mercator, tectonic plate boundaries, and named mountain ranges. All three
+ * Mercator, and named mountain ranges. Both
  * load after first paint; until the relief arrives the map draws flat land.
  */
 export interface TerrainLayers {
   relief: boolean
-  plates: boolean
   ranges: boolean
 }
 
 interface Terrain {
   relief: HTMLImageElement | null
-  plates: GeoPermissibleObjects | null
   ranges: { name: string; rank: number; lng: number; lat: number }[]
 }
 
-const terrain: Terrain = { relief: null, plates: null, ranges: [] }
+const terrain: Terrain = { relief: null, ranges: [] }
 let terrainRequest: Promise<void> | null = null
 
 function basemapUrl(file: string): string {
@@ -213,12 +209,6 @@ function loadTerrain(): Promise<void> {
       img.onerror = () => resolve()
       img.src = basemapUrl('relief.webp')
     }),
-    fetch(basemapUrl('plates.json'))
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: unknown) => {
-        terrain.plates = (d as GeoPermissibleObjects | null) ?? null
-      })
-      .catch(() => undefined),
     fetch(basemapUrl('ranges.json'))
       .then((r) => (r.ok ? r.json() : []))
       .then((d: unknown) => {
@@ -525,19 +515,6 @@ export function MapCanvas({
       ctx.strokeStyle = BORDER
       ctx.lineWidth = BORDER_WIDTH_PX * lineScale
       ctx.stroke()
-    }
-
-    if (terrainLayers.plates && terrain.plates) {
-      for (const off of offsets) {
-        atCopy(off)
-        ctx.beginPath()
-        path(terrain.plates)
-        ctx.setLineDash([6 * lineScale, 4 * lineScale])
-        ctx.strokeStyle = PLATE
-        ctx.lineWidth = 1.1 * lineScale
-        ctx.stroke()
-        ctx.setLineDash([])
-      }
     }
 
     // Mountain range names: the biggest at world scale, more as you zoom in.

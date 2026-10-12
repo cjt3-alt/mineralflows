@@ -358,13 +358,6 @@ export function FilterRail(props: FilterRailProps) {
             value=""
           />
           <LayerRow
-            on={terrainLayers.plates}
-            onClick={() => onToggleTerrain('plates')}
-            swatch={<span className="inline-block w-7 border-t-2 border-dashed" style={{ borderColor: 'rgba(176, 150, 255, 0.8)' }} />}
-            label="Tectonic plate boundaries"
-            value=""
-          />
-          <LayerRow
             on={terrainLayers.ranges}
             onClick={() => onToggleTerrain('ranges')}
             swatch={<span className="font-mono text-[9px] tracking-widest text-dim">ABC</span>}
@@ -373,8 +366,8 @@ export function FilterRail(props: FilterRailProps) {
           />
         </div>
         <p className="mt-2 text-xs text-muted">
-          Most mined copper comes from porphyry deposits, formed above subduction zones where plates
-          converge. That is why the Andes line up with Chile and Peru.
+          Most mined copper comes from porphyry deposits in young mountain belts. That is why the
+          Andes line up with Chile and Peru.
         </p>
       </Section>
 

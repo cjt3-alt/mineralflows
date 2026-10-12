@@ -108,8 +108,6 @@ export function StatusBar({ meta, onOpenAbout }: { meta: Meta; onOpenAbout: () =
         ))}
         <span className="mx-2 text-line-strong">/</span>
         <span className="text-dim">Terrain Tiles</span> <span className="font-mono">AWS</span>
-        <span className="mx-2 text-line-strong">/</span>
-        <span className="text-dim">PB2002 plates</span> <span className="font-mono">Bird 2003</span>
       </p>
       <button type="button" onClick={onOpenAbout} className="hud-label shrink-0 text-muted hover:text-accent">
         Method →

@@ -4,15 +4,13 @@ Run once, by hand, whenever the look or the sources change:
 
     python tools/build_basemap.py
 
-Writes three files the app fetches lazily:
+Writes two files the app fetches lazily:
 
   relief.webp   Shaded relief of land and sea floor, tinted to the app's palette,
                 in Web Mercator (the map's own projection), longitude -180..180,
                 cropped to the map's latitudes. Built from the open Terrain
                 Tiles on AWS (Mapzen/Tilezen; sources include SRTM, GMTED2010
                 and ETOPO1), zoom 4, so 4096 px per world.
-  plates.json   Tectonic plate boundaries, PB2002 (Bird, 2003), from the
-                fraxen/tectonicplates GeoJSON (ODC-BY 1.0), coordinates rounded.
   ranges.json   Named mountain ranges from Natural Earth's physical regions
                 (public domain), as label points.
 
@@ -40,7 +38,6 @@ TILE = 256
 LAT_TOP = 80.0
 LAT_BOTTOM = -58.0
 TILES_URL = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
-PLATES_URL = "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json"
 REGIONS_URL = (
     "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/"
     "ne_50m_geography_regions_polys.geojson"
@@ -132,28 +129,6 @@ def colourise(e: np.ndarray, hs: np.ndarray) -> np.ndarray:
     return np.clip(out, 0, 255).astype(np.uint8)
 
 
-def rounded(coords, places: int = 2):
-    if isinstance(coords[0], (int, float)):
-        return [round(coords[0], places), round(coords[1], places)]
-    return [rounded(c, places) for c in coords]
-
-
-def plates() -> dict:
-    data = json.loads(fetch(PLATES_URL))
-    features = [
-        {
-            "type": "Feature",
-            "properties": {},
-            "geometry": {
-                **f["geometry"],
-                "coordinates": rounded(f["geometry"]["coordinates"]),
-            },
-        }
-        for f in data["features"]
-    ]
-    return {"type": "FeatureCollection", "features": features}
-
-
 def centroid(ring: list[list[float]]) -> tuple[float, float, float]:
     """Area-weighted centroid of a ring, and its area (shoelace)."""
     a = cx = cy = 0.0
@@ -206,9 +181,8 @@ def main() -> int:
     Image.fromarray(rgb).save(OUT / "relief.webp", quality=80, method=6)
     print(f"relief.webp {rgb.shape[1]}x{rgb.shape[0]}", file=sys.stderr)
 
-    (OUT / "plates.json").write_text(json.dumps(plates(), separators=(",", ":")))
     (OUT / "ranges.json").write_text(json.dumps(ranges(), separators=(",", ":")))
-    for name in ("relief.webp", "plates.json", "ranges.json"):
+    for name in ("relief.webp", "ranges.json"):
         print(name, (OUT / name).stat().st_size, file=sys.stderr)
     return 0
 

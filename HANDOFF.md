@@ -34,8 +34,8 @@ branch, built on top of `design/polish`, which swaps the globe for a flat map.
   painted once (rings crossing the 180th meridian are unwrapped first, or they paint stripes).
 - **Terrain base map instead of the dot matrix.** `tools/build_basemap.py` (run by hand; needs numpy
   and Pillow) builds `public/basemap/`: `relief.webp` (shaded relief of land and sea floor from the
-  AWS Terrain Tiles, zoom 4, tinted to the palette, already in Web Mercator), `plates.json` (PB2002
-  plate boundaries, ODC-BY) and `ranges.json` (Natural Earth mountain ranges as label points). The
+  AWS Terrain Tiles, zoom 4, tinted to the palette, already in Web Mercator) and `ranges.json` (Natural Earth mountain ranges as label points).
+  Tectonic plate boundaries were tried and cut at CJ's request. The
   map loads them after first paint; a "Terrain" section in the control column switches each on and
   off. Natural Earth's own download host is blocked by this environment's network policy, so the
   relief comes from the AWS tiles rather than Natural Earth's shaded-relief raster.

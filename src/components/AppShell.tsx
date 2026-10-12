@@ -81,7 +81,7 @@ export function AppShell() {
   const [hoverId, setHoverId] = useState<string | null>(null)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [terrainLayers, setTerrainLayers] = useState<TerrainLayers>({ relief: true, plates: true, ranges: true })
+  const [terrainLayers, setTerrainLayers] = useState<TerrainLayers>({ relief: true, ranges: true })
   const onToggleTerrain = useCallback(
     (layer: keyof TerrainLayers) => setTerrainLayers((t) => ({ ...t, [layer]: !t[layer] })),
     [],
