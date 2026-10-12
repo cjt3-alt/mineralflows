@@ -357,13 +357,6 @@ export function FilterRail(props: FilterRailProps) {
             label="Relief & sea floor"
             value=""
           />
-          <LayerRow
-            on={terrainLayers.ranges}
-            onClick={() => onToggleTerrain('ranges')}
-            swatch={<span className="font-mono text-[9px] tracking-widest text-dim">ABC</span>}
-            label="Mountain ranges"
-            value=""
-          />
         </div>
         <p className="mt-2 text-xs text-muted">
           Most mined copper comes from porphyry deposits in young mountain belts. That is why the

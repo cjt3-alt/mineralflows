@@ -4,15 +4,13 @@ Run once, by hand, whenever the look or the sources change:
 
     python tools/build_basemap.py
 
-Writes two files the app fetches lazily:
+Writes one file the app fetches lazily:
 
   relief.webp   Shaded relief of land and sea floor, tinted to the app's palette,
                 in Web Mercator (the map's own projection), longitude -180..180,
                 cropped to the map's latitudes. Built from the open Terrain
                 Tiles on AWS (Mapzen/Tilezen; sources include SRTM, GMTED2010
                 and ETOPO1), zoom 4, so 4096 px per world.
-  ranges.json   Named mountain ranges from Natural Earth's physical regions
-                (public domain), as label points.
 
 Needs numpy and Pillow; neither is a runtime dependency of the app or the ETL.
 """
@@ -21,7 +19,6 @@ from __future__ import annotations
 
 import http.client
 import io
-import json
 import math
 import sys
 import time
@@ -38,10 +35,6 @@ TILE = 256
 LAT_TOP = 80.0
 LAT_BOTTOM = -58.0
 TILES_URL = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
-REGIONS_URL = (
-    "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/"
-    "ne_50m_geography_regions_polys.geojson"
-)
 
 
 def fetch(url: str, attempts: int = 4) -> bytes:
@@ -129,46 +122,6 @@ def colourise(e: np.ndarray, hs: np.ndarray) -> np.ndarray:
     return np.clip(out, 0, 255).astype(np.uint8)
 
 
-def centroid(ring: list[list[float]]) -> tuple[float, float, float]:
-    """Area-weighted centroid of a ring, and its area (shoelace)."""
-    a = cx = cy = 0.0
-    for (x0, y0), (x1, y1) in zip(ring, ring[1:] + ring[:1]):
-        cross = x0 * y1 - x1 * y0
-        a += cross
-        cx += (x0 + x1) * cross
-        cy += (y0 + y1) * cross
-    if abs(a) < 1e-12:
-        xs = [p[0] for p in ring]
-        ys = [p[1] for p in ring]
-        return sum(xs) / len(xs), sum(ys) / len(ys), 0.0
-    return cx / (3 * a), cy / (3 * a), abs(a) / 2
-
-
-def ranges() -> list[dict]:
-    """Named mountain ranges, labelled at the centroid of their largest part."""
-    data = json.loads(fetch(REGIONS_URL))
-    out = []
-    for f in data["features"]:
-        p = f["properties"]
-        if p.get("FEATURECLA") != "Range/mtn" or not p.get("NAME"):
-            continue
-        g = f["geometry"]
-        polygons = (
-            g["coordinates"] if g["type"] == "MultiPolygon" else [g["coordinates"]]
-        )
-        x, y, _ = max((centroid(poly[0]) for poly in polygons), key=lambda c: c[2])
-        out.append(
-            {
-                "name": p["NAME"].title().replace("Mts.", "Mts"),
-                "rank": int(p.get("SCALERANK") or 9),
-                "lng": round(x, 2),
-                "lat": round(y, 2),
-            }
-        )
-    out.sort(key=lambda r: r["rank"])
-    return out
-
-
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     size = 2**ZOOM * TILE
@@ -181,9 +134,7 @@ def main() -> int:
     Image.fromarray(rgb).save(OUT / "relief.webp", quality=80, method=6)
     print(f"relief.webp {rgb.shape[1]}x{rgb.shape[0]}", file=sys.stderr)
 
-    (OUT / "ranges.json").write_text(json.dumps(ranges(), separators=(",", ":")))
-    for name in ("relief.webp", "ranges.json"):
-        print(name, (OUT / name).stat().st_size, file=sys.stderr)
+    print("relief.webp", (OUT / "relief.webp").stat().st_size, file=sys.stderr)
     return 0
 
 

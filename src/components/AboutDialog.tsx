@@ -125,7 +125,7 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
             <li className="border-l-2 border-line-strong pl-3">
               <p className="text-ink">Natural Earth</p>
               <p className="mt-0.5 text-xs leading-relaxed text-muted">
-                Country borders, coastlines and the names of mountain ranges. Public domain.
+                Country borders and coastlines. Public domain.
               </p>
             </li>
           </ul>

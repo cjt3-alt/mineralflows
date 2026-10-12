@@ -75,7 +75,6 @@ const ACCENT = '#5ad8f0'
 const OCEAN_FILL = 'rgba(9, 17, 27, 0.75)'
 const GRATICULE = 'rgba(90, 216, 240, 0.06)'
 const LAND_UNDERFILL = 'rgba(14, 30, 44, 0.9)'
-const RANGE_LABEL = 'rgba(176, 205, 228, 0.42)'
 /**
  * Borders are engraved into the dot matrix: a narrow channel is cleared along
  * each one, and a crisp hairline runs down its middle. Coastlines get a softer
@@ -175,21 +174,19 @@ function fitProjection(width: number, height: number, centralMeridian: number): 
 
 /**
  * The terrain base map, built offline by tools/build_basemap.py into
- * public/basemap/: a shaded-relief image (land and sea floor) already in Web
- * Mercator, and named mountain ranges. Both
- * load after first paint; until the relief arrives the map draws flat land.
+ * public/basemap/: a shaded-relief image of land and sea floor, already in
+ * Web Mercator. It loads after first paint; until it arrives the map draws
+ * flat land.
  */
 export interface TerrainLayers {
   relief: boolean
-  ranges: boolean
 }
 
 interface Terrain {
   relief: HTMLImageElement | null
-  ranges: { name: string; rank: number; lng: number; lat: number }[]
 }
 
-const terrain: Terrain = { relief: null, ranges: [] }
+const terrain: Terrain = { relief: null }
 let terrainRequest: Promise<void> | null = null
 
 function basemapUrl(file: string): string {
@@ -198,24 +195,16 @@ function basemapUrl(file: string): string {
 }
 
 function loadTerrain(): Promise<void> {
-  terrainRequest ??= Promise.all([
-    new Promise<void>((resolve) => {
-      const img = new Image()
-      img.onload = () => {
-        terrain.relief = img
-        resolve()
-      }
-      // Without relief the map still works on flat land; nothing to report.
-      img.onerror = () => resolve()
-      img.src = basemapUrl('relief.webp')
-    }),
-    fetch(basemapUrl('ranges.json'))
-      .then((r) => (r.ok ? r.json() : []))
-      .then((d: unknown) => {
-        terrain.ranges = Array.isArray(d) ? (d as Terrain['ranges']) : []
-      })
-      .catch(() => undefined),
-  ]).then(() => undefined)
+  terrainRequest ??= new Promise<void>((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      terrain.relief = img
+      resolve()
+    }
+    // Without relief the map still works on flat land; nothing to report.
+    img.onerror = () => resolve()
+    img.src = basemapUrl('relief.webp')
+  })
   return terrainRequest
 }
 
@@ -515,37 +504,6 @@ export function MapCanvas({
       ctx.strokeStyle = BORDER
       ctx.lineWidth = BORDER_WIDTH_PX * lineScale
       ctx.stroke()
-    }
-
-    // Mountain range names: the biggest at world scale, more as you zoom in.
-    if (terrainLayers.ranges && terrain.ranges.length > 0) {
-      const maxRank = v.k < 1.6 ? 1 : v.k < 3 ? 2 : v.k < 5 ? 4 : 9
-      ctx.setTransform(dpr, 0, 0, dpr, dpr * mx, dpr * my)
-      ctx.font = '500 10px "IBM Plex Mono", ui-monospace, monospace'
-      ;(ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = '2.5px'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillStyle = RANGE_LABEL
-      // Ranges are sorted most important first; a label that would overlap
-      // one already placed is skipped rather than drawn on top of it.
-      const placed: Rect[] = []
-      for (const range of terrain.ranges) {
-        if (range.rank > maxRank) continue
-        const p = fitted.projection([range.lng, range.lat])
-        if (!p) continue
-        const text = range.name.toUpperCase()
-        const half = ctx.measureText(text).width / 2 + 6
-        const sx0 = p[0] * v.k + v.x
-        const sy = p[1] * v.k + v.y
-        for (const off of copyOffsets(sx0, sx0, period, -mx, W + mx)) {
-          const box = { left: sx0 + off - half, right: sx0 + off + half, top: sy - 8, bottom: sy + 8 }
-          if (placed.some((b) => b.left < box.right && box.left < b.right && b.top < box.bottom && box.top < b.bottom))
-            continue
-          placed.push(box)
-          ctx.fillText(text, sx0 + off, sy)
-        }
-      }
-      ;(ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = '0px'
     }
 
     staticRef.current = { canvas, view: v, mx, my, at: performance.now() }
