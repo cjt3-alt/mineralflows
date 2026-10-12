@@ -459,6 +459,9 @@ export interface CountrySummary {
   exportsBuyerReportedUsd: number
   topDestinations: Partner[]
   topOrigins: Partner[]
+  /** Partners per kind of material, so a sentence about ore names who supplies the ore. */
+  destinationsByKind: Record<Stage, Partner[]>
+  originsByKind: Record<Stage, Partner[]>
   facilities: Record<Stage, number>
   /** This country's share of all imports and exports in the flows given. */
   shareOfImports: number
@@ -492,6 +495,8 @@ export function summarizeCountry(
   let exportsBuyerReportedUsd = 0
   const destinations = new Map<string, number>()
   const origins = new Map<string, number>()
+  const destByKind = Object.fromEntries(STAGES.map((k) => [k, new Map<string, number>()])) as Record<Stage, Map<string, number>>
+  const originByKind = Object.fromEntries(STAGES.map((k) => [k, new Map<string, number>()])) as Record<Stage, Map<string, number>>
   let total = 0
 
   for (const flow of flows) {
@@ -504,10 +509,12 @@ export function summarizeCountry(
       // the importer's mirror report stands in (see the TiCM source module).
       if (flow.confidence === 'low') exportsBuyerReportedUsd += usd
       destinations.set(flow.to_iso3, (destinations.get(flow.to_iso3) ?? 0) + usd)
+      destByKind[kind].set(flow.to_iso3, (destByKind[kind].get(flow.to_iso3) ?? 0) + usd)
     }
     if (flow.to_iso3 === iso3) {
       importsByKind[kind] += usd
       origins.set(flow.from_iso3, (origins.get(flow.from_iso3) ?? 0) + usd)
+      originByKind[kind].set(flow.from_iso3, (originByKind[kind].get(flow.from_iso3) ?? 0) + usd)
     }
   }
 
@@ -528,6 +535,8 @@ export function summarizeCountry(
     exportsBuyerReportedUsd,
     topDestinations: topPartners(destinations, 5),
     topOrigins: topPartners(origins, 5),
+    destinationsByKind: Object.fromEntries(STAGES.map((k) => [k, topPartners(destByKind[k], 3)])) as Record<Stage, Partner[]>,
+    originsByKind: Object.fromEntries(STAGES.map((k) => [k, topPartners(originByKind[k], 3)])) as Record<Stage, Partner[]>,
     facilities: facilityCounts,
     shareOfImports: total > 0 ? importsUsd / total : 0,
     shareOfExports: total > 0 ? exportsUsd / total : 0,
@@ -594,4 +603,177 @@ export function formatLatLng(lat: number, lng: number, digits = 2): string {
   const ns = lat >= 0 ? 'N' : 'S'
   const ew = lng >= 0 ? 'E' : 'W'
   return Math.abs(lat).toFixed(digits) + '°' + ns + ' ' + Math.abs(lng).toFixed(digits) + '°' + ew
+}
+
+/* -------------------------------------------------------------- country role */
+
+export type CountryRoleId =
+  | 'minor'
+  | 'trading-hub'
+  | 'processing-hub'
+  | 'smelter-exporter'
+  | 'processing-gap'
+  | 'integrated-producer'
+  | 'mine-exporter'
+  | 'refined-exporter'
+  | 'intermediate-exporter'
+  | 'exporter'
+  | 'refined-importer'
+  | 'importer'
+  | 'two-way-trader'
+
+export interface CountryRole {
+  id: CountryRoleId
+  label: string
+  /** One or two plain sentences, every number from the summary. */
+  text: string
+}
+
+export const COUNTRY_ROLE_LABEL: Record<CountryRoleId, string> = {
+  minor: 'Minor participant',
+  'trading-hub': 'Trading hub',
+  'processing-hub': 'Processing hub',
+  'smelter-exporter': 'Smelter–exporter',
+  'processing-gap': 'Processing gap',
+  'integrated-producer': 'Integrated producer',
+  'mine-exporter': 'Mine exporter',
+  'refined-exporter': 'Refined-metal exporter',
+  'intermediate-exporter': 'Intermediate exporter',
+  exporter: 'Exporter',
+  'refined-importer': 'Refined-metal importer',
+  importer: 'Importer',
+  'two-way-trader': 'Two-way trader',
+}
+
+/** Kind names as they read inside a sentence. */
+const KIND_PHRASE: Record<Stage, string> = {
+  mine: 'ore & concentrate',
+  process: 'smelted intermediates',
+  refine: 'refined metal',
+}
+
+/** Below this much trade either way, a country is a minor participant. */
+const MINOR_TRADE_USD = 300_000_000
+
+/**
+ * A country's role in the trade, in plain words, decided by a short list of
+ * rules over its own numbers — so every label can be traced to figures on
+ * screen, works for any mineral, and changes when the data does. The rules,
+ * in the order they are tried, are listed in the Sources & method dialog;
+ * keep the two in step.
+ *
+ * `world` is the total traded value per kind across all flows, for shares.
+ */
+export function countryRole(
+  s: CountrySummary,
+  world: Record<Stage, number>,
+  name: (iso3: string) => string,
+): CountryRole {
+  const ex = s.exportsByKind
+  const im = s.importsByKind
+  const EX = s.exportsUsd
+  const IM = s.importsUsd
+  const total = EX + IM
+  const sites = s.facilities.mine + s.facilities.process + s.facilities.refine
+  const share = (value: number, kind: Stage) => formatShare(world[kind] > 0 ? value / world[kind] : 0)
+
+  /**
+   * ", mostly from Chile", or ", mostly from Chile and Peru" when no single
+   * partner dominates; empty when there is no partner to name. Partners are
+   * per kind, so a clause about ore names who supplies the ore.
+   */
+  const partners = (list: Partner[], whole: number, preposition: 'from' | 'to') => {
+    const [first, second] = list
+    if (!first || whole <= 0) return ''
+    if (first.usd / whole >= 0.5 || !second) return `, mostly ${preposition} ${name(first.iso3)}`
+    return `, mostly ${preposition} ${name(first.iso3)} and ${name(second.iso3)}`
+  }
+  const from = (kind: Stage) => partners(s.originsByKind[kind], im[kind], 'from')
+  const to = (kind: Stage) => partners(s.destinationsByKind[kind], ex[kind], 'to')
+  const make = (id: CountryRoleId, text: string): CountryRole => ({ id, label: COUNTRY_ROLE_LABEL[id], text })
+  const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
+  if (total < MINOR_TRADE_USD) {
+    return make('minor', `Under ${formatUsd(MINOR_TRADE_USD)} of trade either way in this data.`)
+  }
+
+  if (sites === 0 && IM >= EX) {
+    const kind = STAGES.reduce((a, b) => (im[b] > im[a] ? b : a))
+    return make(
+      'trading-hub',
+      `Records ${formatUsd(im[kind])} of ${KIND_PHRASE[kind]} imports${from(kind)}, with no mines, smelters or refineries in the data. That likely reflects commodity traders based there, not processing.`,
+    )
+  }
+
+  // Buys raw material to process at home, and keeps what it makes.
+  if (im.mine >= 0.05 * world.mine && im.mine >= 0.5 * IM && EX < 0.3 * IM) {
+    const refined = im.refine >= 0.1 * world.refine ? `, plus ${share(im.refine, 'refine')} of its refined metal` : ''
+    return make(
+      'processing-hub',
+      `Buys ${share(im.mine, 'mine')} of the world's traded ore & concentrate${from('mine')}${refined}, while exporting just ${formatUsd(EX)}. ${count(s.facilities.process, 'smelter', 'smelters')} and ${count(s.facilities.refine, 'refinery', 'refineries')} in the data.`,
+    )
+  }
+
+  // Buys raw material in quantity and sells refined metal on.
+  if (im.mine >= 1e9 && im.mine >= 0.5 * IM && ex.refine >= 0.3 * im.mine) {
+    return make(
+      'smelter-exporter',
+      `Imports ${formatUsd(im.mine)} of ore & concentrate${from('mine')}, and exports ${formatUsd(ex.refine)} of refined metal${to('refine')}.`,
+    )
+  }
+
+  // Sends raw material out and buys refined metal back.
+  if (
+    ex.mine + ex.process >= 0.5 * EX &&
+    ex.mine + ex.process >= 0.25 * im.refine &&
+    im.refine >= 0.5 * IM &&
+    im.refine >= 1e9
+  ) {
+    const origin = s.originsByKind.refine[0]
+    const fromTop = origin && im.refine > 0 ? `, ${formatShare(origin.usd / im.refine)} of it from ${name(origin.iso3)}` : ''
+    const rawKind: Stage = ex.mine >= ex.process ? 'mine' : 'process'
+    return make(
+      'processing-gap',
+      `Ships out ${formatUsd(ex.mine + ex.process)} of ore and intermediates${to(rawKind)}, and buys back ${formatUsd(im.refine)} of refined metal${fromTop}. ${count(s.facilities.mine, 'mine', 'mines')} and ${count(s.facilities.refine, 'refinery', 'refineries')} in the data.`,
+    )
+  }
+
+  if (EX >= 0.6 * total) {
+    const top = s.topDestinations[0]
+    const toTop = top ? ` ${formatShare(top.usd / EX)} of its exports go to ${name(top.iso3)}.` : ''
+    if (ex.mine >= 0.25 * EX && ex.refine >= 0.25 * EX) {
+      return make(
+        'integrated-producer',
+        `Exports both raw and refined: ${share(ex.mine, 'mine')} of the world's traded ore & concentrate and ${share(ex.refine, 'refine')} of its refined metal.${toTop}`,
+      )
+    }
+    if (ex.mine >= 0.6 * EX) {
+      return make('mine-exporter', `Sends out ${share(ex.mine, 'mine')} of the world's traded ore & concentrate, unprocessed.${toTop}`)
+    }
+    if (ex.refine >= 0.6 * EX) {
+      return make(
+        'refined-exporter',
+        `Exports ${formatUsd(ex.refine)} of refined metal, ${share(ex.refine, 'refine')} of world trade${to('refine')}.`,
+      )
+    }
+    if (ex.process >= 0.5 * EX) {
+      return make(
+        'intermediate-exporter',
+        `Exports ${formatUsd(ex.process)} of smelted but unrefined metal, ${share(ex.process, 'process')} of world trade${to('process')}.`,
+      )
+    }
+    return make('exporter', `Exports ${formatUsd(EX)} and imports ${formatUsd(IM)}.${toTop}`)
+  }
+
+  if (IM >= 0.6 * total) {
+    if (im.refine >= 0.6 * IM) {
+      return make(
+        'refined-importer',
+        `Imports ${formatUsd(im.refine)} of refined metal${from('refine')}, and exports ${formatUsd(EX)}.`,
+      )
+    }
+    return make('importer', `Imports ${formatUsd(IM)}${partners(s.topOrigins, IM, 'from')}, and exports ${formatUsd(EX)}.`)
+  }
+
+  return make('two-way-trader', `Trades both ways: exports ${formatUsd(EX)} and imports ${formatUsd(IM)}.`)
 }

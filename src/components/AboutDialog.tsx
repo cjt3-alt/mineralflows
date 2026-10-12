@@ -131,7 +131,50 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
           </ul>
         </Block>
 
-        <Block index="04" title="Caveats">
+        <Block index="04" title="Country roles">
+          <p>
+            Each country&rsquo;s role is worked out from its own numbers by the rules below, tried in
+            order; the first that fits wins. Shares are of all trade in the data for that kind of
+            material.
+          </p>
+          <ul className="list-disc space-y-1 pl-5 marker:text-muted">
+            <li>
+              <span className="text-ink">Minor participant:</span> under $300M of trade either way.
+            </li>
+            <li>
+              <span className="text-ink">Trading hub:</span> imports more than it exports, with no
+              mines, smelters or refineries in the data.
+            </li>
+            <li>
+              <span className="text-ink">Processing hub:</span> buys at least 5% of the world&rsquo;s
+              traded ore, ore is most of its imports, and it exports under 30% of what it imports.
+            </li>
+            <li>
+              <span className="text-ink">Smelter&ndash;exporter:</span> imports over $1B of ore, mostly
+              ore, and exports refined metal worth at least 30% of that ore.
+            </li>
+            <li>
+              <span className="text-ink">Processing gap:</span> exports mostly ore and intermediates,
+              imports mostly refined metal (over $1B), and its raw exports are at least a quarter of
+              those refined imports.
+            </li>
+            <li>
+              <span className="text-ink">Exporters</span> (exports at least 60% of its trade):
+              integrated producer if ore and refined metal are each a quarter or more; mine exporter
+              if ore is 60% or more; refined-metal exporter if refined is 60% or more; intermediate
+              exporter if intermediates are half or more.
+            </li>
+            <li>
+              <span className="text-ink">Importers</span> (imports at least 60%): refined-metal
+              importer if refined is 60% or more of imports; otherwise importer.
+            </li>
+            <li>
+              <span className="text-ink">Two-way trader:</span> everything else.
+            </li>
+          </ul>
+        </Block>
+
+        <Block index="05" title="Caveats">
           <ul className="list-disc space-y-1.5 pl-5 marker:text-muted">
             <li>
               Arcs start and end at capital cities. They show which countries trade, not which ports

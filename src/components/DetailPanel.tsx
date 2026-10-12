@@ -10,6 +10,7 @@ import {
   formatUsd,
   formatUsdExact,
   type ArcDatum,
+  type CountryRole,
   type CountrySummary,
   type PointDatum,
 } from '../data/derive.ts'
@@ -27,7 +28,7 @@ import { STAGES, type Country, type Mineral } from '../data/schema.ts'
 export type Selection =
   | { kind: 'facility'; point: PointDatum }
   | { kind: 'flow'; arc: ArcDatum }
-  | { kind: 'country'; iso3: string; summary: CountrySummary }
+  | { kind: 'country'; iso3: string; summary: CountrySummary; role?: CountryRole }
 
 export interface DetailPanelProps {
   selection: Selection | null
@@ -329,10 +330,12 @@ function PartnerList({
 
 function CountryDetail({
   summary,
+  role,
   countries,
   onFocusCountry,
 }: {
   summary: CountrySummary
+  role?: CountryRole | undefined
   countries: Record<string, Country>
   onFocusCountry?: ((iso3: string) => void) | undefined
 }) {
@@ -343,6 +346,13 @@ function CountryDetail({
   return (
     <>
       <Header kicker={'Country dossier · ' + summary.iso3} title={name} sub="All flows matching the current filters" />
+
+      {role && (
+        <div className="mb-4 border-l-2 border-accent bg-accent/5 px-3 py-2.5">
+          <p className="hud-label text-accent">Role · {role.label}</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-ink">{role.text}</p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <Figure label="Exports" value={formatUsd(summary.exportsUsd)} note={formatShare(summary.shareOfExports) + ' of world flows'} />
@@ -475,7 +485,12 @@ export function DetailPanel({
       ) : selection.kind === 'flow' ? (
         <FlowDetail arc={selection.arc} mineralsById={mineralsById} countries={countries} onFocusCountry={onFocusCountry} />
       ) : (
-        <CountryDetail summary={selection.summary} countries={countries} onFocusCountry={onFocusCountry} />
+        <CountryDetail
+          summary={selection.summary}
+          role={selection.role}
+          countries={countries}
+          onFocusCountry={onFocusCountry}
+        />
       )}
     </aside>
   )

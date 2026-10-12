@@ -13,6 +13,8 @@ import {
   flowKind,
   stageShade,
   summarizeCountry,
+  countryRole,
+  type CountrySummary,
   type Filters,
 } from './derive.ts'
 import type { FacilityFeature, Flow, Mineral, Price } from './schema.ts'
@@ -308,5 +310,87 @@ describe('formatUsd', () => {
 
   it('says there is no value rather than showing a zero', () => {
     expect(formatUsd(null)).toBe('no value')
+  })
+})
+
+describe('countryRole', () => {
+  const world = { mine: 100e9, process: 20e9, refine: 100e9 }
+  const none = { mine: [], process: [], refine: [] }
+  const base: CountrySummary = {
+    iso3: 'XXX',
+    exportsUsd: 0,
+    importsUsd: 0,
+    exportsByKind: { mine: 0, process: 0, refine: 0 },
+    importsByKind: { mine: 0, process: 0, refine: 0 },
+    exportsBuyerReportedUsd: 0,
+    topDestinations: [],
+    topOrigins: [],
+    destinationsByKind: none,
+    originsByKind: none,
+    facilities: { mine: 5, process: 1, refine: 1 },
+    shareOfImports: 0,
+    shareOfExports: 0,
+  }
+  const names: Record<string, string> = { CHL: 'Chile', PER: 'Peru', CHN: 'China', MEX: 'Mexico' }
+  const role = (s: Partial<CountrySummary>) => countryRole({ ...base, ...s }, world, (i) => names[i] ?? i)
+
+  it('calls a big ore buyer that exports little a processing hub, and names its ore suppliers', () => {
+    const r = role({
+      importsUsd: 100e9,
+      exportsUsd: 4e9,
+      importsByKind: { mine: 63e9, process: 0, refine: 37e9 },
+      exportsByKind: { mine: 0, process: 0, refine: 4e9 },
+      originsByKind: { ...none, mine: [{ iso3: 'CHL', usd: 26e9 }, { iso3: 'PER', usd: 16e9 }] },
+    })
+    expect(r.id).toBe('processing-hub')
+    expect(r.text).toContain("63% of the world's traded ore")
+    expect(r.text).toContain('mostly from Chile and Peru')
+  })
+
+  it('calls raw exports with refined imports a processing gap', () => {
+    const r = role({
+      exportsUsd: 4e9,
+      importsUsd: 8e9,
+      exportsByKind: { mine: 3.5e9, process: 0.5e9, refine: 0 },
+      importsByKind: { mine: 0, process: 0, refine: 8e9 },
+      destinationsByKind: { ...none, mine: [{ iso3: 'MEX', usd: 3e9 }] },
+      originsByKind: { ...none, refine: [{ iso3: 'CHL', usd: 5.6e9 }] },
+    })
+    expect(r.id).toBe('processing-gap')
+    expect(r.text).toContain('mostly to Mexico')
+    expect(r.text).toContain('70% of it from Chile')
+  })
+
+  it('does not call a big exporter a smelter just because its small imports are ore', () => {
+    const r = role({
+      exportsUsd: 21e9,
+      importsUsd: 0.07e9,
+      importsByKind: { mine: 0.07e9, process: 0, refine: 0 },
+      exportsByKind: { mine: 0, process: 0, refine: 21e9 },
+    })
+    expect(r.id).toBe('refined-exporter')
+  })
+
+  it('tells a mine exporter from an integrated producer', () => {
+    expect(role({ exportsUsd: 23e9, exportsByKind: { mine: 20e9, process: 0, refine: 3e9 } }).id).toBe('mine-exporter')
+    expect(role({ exportsUsd: 50e9, exportsByKind: { mine: 31e9, process: 2e9, refine: 17e9 } }).id).toBe(
+      'integrated-producer',
+    )
+  })
+
+  it('flags trade booked by a country with no facilities as a trading hub', () => {
+    const r = role({
+      facilities: { mine: 0, process: 0, refine: 0 },
+      importsUsd: 4e9,
+      importsByKind: { mine: 0, process: 3.8e9, refine: 0.2e9 },
+    })
+    expect(r.id).toBe('trading-hub')
+    expect(r.text).toContain('commodity traders')
+  })
+
+  it('calls small totals a minor participant, and never prints an empty clause', () => {
+    expect(role({ importsUsd: 1e8 }).id).toBe('minor')
+    const r = role({ importsUsd: 2e9, importsByKind: { mine: 0, process: 0, refine: 2e9 } })
+    expect(r.text).not.toMatch(/,,|, ,/)
   })
 })

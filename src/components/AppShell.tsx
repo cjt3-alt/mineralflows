@@ -18,7 +18,9 @@ import {
   formatUsd,
   resolveValue,
   stageShade,
+  countryRole,
   summarizeCountry,
+  type CountryRole,
   toArcData,
   toPointData,
   valueByKind,
@@ -168,6 +170,14 @@ export function AppShell() {
         : summarizeCountry(filters.country, flowsWorld, byMineral, dataset.priceFor)
 
     const searchable = [...countriesInPlay(allActiveFlows, byMineral)].filter((iso3) => iso3 in dataset.countries)
+
+    // Every country's role, for the map's hover readout and the dossier.
+    const world = valueByKind(flowsWorld, dataset.priceFor)
+    const nameOf = (iso3: string) => dataset.countries[iso3]?.name ?? iso3
+    const roles: Record<string, CountryRole> = {}
+    for (const iso3 of searchable) {
+      roles[iso3] = countryRole(summarizeCountry(iso3, flowsWorld, byMineral, dataset.priceFor), world, nameOf)
+    }
     const years = flows.map((f) => f.year)
 
     return {
@@ -188,6 +198,7 @@ export function AppShell() {
       hasLowConfidenceFlows: built.arcs.some((a) => a.confidence === 'low'),
       shade,
       summary,
+      roles,
       searchable,
       dataYear: years.length > 0 ? Math.max(...years) : null,
     }
@@ -207,7 +218,10 @@ export function AppShell() {
           : view.arcs.some((a) => a.id === selection.arc.id)
       if (stillVisible) return selection
     }
-    if (view.summary !== null) return { kind: 'country', iso3: view.summary.iso3, summary: view.summary }
+    if (view.summary !== null) {
+      const role = view.roles[view.summary.iso3]
+      return { kind: 'country', iso3: view.summary.iso3, summary: view.summary, ...(role ? { role } : {}) }
+    }
     return null
   }, [view, selection])
 
@@ -365,6 +379,7 @@ export function AppShell() {
             centralMeridian={centralMeridian}
             terrainLayers={terrainLayers}
             // The floating panel is 23rem wide with a 1rem gap; on phones it is a sheet instead.
+            countryRoles={v.roles}
             insetRight={!isSmall && panelSelection !== null ? 23 * 16 + 16 : 0}
             reducedMotion={reducedMotion}
             onSelectPoint={onSelectPoint}

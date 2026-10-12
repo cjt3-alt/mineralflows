@@ -59,6 +59,8 @@ export interface MapCanvasProps {
   centralMeridian: number
   /** Pixels covered by a panel on the right; the map keeps its content clear of them. */
   insetRight: number
+  /** Each country's role label, shown beside its name when hovered. */
+  countryRoles: Record<string, { label: string }>
   /** Which terrain layers to draw under the data. */
   terrainLayers: TerrainLayers
   reducedMotion: boolean
@@ -336,6 +338,7 @@ export function MapCanvas({
   focusCountry,
   centralMeridian,
   insetRight,
+  countryRoles,
   terrainLayers,
   reducedMotion,
   onSelectPoint,
@@ -1309,7 +1312,12 @@ export function MapCanvas({
             <>
               <span className="text-dim">{formatLatLng(pointer.lat, pointer.lng)}</span>
               {hoverCountry && (
-                <span className="ml-2 text-accent">{countryName(countries, hoverCountry).toUpperCase()}</span>
+                <span className="ml-2 text-accent">
+                  {countryName(countries, hoverCountry).toUpperCase()}
+                  {countryRoles[hoverCountry] && (
+                    <span className="text-dim"> · {countryRoles[hoverCountry].label.toUpperCase()}</span>
+                  )}
+                </span>
               )}
             </>
           ) : (
