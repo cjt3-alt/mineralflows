@@ -337,6 +337,74 @@ Where to start:
   included.
 
 
+## Learning more
+
+Notes for getting from fascinated to well read on mining, copper and critical minerals, before
+putting claims out in public. Compiled from memory in October 2026, not from a fresh search: check
+editions and dates before citing any of it.
+
+### Start here (books)
+
+- **Ed Conway, *Material World* (2023).** Six raw materials that underpin modern life, copper among
+  them; the best single overview of how a mineral gets from the ground into everything.
+- **Ernest Scheyder, *The War Below* (2024).** A Reuters reporter on lithium, copper and the fight
+  over US mines and permitting. Closest to this project's national-security angle.
+- **Javier Blas and Jack Farchy, *The World for Sale* (2021).** The commodity traders (Glencore,
+  Trafigura, Vitol and others). Explains why Switzerland shows up as a copper "trading hub" with no
+  mines.
+- **Guillaume Pitron, *The Rare Metals War* (English edition 2020).** How China came to dominate
+  rare-earth and minor-metal processing; useful contrast with copper.
+- **Siddharth Kara, *Cobalt Red* (2023).** Cobalt mining in the DR Congo, the same Copperbelt that
+  produces much of the world's copper.
+- **Henry Sanderson, *Volt Rush* (2022).** The battery-metals race and China's place in it.
+- **Timothy LeCain, *Mass Destruction* (2009).** The history of the giant open-pit copper mines
+  that wired America.
+
+### Primary sources (free, and what to cite)
+
+- **USGS Mineral Commodity Summaries** — the annual two-page copper chapter: US production,
+  imports, reliance, world mine production by country. The standard citation for US figures.
+- **International Copper Study Group, *The World Copper Factbook*** — free annual primer covering
+  mining, smelting, refining, scrap, trade and use.
+- **IEA Global Critical Minerals Outlook** — annual; supply concentration in mining versus refining
+  and how it is changing.
+- **The US critical minerals list** (USGS, updated every few years) — check the current list to see
+  which minerals are officially "critical" before saying so.
+- **USGS porphyry copper deposit model (Scientific Investigations Report 2010-5070-B)** — the
+  geology of the deposit type behind most mined copper, and why it clusters along the Andes.
+
+### Keeping current
+
+- **Andy Home's metals column at Reuters** — regular, data-driven copper market commentary.
+- **Bloomberg's *Odd Lots* podcast** — frequent episodes on commodities, mining and supply chains.
+- **CSIS Critical Minerals Security Program** — US-focused policy analysis.
+
+### Vocabulary worth having straight
+
+- **Concentrate:** ore crushed and floated to roughly 20–40% copper; what Chile and Peru ship to
+  smelters. Trade tonnages are often gross weight, not copper content.
+- **Smelting and refining:** concentrate is smelted to matte, then blister and anode, then refined
+  to cathode (about 99.99% copper). **SX-EW** skips the smelter by leaching ore and plating copper
+  directly, which is how the DR Congo exports refined copper straight from the mine.
+- **TC/RCs (treatment and refining charges):** the fee miners pay smelters. Very low or negative
+  TC/RCs mean too much smelting capacity chasing too little concentrate.
+- **Porphyry and sediment-hosted deposits:** the two main sources of mined copper (the Andes versus
+  the Central African Copperbelt).
+- **Primary versus secondary copper:** mined versus recycled. See "Account for recycled copper"
+  above.
+
+### Before posting with your name on it
+
+- **Say which stage.** "China controls X% of copper" means very different things for mining,
+  smelting, refining and use. Pick one and name it.
+- **Say value or volume, gross or contained.** Trade values (this app) and tonnes of copper content
+  (USGS) rank countries differently.
+- **Date every number.** Markets, sanctions and lists change yearly. Cite the year and the source.
+- **Check this app's own caveats.** Capital-city endpoints, the 500-flow limit, mirror data for
+  countries such as Russia, no scrap or finished products. They are listed in Sources & method.
+- **Trace every claim to a primary source.** USGS, ICSG or IEA for the big numbers; a news report
+  for an event; this app for the trade picture it actually shows.
+
 ## Licence
 
 MIT, for the code. The data files carry the licences of their sources, listed above and recorded per
