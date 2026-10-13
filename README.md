@@ -1,11 +1,12 @@
 # MineralFlows
 
-A static, client-only web app that visualises critical mineral supply chains on an interactive flat
-map (Mercator projection, like web maps, centred where the trade runs): where minerals are mined, processed, and refined, and how they move between countries. Flow
-lines are sized by market value, and every value derived from volume × price is labelled as an
-estimate wherever it appears. The interface is styled as an operations console: a control column of
-layers, a country search and the largest flows, a globe you can hover and click, and a dossier panel
-for whatever is selected.
+A static, client-only web app that visualises critical mineral supply chains on an interactive map:
+where minerals are mined, processed, and refined, and how they move between countries. Flow lines
+are sized by market value, and every value derived from volume × price is labelled as an estimate
+wherever it appears. The interface is styled as an operations console: a control column of layers,
+a country search and the largest flows; a full-bleed map you can pan, zoom, hover and click; and a
+dossier panel for whatever is selected, including a plain-English summary of each country's role in
+the trade.
 
 **Currently scoped to copper only.** The app and ETL support four minerals (copper, lithium, cobalt,
 rare earths) end to end, but as of 13 September 2026 lithium, cobalt, and rare earths are switched
@@ -21,11 +22,11 @@ database, no server rendering, no runtime API calls.
 
 ## What is here
 
-- **The app** — a dashboard with the globe as its centre. The left column has headline numbers,
-  a country search, separate layer switches for sites (mines, smelters, refineries) and flows (ore
-  and concentrate, smelted intermediates, refined metal), a Top 25/100/300 control, and a clickable
-  list of the largest flows. Hover anything on the globe for a tooltip; click a flow or site for its
-  record, or a country for its dossier. Every source is credited by name in the footer and in the
+- **The app** — a dashboard with the map at its centre. The left column has headline numbers, a
+  country search, separate layer switches for sites (mines, smelters, refineries) and flows (ore and
+  concentrate, smelted intermediates, refined metal), a Top 25/100/300 control, a terrain switch,
+  and a clickable list of the largest flows. Hover anything on the map for a tooltip; click a flow
+  or site for its record, or a country for its dossier. Every source is credited by name in the footer and in the
   "Sources & method" dialog. Filters round-trip through the query string (`minerals`, `stages`,
   `flows`, `top`, `country`), so a view is a link.
 - **The data contract** — [`src/data/schema.ts`](src/data/schema.ts) is the single source of truth
@@ -37,7 +38,7 @@ database, no server rendering, no runtime API calls.
 ## The data in the app right now is real, not the seed dataset
 
 As of 13 September 2026, `public/data/` is the output of a real `python etl/pipeline.py` run against
-the copper-only config above: 1,229 ICMM facilities and up to 500 ADB-WTO TiCM flows (the globe draws
+the copper-only config above: 1,229 ICMM facilities and up to 500 ADB-WTO TiCM flows (the map draws
 the largest 100 by default, up to 300, and the legend says so). Sources: ICMM v1.5, ADB-WTO TiCM 2024, World
 Bank Pink Sheet, World Bank country API — see the data sources table below.
 
@@ -69,69 +70,77 @@ python etl/test_pipeline.py
 python -m ruff check etl/ && python -m ruff format --check etl/
 ```
 
-## How to read the globe
+## How to read the map
 
+- **It is a web-map Mercator, centred where the trade runs.** The map fills its panel top to bottom
+  (cropped at 80°N and 58°S, as web maps crop the poles) and repeats east–west: drag in either
+  direction and you come back round. It is cut where the least traded value crosses, which for
+  copper puts the Pacific in the middle, so Chile and Peru to China stay whole; any flow that does
+  cross the edge takes the short way across it. Like any Mercator map it enlarges land toward the
+  poles. The rules are in [`src/components/mapDynamics.ts`](src/components/mapDynamics.ts).
 - **Data is warm, interface is cool.** Everything copper-to-gold is data. The one cyan accent
   marks what you are pointing at — hover, selection, the focused country, the keyboard cursor — so
   "what am I looking at" is always the cyan thing. Red only ever means caution.
-- **Points are sites**, round sprites shaded and sized by stage: small dark mines, larger mid-copper
-  smelters, the largest and brightest refineries, because processing is where the concentration this
-  app is about actually sits. Points have no capacity data, so size shows stage, not output.
+- **The base map is real terrain.** Shaded relief of land and sea floor, tinted to the palette, so
+  mountain belts like the Andes, where much of the world's copper is mined, read at a glance. Built
+  offline by [`tools/build_basemap.py`](tools/build_basemap.py) from the AWS Terrain Tiles, and
+  switchable under Terrain. Country borders are engraved into it as a fine line in a dark channel;
+  zoomed in past 2×, more detailed Natural Earth 1:50m outlines load so borders stay smooth.
+- **Points are sites**, glowing dots shaded and sized by stage: small dark mines, larger mid-copper
+  smelters, the largest and brightest refineries, because processing is where the concentration
+  this app is about actually sits. Points have no capacity data, so size shows stage, not output.
 - **Arcs are flows**, coloured by what they carry (dark copper for ore and concentrate, mid copper
-  for smelted intermediates, pale gold for refined metal), width and opacity on a square-root value
-  scale. Altitude rises with distance so long hops clear the globe. Each arc grows in once and
-  carries a traveling brightness band from exporter to importer.
+  for smelted intermediates, pale gold for refined metal), brightening from exporter to importer,
+  with width and opacity on a square-root value scale. Each arc draws in once, largest first, and
+  carries a comet from exporter to importer; the ten largest import destinations pulse.
 - **Selecting dims everything else**, so the selected flow or site stands alone; focusing a country
   narrows the flows to that country's trade and dims sites elsewhere.
-- **The far side of the globe fades, it doesn't vanish.** Borders and arcs use a shader that dims by
-  how much a point faces the camera; points are depth-tested against the opaque globe and fade near
-  the horizon.
+- **Country dossiers explain themselves.** Each opens with a role — processing hub, processing gap,
+  mine exporter, and so on — and a sentence or two of numbers, generated by fixed rules from the
+  country's own data (`countryRole` in [`src/data/derive.ts`](src/data/derive.ts); the rules are
+  listed in the Sources & method dialog). Net positions say what they cover: ore, intermediates and
+  refined metal, not scrap or finished products.
 - **Low confidence is visible without reading anything.** Low-confidence sites are hollow rings;
-  importer-reported-only flows are dashed and carry no traveling band. Both survive greyscale and
-  reduced motion.
+  importer-reported-only flows are dashed and carry no glow or comet. When most of a country's
+  exports are known only from its buyers' records (Russia, in this data), its dossier says so.
 - **Estimated values never look like traded ones.** A value derived from volume × price carries a
   badge, a plain-language warning, and the arithmetic that produced it.
-- **The camera only moves when you move it.** Drag to spin (tuned so the spot under your finger
-  stays under it at any zoom, with a short glide), scroll or pinch to zoom, double-click or
-  double-tap to zoom in on a spot, or use the +/−/reset buttons (or the +, − and 0 keys). Resizing
-  the window keeps your view. Clicking a country filters to it without moving the camera; search
-  and the largest-flows list fly to what you picked. The globe turns on its own only as a
-  screensaver: on load, then again after 15 seconds untouched with nothing selected. The rules are
-  in `src/components/cameraDynamics.ts`.
+- **The view only moves when you move it.** Drag to pan, with a short glide; scroll or pinch to
+  zoom about the pointer; double-click or double-tap to zoom in; or use the +/−/reset buttons (or
+  the +, − and 0 keys). Clicking a country filters to it without moving the map; search, dossier
+  links and the largest-flows list fly to what you picked, and an open dossier panel counts as
+  covering the right of the map, so the country you focused is never hidden behind it.
 
-The globe draws the largest 25, 100 or 300 flows (100 by default); past a few hundred the picture is
-noise and the frame rate drops. The legend says how many of how many are drawn, and the totals in
-the control column count every flow, drawn or not.
+The map draws the largest 25, 100 or 300 flows (100 by default); past a few hundred the picture is
+noise. The legend says how many of how many are drawn, and the totals in the control column count
+every flow, drawn or not.
 
 ## Keyboard and accessibility
 
-- **The globe is reachable by keyboard.** A WebGL canvas normally is not, which would leave the
-  detail panel — the only place a source, a confidence rating, or an estimate warning appears —
-  openable by mouse alone. Tab to the globe, then arrow keys walk the visible flows and sites,
-  Enter opens the one under the cursor, Escape clears it. The camera follows, and each move is
-  announced to a screen reader.
+- **The map is reachable by keyboard.** A canvas normally is not, which would leave the detail
+  panel — the only place a source, a confidence rating, or an estimate warning appears — openable
+  by mouse alone. Tab to the map, then arrow keys walk the visible flows and sites, Enter opens the
+  one under the cursor, Escape clears it. The map follows, and each move is announced to a screen
+  reader.
 - The detail panel takes focus when it opens, closes on Escape, and hands focus back.
 - Focus is always visible and always the same shape.
-- `prefers-reduced-motion` turns off the arc grow/traveling band, the camera's idle auto-rotate, and
-  the camera moves. The facing-based fade on borders,
-  arcs, and points is unaffected — it's a function of camera angle, not time, so there's nothing to
-  turn off.
+- `prefers-reduced-motion` turns off the arc draw-in, comets, landing pulses, the pan glide and the
+  map's animated moves.
 - Below 768px the control column moves into a "Layers & search" drawer and the dossier becomes a
-  sheet over the globe. Nothing is hidden on a small screen.
-- The globe camera works out how far back it has to sit for the sphere to fit the narrower axis, so
-  a tall phone viewport does not crop it.
+  sheet over the map. Nothing is hidden on a small screen.
 
 ## Installed versions
 
-Resolved against the npm registry and PyPI on 2026-08-31, not pinned from memory.
+Resolved against the npm registry and PyPI on 2026-08-31, not pinned from memory. The 3D globe's
+`react-globe.gl` and `three` were removed in October 2026 when the app moved to a flat map; `d3-geo`
+(added then) provides the projection.
 
 | Package             | Version  |
 | ------------------- | -------- |
 | vite                | 8.2.2    |
 | react / react-dom   | 19.2.8   |
 | typescript          | 6.0.3    |
-| react-globe.gl      | 2.38.0   |
-| three               | 0.185.1  |
+| d3-geo              | 3.1.1    |
 | tailwindcss         | 4.3.3    |
 | zod                 | 4.5.4    |
 | vitest              | 4.1.11   |
@@ -156,8 +165,9 @@ every asset at the `github.io` URL. There is no client-side router, so a relativ
 nothing.
 
 **`world-atlas` and `topojson-client` are dependencies.** Country borders need real geometry and
-runtime API calls are not allowed, so ~1 MB of public-domain Natural Earth country topology (110m
-resolution) is bundled at build time and flattened into line segments once, in `GlobeCanvas.tsx`.
+runtime API calls are not allowed, so public-domain Natural Earth country topology is served from
+the same origin: the 1:110m set is bundled for first paint, and the 1:50m set is split into its own
+chunk that the map fetches only when zoomed in (`MapCanvas.tsx`).
 
 **Country coordinates are capital cities, not polygon centroids.** They come from the World Bank
 country API, which is an official, versioned, no-auth list. It means Australia's arcs land on
