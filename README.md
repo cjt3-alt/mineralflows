@@ -297,6 +297,35 @@ component branches on a mineral id, and no source module knows what copper is.
 | [ADB-WTO TiCM](https://critmin.org) | Non-commercial reuse with attribution | Bilateral trade flows |
 | [IEA Critical Minerals Data Explorer](https://www.iea.org/data-and-statistics/data-tools/critical-minerals-data-explorer) | CC BY 4.0 | Mine-versus-refine supply |
 | [Natural Earth via world-atlas](https://github.com/topojson/world-atlas) | Public domain | Landmass outlines |
+| [Terrain Tiles on AWS](https://registry.opendata.aws/terrain-tiles/) (Mapzen/Tilezen: SRTM, GMTED2010, ETOPO1) | Open data, attribution | Shaded relief base map, built by `tools/build_basemap.py` |
+
+## Open ideas
+
+### Account for recycled copper
+
+The app tracks primary copper only: ore and concentrate, smelted intermediates, and refined metal.
+Recycled copper is missing, and it is a large part of supply: scrap feeds smelters and refineries
+alongside mined ore. It also matters to the story. China imports large volumes of copper scrap,
+and the US exports a lot of it, so leaving scrap out understates China's import dependence and
+hides another way US copper leaves the country before it is refined. Country roles and net
+positions are currently computed without it.
+
+Where to start:
+
+- **The trade code is already in the config.** HS 7404, "Copper waste and scrap", is listed in
+  [`etl/config/minerals.json`](etl/config/minerals.json) with `"active": false`.
+- **It does not fit the three stages.** Scrap is not mine, process or refine output; it re-enters
+  the chain at the smelter or refinery. It probably needs its own flow kind ("scrap"), with its own
+  colour, layer switch and line in the country dossier, rather than being filed under an existing
+  stage.
+- **Check the source.** The TiCM extracts under `etl/raw/manual/adb-wto-ticm/` would need a 7404
+  extract; confirm TiCM carries it, or find another bilateral source.
+- **Decide how roles treat it.** For example, whether exporting scrap counts toward a
+  "processing gap", and whether a scrap-importing smelter country reads differently from one
+  importing ore.
+- **Say so in the app until then.** The Sources & method caveats already state that scrap is not
+  included.
+
 
 ## Licence
 
