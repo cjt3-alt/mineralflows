@@ -202,6 +202,31 @@ export type Price = z.infer<typeof PriceSchema>
 
 export const PricesFileSchema = z.array(PriceSchema)
 
+/* --------------------------------------------------------------- production */
+
+/**
+ * Mine or refinery output by country for one mineral, stage and year, as the
+ * source publishes it. Tonnes are contained metal. `world_total` is the source's
+ * own published world figure, so a share is `by_country[iso3] / world_total`,
+ * and `other` is whatever the listed countries leave of it. The newest year is
+ * normally an estimate, and says so.
+ */
+export const ProductionSchema = z.object({
+  mineral_id: SlugSchema,
+  stage: StageSchema,
+  year: YearSchema,
+  unit: z.string().min(1),
+  world_total: z.number().positive(),
+  by_country: z.record(Iso3Schema, z.number().nonnegative()),
+  other: z.number().nonnegative(),
+  estimated: z.boolean(),
+  source: z.string().min(1),
+  source_url: z.url(),
+})
+export type Production = z.infer<typeof ProductionSchema>
+
+export const ProductionFileSchema = z.array(ProductionSchema)
+
 /* ---------------------------------------------------------------- countries */
 
 export const CountrySchema = z.object({

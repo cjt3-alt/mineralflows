@@ -33,12 +33,50 @@ const raw: RawFiles = {
   facilities: read('facilities.geojson'),
   flows: read('flows.json'),
   prices: read('prices.json'),
+  production: read('production.json'),
   countries: read('countries.json'),
   meta: read('meta.json'),
 }
 
 describe('seed dataset', () => {
   const dataset = parseDataset(raw)
+
+  describe('production', () => {
+    const latest = (stage: 'mine' | 'refine') => {
+      const record = dataset.production
+        .filter((p) => p.mineral_id === 'copper' && p.stage === stage)
+        .sort((a, b) => b.year - a.year)[0]
+      if (!record) throw new Error('no copper ' + stage + ' production in production.json')
+      return record
+    }
+    const share = (record: ReturnType<typeof latest>, iso3: string) =>
+      (record.by_country[iso3] ?? 0) / record.world_total
+
+    it('never lists more than the world total, and `other` closes the gap', () => {
+      for (const record of dataset.production) {
+        const listed = Object.values(record.by_country).reduce((a, b) => a + b, 0)
+        expect(listed).toBeLessThanOrEqual(record.world_total * 1.01)
+        expect(listed + record.other).toBeGreaterThanOrEqual(record.world_total * 0.99)
+      }
+    })
+
+    it('shows the chokepoint: China refines several times what it mines', () => {
+      const mine = latest('mine')
+      const refine = latest('refine')
+      const mineShare = share(mine, 'CHN')
+      const refineShare = share(refine, 'CHN')
+      expect(refineShare).toBeGreaterThan(0.4)
+      expect(mineShare).toBeLessThan(0.15)
+      expect(refineShare / mineShare).toBeGreaterThan(3)
+    })
+
+    it('shows the mirror image: Peru mines a lot and refines almost none', () => {
+      const mine = latest('mine')
+      const refine = latest('refine')
+      expect(share(mine, 'PER')).toBeGreaterThan(0.08)
+      expect(share(refine, 'PER')).toBeLessThan(0.03)
+    })
+  })
 
   it('validates and joins without error', () => {
     expect(dataset.minerals.length).toBeGreaterThan(0)

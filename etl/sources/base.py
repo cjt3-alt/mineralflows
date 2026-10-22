@@ -92,6 +92,10 @@ class SourceResult:
     #: Not an output file — the contract has no production table. It is used for
     #: the cross-source sanity check and nothing else.
     production: dict[tuple[str, str, str], float] = field(default_factory=dict)
+    #: The same figures, published: one record per mineral, stage and year, in the
+    #: tonnes the source reports (contained metal, no basis conversion). Becomes
+    #: `production.json`, which the app uses for the mine-versus-refine story.
+    production_table: list[dict] = field(default_factory=list)
     #: Non-fatal observations worth printing: rows dropped, columns missing.
     warnings: list[str] = field(default_factory=list)
 
@@ -103,6 +107,7 @@ class SourceResult:
             + len(self.prices)
             + len(self.countries)
             + len(self.production)
+            + len(self.production_table)
         )
 
     def as_source_ref(self) -> dict:

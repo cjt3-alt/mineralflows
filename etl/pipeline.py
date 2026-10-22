@@ -193,11 +193,27 @@ def merge_table(
     return seed_rows, True
 
 
+def merge_production(real: list[SourceResult], reporter: Reporter) -> list[dict]:
+    """Mine and refinery output by country. First source to report a key wins.
+
+    Only the USGS reports it today, so this is a pass-through with a guard
+    against two sources describing the same mineral, stage and year.
+    """
+    by_key: dict[tuple[str, str, int], dict] = {}
+    for result in real:
+        for record in result.production_table:
+            by_key.setdefault((record["mineral_id"], record["stage"], record["year"]), record)
+    records = [by_key[key] for key in sorted(by_key)]
+    reporter.line(f"production: {len(records)} mineral-stage-year tables")
+    return records
+
+
 def prune_countries(
     merged: dict[str, dict],
     facilities: list[dict],
     flows: list[dict],
     reporter: Reporter,
+    production: list[dict] | None = None,
 ) -> dict[str, dict]:
     """Keep only the countries something actually references.
 
@@ -210,6 +226,8 @@ def prune_countries(
     for flow in flows:
         referenced.add(flow["from_iso3"])
         referenced.add(flow["to_iso3"])
+    for record in production or []:
+        referenced.update(record["by_country"])
 
     kept = {iso3: merged[iso3] for iso3 in sorted(referenced) if iso3 in merged}
     dropped = len(merged) - len(kept)
@@ -354,6 +372,8 @@ def build(ctx: ExtractContext, reporter: Reporter) -> Dataset:
     facilities, used_seed_facilities = merge_table("facilities", real, seed, reporter)
     flows, used_seed_flows = merge_table("flows", real, seed, reporter)
 
+    production_table = merge_production(real, reporter)
+
     reporter.section("Derived values")
     flows, _ = derive_values(flows, prices, reporter)
 
@@ -363,7 +383,9 @@ def build(ctx: ExtractContext, reporter: Reporter) -> Dataset:
             production[key] = max(production.get(key, 0.0), tonnes)
     check_against_production(flows, production, reporter)
 
-    merged_countries = prune_countries(merged_countries, facilities, flows, reporter)
+    merged_countries = prune_countries(
+        merged_countries, facilities, flows, reporter, production_table
+    )
 
     reporter.section("Country names")
     reporter.line(ctx.resolver.report())
@@ -385,7 +407,13 @@ def build(ctx: ExtractContext, reporter: Reporter) -> Dataset:
         r
         for r in real
         if r.row_count > 0
-        and (r.source_id in price_sources or r.facilities or r.flows or r.countries)
+        and (
+            r.source_id in price_sources
+            or r.facilities
+            or r.flows
+            or r.countries
+            or r.production_table
+        )
     ]
 
     return Dataset(
@@ -395,6 +423,7 @@ def build(ctx: ExtractContext, reporter: Reporter) -> Dataset:
         prices=prices,
         countries=merged_countries,
         meta=build_meta(contributors, seed, seed_tables),
+        production=production_table,
     )
 
 
@@ -414,6 +443,7 @@ def check_against_disk(dataset: Dataset, output_dir: Path, reporter: Reporter) -
         "facilities.geojson": dataset.as_feature_collection(),
         "flows.json": dataset.flows,
         "prices.json": dataset.prices,
+        "production.json": dataset.production,
         "countries.json": dataset.countries,
         "meta.json": dataset.meta,
     }

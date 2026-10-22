@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-14T00:30:38Z",
+  "generated_at": "2026-10-22T03:13:38Z",
   "schema_version": "1.0.0",
   "sources": [
     {
@@ -27,11 +27,19 @@
       "coverage": "Indicative annual average prices, order-of-magnitude only, used where no price source covers a mineral."
     },
     {
+      "id": "usgs-nmic",
+      "name": "USGS Mineral Commodity Summaries",
+      "url": "https://www.usgs.gov/centers/national-minerals-information-center",
+      "vintage": "MCS 2026",
+      "retrieved_at": "2026-10-21",
+      "coverage": "World production by country and annual average prices, from the machine-readable Mineral Commodity Summaries data release. Prices cover copper; 31 country-stage production figures were read for cross-checking trade volumes."
+    },
+    {
       "id": "worldbank-countries",
       "name": "World Bank country API",
       "url": "https://datahelpdesk.worldbank.org/knowledgebase/articles/898590-country-api-queries",
       "vintage": "current",
-      "retrieved_at": "2026-09-13",
+      "retrieved_at": "2026-10-21",
       "coverage": "211 countries. Capital-city coordinates used as country-level arc endpoints, plus the canonical country names the ETL matches source spellings against. Not polygon centroids."
     },
     {
@@ -39,7 +47,7 @@
       "name": "World Bank Commodity Markets Pink Sheet",
       "url": "https://www.worldbank.org/en/research/commodity-markets",
       "vintage": "2023-2024 annual averages",
-      "retrieved_at": "2026-09-13",
+      "retrieved_at": "2026-10-21",
       "coverage": "Annual averages of the monthly Pink Sheet series, in US dollars per tonne. Covers copper."
     }
   ]

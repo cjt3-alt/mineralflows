@@ -149,6 +149,7 @@ def extract(ctx: ExtractContext) -> SourceResult:
     warnings: list[str] = []
     prices = _extract_prices(frame, ctx, warnings, release_year)
     production = _extract_production(frame, ctx, warnings)
+    production_table = _extract_production_table(frame, ctx, warnings, release_year)
 
     covered = sorted({p["mineral_id"] for p in prices})
     return SourceResult(
@@ -165,6 +166,7 @@ def extract(ctx: ExtractContext) -> SourceResult:
         ),
         prices=prices,
         production=production,
+        production_table=production_table,
         warnings=warnings,
     )
 
@@ -285,3 +287,82 @@ def _extract_production(
             "volumes are carried on; see etl/config/production_basis.json"
         )
     return production
+
+
+def _extract_production_table(
+    frame: pd.DataFrame, ctx: ExtractContext, warnings: list[str], release_year: int
+) -> list[dict]:
+    """World production by country, stage and year, as published.
+
+    One record per mineral, stage and year. Tonnes are what the USGS reports
+    (contained metal) with no basis conversion, because this table is shown to
+    people, not compared against flow volumes. The denominator is the USGS's own
+    published world total, so a country's share is its figure over that total
+    and `other` is whatever the listed countries leave of it.
+
+    Years: the trade year through the newest the release carries. The newest is
+    a USGS estimate, and is marked as one.
+    """
+    rows = frame[
+        (frame["Statistics"].str.strip().str.lower() == "production")
+        & (frame["Section"].fillna("").str.startswith("World"))
+    ]
+    wanted = {str(ctx.year), str(release_year - 1)}
+    records: list[dict] = []
+    dropped = 0
+
+    # The world total is published only under the ": rounded" label, so the two
+    # labels are folded together here; country rows never carry the rounded one.
+    rows = rows.assign(
+        _detail=rows["Statistics_detail"]
+        .fillna("")
+        .str.strip()
+        .str.lower()
+        .str.removesuffix(": rounded")
+    )
+    for (mineral_id, detail, year), group in rows.groupby(
+        ["mineral_id", "_detail", "Year"], sort=True
+    ):
+        stage = DETAIL_TO_STAGE.get(detail)
+        if stage is None or str(year).strip() not in wanted:
+            continue
+        by_country: dict[str, float] = {}
+        world_total: float | None = None
+        for _, row in group.iterrows():
+            name = str(row["Country"]).strip()
+            factor = PRODUCTION_UNIT_TO_TONNES.get(str(row["Unit"]).strip().lower())
+            tonnes = _to_number(row["Value"])
+            if name == "World total":
+                if tonnes is not None and factor is not None:
+                    world_total = tonnes * factor
+                continue
+            if name == "Other countries" or ctx.resolver.is_aggregate(name):
+                continue
+            iso3 = ctx.resolver.resolve(name)
+            if iso3 is None or tonnes is None or factor is None:
+                dropped += 1
+                continue
+            by_country[iso3] = by_country.get(iso3, 0.0) + tonnes * factor
+        if not by_country:
+            continue
+        if world_total is None:
+            warnings.append(f"{mineral_id} {stage} {year}: no published world total; skipped")
+            continue
+        listed = sum(by_country.values())
+        records.append(
+            {
+                "mineral_id": str(mineral_id),
+                "stage": stage,
+                "year": int(str(year).strip()),
+                "unit": "tonnes of contained metal",
+                "world_total": round(world_total, 1),
+                "by_country": {k: round(v, 1) for k, v in sorted(by_country.items())},
+                "other": round(max(world_total - listed, 0.0), 1),
+                "estimated": int(str(year).strip()) >= release_year - 1,
+                "source": SOURCE_ID,
+                "source_url": f"{NMIC_URL}/mineral-commodity-summaries",
+            }
+        )
+    if dropped:
+        warnings.append(f"{dropped} production-table rows had an unresolved country or value")
+    return records

@@ -5,6 +5,7 @@ import {
   MetaSchema,
   MineralsFileSchema,
   PricesFileSchema,
+  ProductionFileSchema,
   parseFile,
   type Country,
   type FacilityFeature,
@@ -12,10 +13,11 @@ import {
   type Meta,
   type Mineral,
   type Price,
+  type Production,
 } from './schema.ts'
 
 /**
- * Reads the six data files, validates each against the contract, then checks
+ * Reads the seven data files, validates each against the contract, then checks
  * the references between them. Both halves fail loudly: a dangling mineral_id
  * is as broken as a malformed record, and finding out at render time means a
  * blank globe with no explanation.
@@ -58,6 +60,7 @@ export const DATA_FILES = {
   facilities: 'facilities.geojson',
   flows: 'flows.json',
   prices: 'prices.json',
+  production: 'production.json',
   countries: 'countries.json',
   meta: 'meta.json',
 } as const
@@ -67,6 +70,8 @@ export interface RawFiles {
   facilities: unknown
   flows: unknown
   prices: unknown
+  /** Optional: a seed-only run has no production table. */
+  production?: unknown
   countries: unknown
   meta: unknown
 }
@@ -80,6 +85,8 @@ export interface Dataset {
   facilities: FacilityFeature[]
   flows: Flow[]
   prices: Price[]
+  /** Mine and refinery output by country; empty when the run had no source for it. */
+  production: Production[]
   countries: Record<string, Country>
   meta: Meta
   /** Price lookup keyed by `${mineral_id}:${year}`. */
@@ -118,6 +125,7 @@ export function parseDataset(raw: RawFiles): Dataset {
   )
   const flows = parseFile(DATA_FILES.flows, FlowsFileSchema, raw.flows)
   const prices = parseFile(DATA_FILES.prices, PricesFileSchema, raw.prices)
+  const production = parseFile(DATA_FILES.production, ProductionFileSchema, raw.production ?? [])
   const countries = parseFile(DATA_FILES.countries, CountriesFileSchema, raw.countries)
   const meta = parseFile(DATA_FILES.meta, MetaSchema, raw.meta)
 
@@ -171,6 +179,18 @@ export function parseDataset(raw: RawFiles): Dataset {
     }
   }
 
+  for (const record of production) {
+    const label = 'production.json: ' + record.mineral_id + '/' + record.stage + '/' + record.year
+    if (!mineralsById.has(record.mineral_id)) {
+      problems.push(label + ' references unknown mineral')
+    }
+    for (const iso3 of Object.keys(record.by_country)) {
+      if (!(iso3 in countries)) {
+        problems.push(label + ' uses "' + iso3 + '", missing from countries.json')
+      }
+    }
+  }
+
   if (problems.length > 0) throw new ReferentialError(problems)
 
   // The World Bank's official short names read awkwardly in a sentence
@@ -189,6 +209,7 @@ export function parseDataset(raw: RawFiles): Dataset {
     facilities,
     flows,
     prices,
+    production,
     countries,
     meta,
     priceFor: (mineralId, year) => priceIndex.get(mineralId + ':' + year),
@@ -224,13 +245,14 @@ async function fetchJson(file: string): Promise<unknown> {
 
 /** Fetch, validate, and join the whole dataset. */
 export async function loadDataset(): Promise<Dataset> {
-  const [minerals, facilities, flows, prices, countries, meta] = await Promise.all([
+  const [minerals, facilities, flows, prices, production, countries, meta] = await Promise.all([
     fetchJson(DATA_FILES.minerals),
     fetchJson(DATA_FILES.facilities),
     fetchJson(DATA_FILES.flows),
     fetchJson(DATA_FILES.prices),
+    fetchJson(DATA_FILES.production),
     fetchJson(DATA_FILES.countries),
     fetchJson(DATA_FILES.meta),
   ])
-  return parseDataset({ minerals, facilities, flows, prices, countries, meta })
+  return parseDataset({ minerals, facilities, flows, prices, production, countries, meta })
 }
