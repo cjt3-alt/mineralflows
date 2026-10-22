@@ -82,7 +82,7 @@ Licensed CC BY 4.0. Refresh when ICMM publishes a new version — roughly annual
 
 Expected filenames: `ticm-*.csv`
 
-Query <https://critmin.org> and export CSV per commodity per year. The committed extracts are the
+Query <https://critmin.org> and export CSV per commodity per year. The local extracts are the
 2024 headline codes for copper (260300 and 740100), cobalt (260500), lithium (253090) and rare
 earths (284610). Refresh when a new trade year is published, roughly annually.
 
@@ -115,12 +115,11 @@ extracts of that data to keep to those providers' own limits; Comtrade restricts
 redistribution. The derived `flows.json` is comfortably clear of that — it is aggregated across HS
 codes, capped, and credited. The 24 MB of raw bilateral rows committed here is the part that is not.
 
-**These files stay for now, deliberately.** The app runs on seed data, the project is not being shown
-to anyone, and keeping them is what lets the monthly refresh produce real flows unattended. The
-README's "Before this runs on real data" section has the trigger for revisiting that and the order to
-do it in. Short version: ship the derived data first, then `git rm -r --cached` this directory and
-gitignore it. The pipeline already handles the source being absent, so nothing breaks — trade
-refreshes just become a manual re-download.
+**These files are not committed.** They were removed from version control on 21 October 2026 and the
+directory is gitignored: keep them on disk locally to refresh, but only the derived `public/data/` is
+published. The pipeline already handles the source being absent, so nothing breaks; trade refreshes
+are a local download plus a PR. See [`AUTOMATION.md`](AUTOMATION.md) for the monthly loop and how to
+hand it to an agent.
 
 The ICMM and IEA workbooks are CC BY 4.0 and carry no such restriction.
 

@@ -164,6 +164,135 @@ that looks like a centroid and is not should not be quiet.
 
 Pushes to `main` run [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): typecheck,
 lint, test, build, and publish `dist/` to GitHub Pages via the official Pages actions. A parallel
+job lints and tests the ETL and checks that an offline run still produces a valid dataset
+(`python etl/pipeline.py --offline --no-manual --dry-run`). It deliberately does not compare against
+the committed `public/data/`, which is a full real run and can never equal the offline seed fallback;
+`npm test` validates the committed files against the schema instead, and changes to them arrive as
+reviewed refresh PRs.
+
+[`refresh-data.yml`](.github/workflows/refresh-data.yml)
+from the Actions tab, which opens a PR with the diff rather than committing it silently.
+
+## Development
+
+```bash
+npm install
+npm run dev        # vite dev server
+npm run typecheck  # tsc --noEmit
+npm run lint       # eslint
+npm test           # vitest
+npm run build      # static bundle into dist/
+npm run preview    # serve dist/ locally
+```
+
+The ETL has its own toolchain and its own tests:
+
+```bash
+pip install -r etl/requirements.txt
+python etl/pipeline.py --offline --no-manual
+python etl/test_pipeline.py
+python -m ruff check etl/ && python -m ruff format --check etl/
+```
+
+## How to read the globe
+
+- **Points are facilities**, coloured by mineral and sized by stage: mines smallest, refineries
+  largest, because refining is where the concentration this app is about actually sits. A facility
+  that handles more than one mineral takes the colour of its lowest `sort_order` visible mineral;
+  the detail panel lists all of them.
+- **Arcs are flows**, width on a square-root scale. Linear width would make copper a solid band and
+  everything else a hairline. Altitude rises with distance so a Chile-to-China arc clears the globe
+  rather than cutting through it. Each arc grows in once when it first appears and carries a
+  continuously traveling brightness band along its length — a steady connection with something
+  moving through it, not a dash animating end to end.
+- **The far side of the globe fades, it doesn't vanish.** Country borders, arcs, and facility points
+  all use a shader that dims a point smoothly based on whether it currently faces the camera, rather
+  than a hard cutoff at the horizon — so the far hemisphere is dimly visible through the globe and
+  the picture reads the same at any rotation, including while the camera's own slow idle turn (below)
+  is moving it. See [`HANDOFF.md`](HANDOFF.md), section 0, for the reasoning and the tuning knobs.
+- **Low confidence is visible without reading anything.** Low-confidence facilities are drawn dimmer
+  and flush against the sphere, with a slow ring, while verified ones stand proud of it and are
+  brighter; low-confidence flows are dashed and don't carry the traveling band. The difference
+  survives greyscale and colourblindness, and it never disappears under reduced motion.
+- **Estimated values never look like traded ones.** A value derived from volume × price carries a
+  badge, a plain-language warning, and the arithmetic that produced it.
+- **The camera turns slowly on its own** when nothing is selected and keyboard navigation isn't
+  active, and a drag imparts momentum that coasts to a stop rather than snapping back. It pauses
+  automatically the moment something is selected, so it never carries what you're looking at out of
+  view.
+
+At most 300 arcs are drawn. Past that the frame rate collapses, so the set is capped by value and
+the legend says how many of how many are showing rather than quietly dropping the rest. The value
+slider filters flows below a dollar threshold before that cap is applied; facility points are not
+affected by it, since a flow records origin/destination country, not which specific mine or refinery
+it moved through.
+
+## Keyboard and accessibility
+
+- **The globe is reachable by keyboard.** A WebGL canvas normally is not, which would leave the
+  detail panel — the only place a source, a confidence rating, or an estimate warning appears —
+  openable by mouse alone. Tab to the globe, then arrow keys walk the visible flows and sites,
+  Enter opens the one under the cursor, Escape clears it. The camera follows, and each move is
+  announced to a screen reader.
+- The detail panel takes focus when it opens, closes on Escape, and hands focus back.
+- Focus is always visible and always the same shape.
+- `prefers-reduced-motion` turns off bloom, the arc grow/traveling band, the low-confidence ring
+  pulse, the camera's idle auto-rotate, and the load camera move. The facing-based fade on borders,
+  arcs, and points is unaffected — it's a function of camera angle, not time, so there's nothing to
+  turn off.
+- Below 768px the rail becomes a strip under the top bar and the panel becomes a sheet over the
+  globe. Nothing is hidden on a small screen. Bloom is switched off there too, on cost grounds.
+- The globe camera works out how far back it has to sit for the sphere to fit the narrower axis, so
+  a tall phone viewport does not crop it.
+
+## Installed versions
+
+Resolved against the npm registry and PyPI on 2026-08-31, not pinned from memory.
+
+| Package             | Version  |
+| ------------------- | -------- |
+| vite                | 8.2.2    |
+| react / react-dom   | 19.2.8   |
+| typescript          | 6.0.3    |
+| react-globe.gl      | 2.38.0   |
+| three               | 0.185.1  |
+| tailwindcss         | 4.3.3    |
+| zod                 | 4.5.4    |
+| vitest              | 4.1.11   |
+| eslint              | 10.9.1   |
+| typescript-eslint   | 8.68.0   |
+| pandas              | 3.0.5    |
+| requests            | 2.34.2   |
+| openpyxl            | 3.1.5    |
+| ruff                | 0.16.5   |
+
+### Deliberate deviations from the brief
+
+**TypeScript is 6.0.3, not the latest 7.0.2.** `typescript-eslint@8.68.0` declares a peer range of
+`typescript >=4.8.4 <6.1.0`. Installing TypeScript 7 would leave linting unsupported. 6.0.3 is the
+newest release inside that range, pinned as `~6.0.3` so a 6.1 release cannot drift out of it.
+Revisit when typescript-eslint ships TS 7 support.
+
+**Vite `base` is `./`, not `/`.** A relative base makes one build work in all three places this is
+served from: the project page at `cjt3-alt.github.io/mineralflows/` (live now, before DNS is cut
+over), the apex domain once it is, and a plain static file server. An absolute `/` base would 404
+every asset at the `github.io` URL. There is no client-side router, so a relative base costs
+nothing.
+
+**`world-atlas` and `topojson-client` are dependencies.** Country borders need real geometry and
+runtime API calls are not allowed, so ~1 MB of public-domain Natural Earth country topology (110m
+resolution) is bundled at build time and flattened into line segments once, in `GlobeCanvas.tsx`.
+
+**Country coordinates are capital cities, not polygon centroids.** They come from the World Bank
+country API, which is an official, versioned, no-auth list. It means Australia's arcs land on
+Canberra rather than in the middle of the continent. Recorded here, in `meta.json`, and in
+[`etl/sources/worldbank_countries.py`](etl/sources/worldbank_countries.py), because a coordinate
+that looks like a centroid and is not should not be quiet.
+
+## Deployment
+
+Pushes to `main` run [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): typecheck,
+lint, test, build, and publish `dist/` to GitHub Pages via the official Pages actions. A parallel
 job lints and tests the ETL and checks that an offline run reproduces the committed data files
 exactly — `python etl/pipeline.py --offline --no-manual --check`.
 
@@ -178,7 +307,9 @@ exactly — `python etl/pipeline.py --offline --no-manual --check`.
 
 [`refresh-data.yml`](.github/workflows/refresh-data.yml) runs on the 3rd of each month and on
 demand. It runs the pipeline, validates the output with the app's own test suite, and opens a pull
-request if `public/data/` changed. Never a push to `main` — a silent auto-commit of a bad extract is
+request if `public/data/` changed. It cannot fetch trade flows (TiCM has no API and its extracts are
+no longer in the repo), so it fails rather than replace real flows with seed ones; the monthly trade
+refresh runs locally or via an agent — see [`etl/AUTOMATION.md`](etl/AUTOMATION.md). Never a push to `main` — a silent auto-commit of a bad extract is
 the failure worth designing against.
 
 ### Manual steps
@@ -190,50 +321,27 @@ These cannot be done from code and are yours to do in the browser.
 2. **Repo settings → Pages → Custom domain: `mineralflows.com`**, then tick **Enforce HTTPS** once
    the certificate is issued (up to an hour after DNS resolves).
 3. **Add the DNS records below** at your registrar, before step 2.
-4. **Take the raw TiCM extracts out — the trigger condition below fired on 13 September 2026.**
-   Real trade data is now shipping and shown (see the data section above), which is one of the
-   three conditions this was waiting on. Not yet done; see below for the reasoning and the order to
-   do it in.
+4. **Refresh trade data monthly** — the raw TiCM extracts were removed from the repo on
+   21 October 2026 (below), so this is a local or agent-run step. See
+   [`etl/AUTOMATION.md`](etl/AUTOMATION.md).
 
-#### The raw TiCM extracts: due for removal, not yet actioned
+#### The raw TiCM extracts: removed from the repo
 
-`etl/raw/manual/adb-wto-ticm/` holds 24 MB of raw bilateral trade CSVs, about 130,000 rows straight
-out of critmin.org. They were committed deliberately while the app ran on seed data, so the monthly
-refresh could produce real flows without a human in the loop — that reason no longer holds, now that
-real data has shipped once already.
+`etl/raw/manual/adb-wto-ticm/` held 24 MB of raw bilateral trade CSVs, about 130,000 rows straight
+out of critmin.org. They were committed while the app ran on seed data so the monthly refresh could
+produce real flows unattended. Real data has since shipped, and the ADB-WTO terms require third-party
+data (most of TiCM originates with UN Comtrade) to keep to that provider's limits, which restrict
+mirroring the database wholesale. A public repo holding 130,000 unmodified rows looks more like
+mirroring than reuse, so the directory is now untracked and gitignored. The files are still on the
+maintainer's disk; they remain in git history, and rewriting history (`git filter-repo` or a fresh
+repo) is only worth doing if a publisher objects.
 
-The reason to revisit it later is not the ADB-WTO licence, which permits exactly this: non-commercial
-reuse with attribution. It is the clause underneath. TiCM is a middleman — most of these numbers
-originate with UN Comtrade — and its terms require third-party data to keep to that provider's own
-limits. Comtrade allows querying and publishing findings; it restricts mirroring the database
-wholesale. A public repo anyone can clone, holding 130,000 unmodified rows, looks more like mirroring
-than using.
+**Unaffected:** the derived `flows.json` the app loads — aggregated across HS codes, capped by value,
+and credited. That is a published finding, which every party here permits.
 
-**What is unaffected either way:** the derived `flows.json` the app loads. It is at most 2,000 rows,
-summed across HS codes into one flow per mineral, country pair and stage, capped by value, and
-credited. Nobody could reconstruct Comtrade from it. That is a published finding, which every party
-here permits.
-
-So the trigger is not a date, it is a state: **when this repo stops being a private scratch project.**
-Whichever of these comes first —
-
-- ✅ **real trade data has shipped to `public/data/` and the site is showing it** — happened
-  13 September 2026,
-- the repo is being shown to anyone outside the project, or
-- anything here starts earning money, which needs clearance from ADB and the WTO regardless.
-
-Then do this, in this order, because the order is what preserves the data:
-
-1. Run `refresh-data.yml` while the CSVs are still present, and merge the PR it opens. Real
-   facilities and real flows land in `public/data/`, aggregated and credited.
-2. `git rm -r --cached etl/raw/manual/adb-wto-ticm/` and add that path to `.gitignore`.
-3. If the repo has been public and you want the files gone from history rather than just from `main`,
-   that is a history rewrite — `git filter-repo` or a fresh repo. Probably overkill unless someone
-   asks.
-
-Nothing breaks when they go. The pipeline reports a skip naming the path it looked in and falls back
-to seed flows, which is tested. The cost is that refreshing trade data becomes a manual re-download
-from critmin.org rather than something the monthly workflow can do on its own.
+**The cost:** the pipeline reports a skip and falls back to seed flows when the extracts are absent
+(tested), so refreshing trade data is now a local download plus a PR, not something the Action can do
+alone. `refresh-data.yml` refuses to open a PR whose output fell back to seed data.
 
 There is deliberately no `public/CNAME`. When Pages publishes from Actions rather than from a
 branch it ignores `CNAME` in the artifact — the custom domain lives in repo settings, which is what

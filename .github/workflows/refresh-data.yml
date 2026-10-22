@@ -7,8 +7,10 @@ name: Refresh data
 # shape; a silent auto-commit of a bad extract would deploy straight to the site
 # with nobody having looked at it. A PR gives a diff to read before it ships.
 #
-# The manual sources committed under etl/raw/manual are used as they stand. They
-# do not refresh on their own — see etl/README.md for when to replace them.
+# The ICMM and IEA workbooks committed under etl/raw/manual are used as they
+# stand. The ADB-WTO TiCM trade extracts are NOT in the repo (see etl/AUTOMATION.md),
+# so a run on a bare runner has no real trade flows. The guard step below stops
+# that run from replacing real flows with the seed fallback.
 
 on:
   schedule:
@@ -64,6 +66,20 @@ jobs:
         run: |
           set -o pipefail
           python etl/pipeline.py --year "${{ inputs.year || '2024' }}" 2>&1 | tee refresh.log
+
+      - name: Refuse to replace real data with the seed fallback
+        # Without the TiCM extracts the pipeline falls back to seed flows. That is
+        # correct for a bare run, but it must never reach a PR as if it were a
+        # refresh. Fail loudly instead; run the refresh locally with the extracts
+        # present (etl/AUTOMATION.md).
+        run: |
+          python - <<'PY'
+          import json, sys
+          ids = [s["id"] for s in json.load(open("public/data/meta.json"))["sources"]]
+          bad = [i for i in ids if i in ("seed-flows", "seed-facilities")]
+          if bad:
+              sys.exit(f"Refusing: output fell back to seed data ({', '.join(bad)}).")
+          PY
 
       - name: Check the output against the app's own loader
         # The pipeline validates against contract.py, which mirrors schema.ts.

@@ -6,8 +6,13 @@ dist/
 *.tsbuildinfo
 
 # ETL: auto-fetched sources are reproducible, so they are not committed.
-# etl/raw/manual/ IS committed — those files cannot be re-fetched by a machine.
+# etl/raw/manual/ IS committed — those files cannot be re-fetched by a machine —
+# except the ADB-WTO TiCM extracts: ~130k raw rows of third-party (UN Comtrade)
+# data, which looks more like mirroring than reuse in a public repo. Keep them
+# locally for refreshes; only the derived public/data is published. See
+# etl/AUTOMATION.md.
 etl/raw/auto/
+etl/raw/manual/adb-wto-ticm/
 
 # Python
 __pycache__/
