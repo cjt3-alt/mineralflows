@@ -9,6 +9,12 @@ import {
   makeWidthScale,
   resolveValue,
   toArcData,
+  EMPTY_FILTERS,
+  flowKind,
+  stageShade,
+  summarizeCountry,
+  countryRole,
+  type CountrySummary,
   type Filters,
 } from './derive.ts'
 import type { FacilityFeature, Flow, Mineral, Price } from './schema.ts'
@@ -71,7 +77,7 @@ function flow(over: Partial<Flow> = {}): Flow {
   }
 }
 
-const noFilters: Filters = { mineralIds: [], stages: [], minValueUsd: 0 }
+const noFilters: Filters = EMPTY_FILTERS
 
 describe('filtering', () => {
   it('treats an empty filter as no filter, not as nothing selected', () => {
@@ -86,29 +92,85 @@ describe('filtering', () => {
 
   it('keeps a multi-mineral facility when either mineral is selected', () => {
     const facilities = [facility({ id: 'a', mineral_ids: ['copper', 'cobalt'] })]
-    const filters: Filters = { mineralIds: ['cobalt'], stages: [], minValueUsd: 0 }
+    const filters: Filters = { ...EMPTY_FILTERS, mineralIds: ['cobalt'] }
     expect(filterFacilities(facilities, filters, activeIds)).toHaveLength(1)
   })
 
-  it('matches a flow when either endpoint is at a selected stage', () => {
-    const flows = [flow({ stage_from: 'mine', stage_to: 'process' })]
-    expect(
-      filterFlows(flows, { mineralIds: [], stages: ['process'], minValueUsd: 0 }, activeIds),
-    ).toHaveLength(1)
-    expect(
-      filterFlows(flows, { mineralIds: [], stages: ['refine'], minValueUsd: 0 }, activeIds),
-    ).toHaveLength(0)
+  it('filters facilities by their own stage only', () => {
+    const facilities = [facility({ id: 'a', stage: 'mine' }), facility({ id: 'b', stage: 'refine' })]
+    const filters: Filters = { ...EMPTY_FILTERS, stages: ['refine'] }
+    expect(filterFacilities(facilities, filters, activeIds).map((f) => f.properties.id)).toEqual(['b'])
   })
 
-  /** The rare-earths case: a mineral that only trades at one stage. */
-  it('keeps a refine-only mineral visible under a refine filter and empty under mine', () => {
+  it('names a flow by the stage it leaves', () => {
+    expect(flowKind(flow({ stage_from: 'mine', stage_to: 'process' }))).toBe('mine')
+    expect(flowKind(flow({ stage_from: 'refine', stage_to: 'refine' }))).toBe('refine')
+  })
+
+  it('filters flows by kind, independently of the facility stages', () => {
+    const flows = [flow({ stage_from: 'mine', stage_to: 'process' })]
+    const refineriesOnly: Filters = { ...EMPTY_FILTERS, stages: ['refine'] }
+    expect(filterFlows(flows, refineriesOnly, activeIds)).toHaveLength(1)
+    expect(filterFlows(flows, { ...EMPTY_FILTERS, flowKinds: ['mine'] }, activeIds)).toHaveLength(1)
+    expect(filterFlows(flows, { ...EMPTY_FILTERS, flowKinds: ['refine'] }, activeIds)).toHaveLength(0)
+  })
+
+  /** The rare-earths case: a mineral that only trades refined metal. */
+  it('keeps a refine-only mineral visible under refined metal and empty under ore', () => {
     const flows = [flow({ mineral_id: 'cobalt', stage_from: 'refine', stage_to: 'refine' })]
-    expect(
-      filterFlows(flows, { mineralIds: [], stages: ['refine'], minValueUsd: 0 }, activeIds),
-    ).toHaveLength(1)
-    expect(
-      filterFlows(flows, { mineralIds: [], stages: ['mine'], minValueUsd: 0 }, activeIds),
-    ).toHaveLength(0)
+    expect(filterFlows(flows, { ...EMPTY_FILTERS, flowKinds: ['refine'] }, activeIds)).toHaveLength(1)
+    expect(filterFlows(flows, { ...EMPTY_FILTERS, flowKinds: ['mine'] }, activeIds)).toHaveLength(0)
+  })
+
+  it('narrows flows to a focused country at either end', () => {
+    const flows = [
+      flow({ id: 'out', from_iso3: 'CHL', to_iso3: 'CHN' }),
+      flow({ id: 'in', from_iso3: 'PER', to_iso3: 'CHL' }),
+      flow({ id: 'other', from_iso3: 'PER', to_iso3: 'CHN' }),
+    ]
+    const ids = filterFlows(flows, { ...EMPTY_FILTERS, country: 'CHL' }, activeIds).map((f) => f.id)
+    expect(ids).toEqual(['out', 'in'])
+  })
+})
+
+describe('summarizeCountry', () => {
+  const flows = [
+    flow({ id: 'a', from_iso3: 'CHL', to_iso3: 'CHN', value_usd: 600 }),
+    flow({ id: 'b', from_iso3: 'CHL', to_iso3: 'USA', value_usd: 200, stage_from: 'refine', stage_to: 'refine' }),
+    flow({ id: 'c', from_iso3: 'PER', to_iso3: 'CHL', value_usd: 200 }),
+  ]
+
+  it('totals exports and imports by kind and ranks partners', () => {
+    const s = summarizeCountry('CHL', flows, [facility({ country_iso3: 'CHL' })], () => undefined)
+    expect(s.exportsUsd).toBe(800)
+    expect(s.importsUsd).toBe(200)
+    expect(s.exportsByKind).toEqual({ mine: 600, process: 0, refine: 200 })
+    expect(s.topDestinations.map((p) => p.iso3)).toEqual(['CHN', 'USA'])
+    expect(s.topOrigins).toEqual([{ iso3: 'PER', usd: 200 }])
+    expect(s.facilities.mine).toBe(1)
+    expect(s.shareOfExports).toBe(0.8)
+    expect(s.exportsBuyerReportedUsd).toBe(0)
+  })
+
+  it('counts exports known only from buyers\' mirror reports', () => {
+    const mirrored = [flow({ id: 'm', from_iso3: 'CHL', to_iso3: 'CHN', value_usd: 300, confidence: 'low' }), ...flows]
+    expect(summarizeCountry('CHL', mirrored, [], () => undefined).exportsBuyerReportedUsd).toBe(300)
+  })
+
+  it('reports zeros, not NaN, for a country with no trade', () => {
+    const s = summarizeCountry('ZZZ', flows, [], () => undefined)
+    expect(s.exportsUsd).toBe(0)
+    expect(s.shareOfImports).toBe(0)
+  })
+})
+
+describe('stageShade', () => {
+  it('darkens raw material and lightens refined metal around the mineral colour', () => {
+    const base = '#ff7a45'
+    const lum = (hex: string) => parseInt(hex.slice(1, 3), 16) + parseInt(hex.slice(3, 5), 16) + parseInt(hex.slice(5, 7), 16)
+    expect(stageShade(base, 'process')).toBe(base)
+    expect(lum(stageShade(base, 'mine'))).toBeLessThan(lum(base))
+    expect(lum(stageShade(base, 'refine'))).toBeGreaterThan(lum(base))
   })
 })
 
@@ -226,20 +288,18 @@ describe('toArcData', () => {
     expect(result.arcs).toHaveLength(0)
   })
 
-  it('drops flows below the value threshold before sorting and capping', () => {
+  it('colours and weights arcs by kind and value', () => {
     const flows = [
       flow({ id: 'small', value_usd: 10 }),
-      flow({ id: 'big', value_usd: 1000, from_iso3: 'PER' }),
+      flow({ id: 'big', value_usd: 1000, from_iso3: 'PER', stage_from: 'refine', stage_to: 'refine' }),
     ]
-    const result = toArcData(flows, dataset, 300, 500)
-    expect(result.arcs.map((a) => a.id)).toEqual(['big'])
-    expect(result.totalMatching).toBe(1)
-    expect(result.truncated).toBe(false)
-  })
-
-  it('treats a zero threshold as no filter at all', () => {
-    const result = toArcData([flow({ value_usd: 1 })], dataset, 300, 0)
-    expect(result.arcs).toHaveLength(1)
+    const result = toArcData(flows, dataset, 300)
+    const big = result.arcs.find((a) => a.id === 'big')!
+    const small = result.arcs.find((a) => a.id === 'small')!
+    expect(big.kind).toBe('refine')
+    expect(big.weight).toBe(1)
+    expect(small.weight).toBeCloseTo(0.1)
+    expect(big.color).not.toBe(small.color)
   })
 })
 
@@ -250,5 +310,87 @@ describe('formatUsd', () => {
 
   it('says there is no value rather than showing a zero', () => {
     expect(formatUsd(null)).toBe('no value')
+  })
+})
+
+describe('countryRole', () => {
+  const world = { mine: 100e9, process: 20e9, refine: 100e9 }
+  const none = { mine: [], process: [], refine: [] }
+  const base: CountrySummary = {
+    iso3: 'XXX',
+    exportsUsd: 0,
+    importsUsd: 0,
+    exportsByKind: { mine: 0, process: 0, refine: 0 },
+    importsByKind: { mine: 0, process: 0, refine: 0 },
+    exportsBuyerReportedUsd: 0,
+    topDestinations: [],
+    topOrigins: [],
+    destinationsByKind: none,
+    originsByKind: none,
+    facilities: { mine: 5, process: 1, refine: 1 },
+    shareOfImports: 0,
+    shareOfExports: 0,
+  }
+  const names: Record<string, string> = { CHL: 'Chile', PER: 'Peru', CHN: 'China', MEX: 'Mexico' }
+  const role = (s: Partial<CountrySummary>) => countryRole({ ...base, ...s }, world, (i) => names[i] ?? i)
+
+  it('calls a big ore buyer that exports little a processing hub, and names its ore suppliers', () => {
+    const r = role({
+      importsUsd: 100e9,
+      exportsUsd: 4e9,
+      importsByKind: { mine: 63e9, process: 0, refine: 37e9 },
+      exportsByKind: { mine: 0, process: 0, refine: 4e9 },
+      originsByKind: { ...none, mine: [{ iso3: 'CHL', usd: 26e9 }, { iso3: 'PER', usd: 16e9 }] },
+    })
+    expect(r.id).toBe('processing-hub')
+    expect(r.text).toContain("63% of the world's traded ore")
+    expect(r.text).toContain('mostly from Chile and Peru')
+  })
+
+  it('calls raw exports with refined imports a processing gap', () => {
+    const r = role({
+      exportsUsd: 4e9,
+      importsUsd: 8e9,
+      exportsByKind: { mine: 3.5e9, process: 0.5e9, refine: 0 },
+      importsByKind: { mine: 0, process: 0, refine: 8e9 },
+      destinationsByKind: { ...none, mine: [{ iso3: 'MEX', usd: 3e9 }] },
+      originsByKind: { ...none, refine: [{ iso3: 'CHL', usd: 5.6e9 }] },
+    })
+    expect(r.id).toBe('processing-gap')
+    expect(r.text).toContain('mostly to Mexico')
+    expect(r.text).toContain('70% of it from Chile')
+  })
+
+  it('does not call a big exporter a smelter just because its small imports are ore', () => {
+    const r = role({
+      exportsUsd: 21e9,
+      importsUsd: 0.07e9,
+      importsByKind: { mine: 0.07e9, process: 0, refine: 0 },
+      exportsByKind: { mine: 0, process: 0, refine: 21e9 },
+    })
+    expect(r.id).toBe('refined-exporter')
+  })
+
+  it('tells a mine exporter from an integrated producer', () => {
+    expect(role({ exportsUsd: 23e9, exportsByKind: { mine: 20e9, process: 0, refine: 3e9 } }).id).toBe('mine-exporter')
+    expect(role({ exportsUsd: 50e9, exportsByKind: { mine: 31e9, process: 2e9, refine: 17e9 } }).id).toBe(
+      'integrated-producer',
+    )
+  })
+
+  it('flags trade booked by a country with no facilities as a trading hub', () => {
+    const r = role({
+      facilities: { mine: 0, process: 0, refine: 0 },
+      importsUsd: 4e9,
+      importsByKind: { mine: 0, process: 3.8e9, refine: 0.2e9 },
+    })
+    expect(r.id).toBe('trading-hub')
+    expect(r.text).toContain('commodity traders')
+  })
+
+  it('calls small totals a minor participant, and never prints an empty clause', () => {
+    expect(role({ importsUsd: 1e8 }).id).toBe('minor')
+    const r = role({ importsUsd: 2e9, importsByKind: { mine: 0, process: 0, refine: 2e9 } })
+    expect(r.text).not.toMatch(/,,|, ,/)
   })
 })

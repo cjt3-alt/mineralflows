@@ -1,10 +1,12 @@
 # MineralFlows
 
-A static, client-only web app that visualises critical mineral supply chains on an interactive 3D
-globe: where minerals are mined, processed, and refined, and how they move between countries. Flow
-lines are sized by market value, and every value derived from volume × price is labelled as an
-estimate wherever it appears. A value slider lets you filter flows below a dollar threshold, and the
-same filter round-trips through the URL as `?minValue=`.
+A static, client-only web app that visualises critical mineral supply chains on an interactive map:
+where minerals are mined, processed, and refined, and how they move between countries. Flow lines
+are sized by market value, and every value derived from volume × price is labelled as an estimate
+wherever it appears. The interface is styled as an operations console: a control column of layers,
+a country search and the largest flows; a full-bleed map you can pan, zoom, hover and click; and a
+dossier panel for whatever is selected, including a plain-English summary of each country's role in
+the trade.
 
 **Currently scoped to copper only.** The app and ETL support four minerals (copper, lithium, cobalt,
 rare earths) end to end, but as of 13 September 2026 lithium, cobalt, and rare earths are switched
@@ -20,10 +22,13 @@ database, no server rendering, no runtime API calls.
 
 ## What is here
 
-- **The app** — a dashboard with the globe as its centre: mineral chips across the top, a stage
-  filter down the left, a detail panel on the right, and a legend that maps arc width to dollars
-  and reports a vintage per source. Filters round-trip through the query string, so a view is a
-  link.
+- **The app** — a dashboard with the map at its centre. The left column has headline numbers, a
+  country search, separate layer switches for sites (mines, smelters, refineries) and flows (ore and
+  concentrate, smelted intermediates, refined metal), a Top 25/100/300 control, a terrain switch,
+  and a clickable list of the largest flows. Hover anything on the map for a tooltip; click a flow
+  or site for its record, or a country for its dossier. Every source is credited by name in the footer and in the
+  "Sources & method" dialog. Filters round-trip through the query string (`minerals`, `stages`,
+  `flows`, `top`, `country`), so a view is a link.
 - **The data contract** — [`src/data/schema.ts`](src/data/schema.ts) is the single source of truth
   for the six files in `public/data/`. Everything validates against it on load and fails loudly,
   naming the record that broke.
@@ -33,8 +38,8 @@ database, no server rendering, no runtime API calls.
 ## The data in the app right now is real, not the seed dataset
 
 As of 13 September 2026, `public/data/` is the output of a real `python etl/pipeline.py` run against
-the copper-only config above: 1,229 ICMM facilities and up to 500 ADB-WTO TiCM flows (the globe draws
-the top 300 of those by value, and the legend says so). Sources: ICMM v1.5, ADB-WTO TiCM 2024, World
+the copper-only config above: 1,229 ICMM facilities and up to 500 ADB-WTO TiCM flows (the map draws
+the largest 100 by default, up to 300, and the legend says so). Sources: ICMM v1.5, ADB-WTO TiCM 2024, World
 Bank Pink Sheet, World Bank country API — see the data sources table below.
 
 The hand-authored 30-facility seed dataset (`etl/seed/`) still exists and is still what the pipeline
@@ -65,68 +70,77 @@ python etl/test_pipeline.py
 python -m ruff check etl/ && python -m ruff format --check etl/
 ```
 
-## How to read the globe
+## How to read the map
 
-- **Points are facilities**, coloured by mineral and sized by stage: mines smallest, refineries
-  largest, because refining is where the concentration this app is about actually sits. A facility
-  that handles more than one mineral takes the colour of its lowest `sort_order` visible mineral;
-  the detail panel lists all of them.
-- **Arcs are flows**, width on a square-root scale. Linear width would make copper a solid band and
-  everything else a hairline. Altitude rises with distance so a Chile-to-China arc clears the globe
-  rather than cutting through it. Each arc grows in once when it first appears and carries a
-  continuously traveling brightness band along its length — a steady connection with something
-  moving through it, not a dash animating end to end.
-- **The far side of the globe fades, it doesn't vanish.** Country borders, arcs, and facility points
-  all use a shader that dims a point smoothly based on whether it currently faces the camera, rather
-  than a hard cutoff at the horizon — so the far hemisphere is dimly visible through the globe and
-  the picture reads the same at any rotation, including while the camera's own slow idle turn (below)
-  is moving it. See [`HANDOFF.md`](HANDOFF.md), section 0, for the reasoning and the tuning knobs.
-- **Low confidence is visible without reading anything.** Low-confidence facilities are drawn dimmer
-  and flush against the sphere, with a slow ring, while verified ones stand proud of it and are
-  brighter; low-confidence flows are dashed and don't carry the traveling band. The difference
-  survives greyscale and colourblindness, and it never disappears under reduced motion.
+- **It is a web-map Mercator, centred where the trade runs.** The map fills its panel top to bottom
+  (cropped at 80°N and 58°S, as web maps crop the poles) and repeats east–west: drag in either
+  direction and you come back round. It is cut where the least traded value crosses, which for
+  copper puts the Pacific in the middle, so Chile and Peru to China stay whole; any flow that does
+  cross the edge takes the short way across it. Like any Mercator map it enlarges land toward the
+  poles. The rules are in [`src/components/mapDynamics.ts`](src/components/mapDynamics.ts).
+- **Data is warm, interface is cool.** Everything copper-to-gold is data. The one cyan accent
+  marks what you are pointing at — hover, selection, the focused country, the keyboard cursor — so
+  "what am I looking at" is always the cyan thing. Red only ever means caution.
+- **The base map is real terrain.** Shaded relief of land and sea floor, tinted to the palette, so
+  mountain belts like the Andes, where much of the world's copper is mined, read at a glance. Built
+  offline by [`tools/build_basemap.py`](tools/build_basemap.py) from the AWS Terrain Tiles, and
+  switchable under Terrain. Country borders are engraved into it as a fine line in a dark channel;
+  zoomed in past 2×, more detailed Natural Earth 1:50m outlines load so borders stay smooth.
+- **Points are sites**, glowing dots shaded and sized by stage: small dark mines, larger mid-copper
+  smelters, the largest and brightest refineries, because processing is where the concentration
+  this app is about actually sits. Points have no capacity data, so size shows stage, not output.
+- **Arcs are flows**, coloured by what they carry (dark copper for ore and concentrate, mid copper
+  for smelted intermediates, pale gold for refined metal), brightening from exporter to importer,
+  with width and opacity on a square-root value scale. Each arc draws in once, largest first, and
+  carries a comet from exporter to importer; the ten largest import destinations pulse.
+- **Selecting dims everything else**, so the selected flow or site stands alone; focusing a country
+  narrows the flows to that country's trade and dims sites elsewhere.
+- **Country dossiers explain themselves.** Each opens with a role — processing hub, processing gap,
+  mine exporter, and so on — and a sentence or two of numbers, generated by fixed rules from the
+  country's own data (`countryRole` in [`src/data/derive.ts`](src/data/derive.ts); the rules are
+  listed in the Sources & method dialog). Net positions say what they cover: ore, intermediates and
+  refined metal, not scrap or finished products.
+- **Low confidence is visible without reading anything.** Low-confidence sites are hollow rings;
+  importer-reported-only flows are dashed and carry no glow or comet. When most of a country's
+  exports are known only from its buyers' records (Russia, in this data), its dossier says so.
 - **Estimated values never look like traded ones.** A value derived from volume × price carries a
   badge, a plain-language warning, and the arithmetic that produced it.
-- **The camera turns slowly on its own** when nothing is selected and keyboard navigation isn't
-  active, and a drag imparts momentum that coasts to a stop rather than snapping back. It pauses
-  automatically the moment something is selected, so it never carries what you're looking at out of
-  view.
+- **The view only moves when you move it.** Drag to pan, with a short glide; scroll or pinch to
+  zoom about the pointer; double-click or double-tap to zoom in; or use the +/−/reset buttons (or
+  the +, − and 0 keys). Clicking a country filters to it without moving the map; search, dossier
+  links and the largest-flows list fly to what you picked, and an open dossier panel counts as
+  covering the right of the map, so the country you focused is never hidden behind it.
 
-At most 300 arcs are drawn. Past that the frame rate collapses, so the set is capped by value and
-the legend says how many of how many are showing rather than quietly dropping the rest. The value
-slider filters flows below a dollar threshold before that cap is applied; facility points are not
-affected by it, since a flow records origin/destination country, not which specific mine or refinery
-it moved through.
+The map draws the largest 25, 100 or 300 flows (100 by default); past a few hundred the picture is
+noise. The legend says how many of how many are drawn, and the totals in the control column count
+every flow, drawn or not.
 
 ## Keyboard and accessibility
 
-- **The globe is reachable by keyboard.** A WebGL canvas normally is not, which would leave the
-  detail panel — the only place a source, a confidence rating, or an estimate warning appears —
-  openable by mouse alone. Tab to the globe, then arrow keys walk the visible flows and sites,
-  Enter opens the one under the cursor, Escape clears it. The camera follows, and each move is
-  announced to a screen reader.
+- **The map is reachable by keyboard.** A canvas normally is not, which would leave the detail
+  panel — the only place a source, a confidence rating, or an estimate warning appears — openable
+  by mouse alone. Tab to the map, then arrow keys walk the visible flows and sites, Enter opens the
+  one under the cursor, Escape clears it. The map follows, and each move is announced to a screen
+  reader.
 - The detail panel takes focus when it opens, closes on Escape, and hands focus back.
 - Focus is always visible and always the same shape.
-- `prefers-reduced-motion` turns off bloom, the arc grow/traveling band, the low-confidence ring
-  pulse, the camera's idle auto-rotate, and the load camera move. The facing-based fade on borders,
-  arcs, and points is unaffected — it's a function of camera angle, not time, so there's nothing to
-  turn off.
-- Below 768px the rail becomes a strip under the top bar and the panel becomes a sheet over the
-  globe. Nothing is hidden on a small screen. Bloom is switched off there too, on cost grounds.
-- The globe camera works out how far back it has to sit for the sphere to fit the narrower axis, so
-  a tall phone viewport does not crop it.
+- `prefers-reduced-motion` turns off the arc draw-in, comets, landing pulses, the pan glide and the
+  map's animated moves.
+- Below 768px the control column moves into a "Layers & search" drawer and the dossier becomes a
+  sheet over the map. Nothing is hidden on a small screen.
 
 ## Installed versions
 
-Resolved against the npm registry and PyPI on 2026-08-31, not pinned from memory.
+Resolved against the npm registry and PyPI on 2026-08-31, not pinned from memory. The 3D globe's
+`react-globe.gl` and `three` were removed in October 2026 when the app moved to a flat map; `d3-geo`
+(added then) provides the projection.
 
 | Package             | Version  |
 | ------------------- | -------- |
 | vite                | 8.2.2    |
 | react / react-dom   | 19.2.8   |
 | typescript          | 6.0.3    |
-| react-globe.gl      | 2.38.0   |
-| three               | 0.185.1  |
+| d3-geo              | 3.1.1    |
 | tailwindcss         | 4.3.3    |
 | zod                 | 4.5.4    |
 | vitest              | 4.1.11   |
@@ -151,8 +165,9 @@ every asset at the `github.io` URL. There is no client-side router, so a relativ
 nothing.
 
 **`world-atlas` and `topojson-client` are dependencies.** Country borders need real geometry and
-runtime API calls are not allowed, so ~1 MB of public-domain Natural Earth country topology (110m
-resolution) is bundled at build time and flattened into line segments once, in `GlobeCanvas.tsx`.
+runtime API calls are not allowed, so public-domain Natural Earth country topology is served from
+the same origin: the 1:110m set is bundled for first paint, and the 1:50m set is split into its own
+chunk that the map fetches only when zoomed in (`MapCanvas.tsx`).
 
 **Country coordinates are capital cities, not polygon centroids.** They come from the World Bank
 country API, which is an official, versioned, no-auth list. It means Australia's arcs land on
@@ -169,141 +184,6 @@ job lints and tests the ETL and checks that an offline run still produces a vali
 the committed `public/data/`, which is a full real run and can never equal the offline seed fallback;
 `npm test` validates the committed files against the schema instead, and changes to them arrive as
 reviewed refresh PRs.
-
-[`refresh-data.yml`](.github/workflows/refresh-data.yml)
-from the Actions tab, which opens a PR with the diff rather than committing it silently.
-
-## Development
-
-```bash
-npm install
-npm run dev        # vite dev server
-npm run typecheck  # tsc --noEmit
-npm run lint       # eslint
-npm test           # vitest
-npm run build      # static bundle into dist/
-npm run preview    # serve dist/ locally
-```
-
-The ETL has its own toolchain and its own tests:
-
-```bash
-pip install -r etl/requirements.txt
-python etl/pipeline.py --offline --no-manual
-python etl/test_pipeline.py
-python -m ruff check etl/ && python -m ruff format --check etl/
-```
-
-## How to read the globe
-
-- **Points are facilities**, coloured by mineral and sized by stage: mines smallest, refineries
-  largest, because refining is where the concentration this app is about actually sits. A facility
-  that handles more than one mineral takes the colour of its lowest `sort_order` visible mineral;
-  the detail panel lists all of them.
-- **Arcs are flows**, width on a square-root scale. Linear width would make copper a solid band and
-  everything else a hairline. Altitude rises with distance so a Chile-to-China arc clears the globe
-  rather than cutting through it. Each arc grows in once when it first appears and carries a
-  continuously traveling brightness band along its length — a steady connection with something
-  moving through it, not a dash animating end to end.
-- **The far side of the globe fades, it doesn't vanish.** Country borders, arcs, and facility points
-  all use a shader that dims a point smoothly based on whether it currently faces the camera, rather
-  than a hard cutoff at the horizon — so the far hemisphere is dimly visible through the globe and
-  the picture reads the same at any rotation, including while the camera's own slow idle turn (below)
-  is moving it. See [`HANDOFF.md`](HANDOFF.md), section 0, for the reasoning and the tuning knobs.
-- **Low confidence is visible without reading anything.** Low-confidence facilities are drawn dimmer
-  and flush against the sphere, with a slow ring, while verified ones stand proud of it and are
-  brighter; low-confidence flows are dashed and don't carry the traveling band. The difference
-  survives greyscale and colourblindness, and it never disappears under reduced motion.
-- **Estimated values never look like traded ones.** A value derived from volume × price carries a
-  badge, a plain-language warning, and the arithmetic that produced it.
-- **The camera turns slowly on its own** when nothing is selected and keyboard navigation isn't
-  active, and a drag imparts momentum that coasts to a stop rather than snapping back. It pauses
-  automatically the moment something is selected, so it never carries what you're looking at out of
-  view.
-
-At most 300 arcs are drawn. Past that the frame rate collapses, so the set is capped by value and
-the legend says how many of how many are showing rather than quietly dropping the rest. The value
-slider filters flows below a dollar threshold before that cap is applied; facility points are not
-affected by it, since a flow records origin/destination country, not which specific mine or refinery
-it moved through.
-
-## Keyboard and accessibility
-
-- **The globe is reachable by keyboard.** A WebGL canvas normally is not, which would leave the
-  detail panel — the only place a source, a confidence rating, or an estimate warning appears —
-  openable by mouse alone. Tab to the globe, then arrow keys walk the visible flows and sites,
-  Enter opens the one under the cursor, Escape clears it. The camera follows, and each move is
-  announced to a screen reader.
-- The detail panel takes focus when it opens, closes on Escape, and hands focus back.
-- Focus is always visible and always the same shape.
-- `prefers-reduced-motion` turns off bloom, the arc grow/traveling band, the low-confidence ring
-  pulse, the camera's idle auto-rotate, and the load camera move. The facing-based fade on borders,
-  arcs, and points is unaffected — it's a function of camera angle, not time, so there's nothing to
-  turn off.
-- Below 768px the rail becomes a strip under the top bar and the panel becomes a sheet over the
-  globe. Nothing is hidden on a small screen. Bloom is switched off there too, on cost grounds.
-- The globe camera works out how far back it has to sit for the sphere to fit the narrower axis, so
-  a tall phone viewport does not crop it.
-
-## Installed versions
-
-Resolved against the npm registry and PyPI on 2026-08-31, not pinned from memory.
-
-| Package             | Version  |
-| ------------------- | -------- |
-| vite                | 8.2.2    |
-| react / react-dom   | 19.2.8   |
-| typescript          | 6.0.3    |
-| react-globe.gl      | 2.38.0   |
-| three               | 0.185.1  |
-| tailwindcss         | 4.3.3    |
-| zod                 | 4.5.4    |
-| vitest              | 4.1.11   |
-| eslint              | 10.9.1   |
-| typescript-eslint   | 8.68.0   |
-| pandas              | 3.0.5    |
-| requests            | 2.34.2   |
-| openpyxl            | 3.1.5    |
-| ruff                | 0.16.5   |
-
-### Deliberate deviations from the brief
-
-**TypeScript is 6.0.3, not the latest 7.0.2.** `typescript-eslint@8.68.0` declares a peer range of
-`typescript >=4.8.4 <6.1.0`. Installing TypeScript 7 would leave linting unsupported. 6.0.3 is the
-newest release inside that range, pinned as `~6.0.3` so a 6.1 release cannot drift out of it.
-Revisit when typescript-eslint ships TS 7 support.
-
-**Vite `base` is `./`, not `/`.** A relative base makes one build work in all three places this is
-served from: the project page at `cjt3-alt.github.io/mineralflows/` (live now, before DNS is cut
-over), the apex domain once it is, and a plain static file server. An absolute `/` base would 404
-every asset at the `github.io` URL. There is no client-side router, so a relative base costs
-nothing.
-
-**`world-atlas` and `topojson-client` are dependencies.** Country borders need real geometry and
-runtime API calls are not allowed, so ~1 MB of public-domain Natural Earth country topology (110m
-resolution) is bundled at build time and flattened into line segments once, in `GlobeCanvas.tsx`.
-
-**Country coordinates are capital cities, not polygon centroids.** They come from the World Bank
-country API, which is an official, versioned, no-auth list. It means Australia's arcs land on
-Canberra rather than in the middle of the continent. Recorded here, in `meta.json`, and in
-[`etl/sources/worldbank_countries.py`](etl/sources/worldbank_countries.py), because a coordinate
-that looks like a centroid and is not should not be quiet.
-
-## Deployment
-
-Pushes to `main` run [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): typecheck,
-lint, test, build, and publish `dist/` to GitHub Pages via the official Pages actions. A parallel
-job lints and tests the ETL and checks that an offline run reproduces the committed data files
-exactly — `python etl/pipeline.py --offline --no-manual --check`.
-
-> **This check will currently fail if pushed.** As of 13 September 2026, `public/data/` is the
-> output of a full real run (manual sources included, network reachable), not the offline/no-manual
-> seed fallback this check compares against — confirmed locally, it reports all five data files as
-> differing. This is a direct, known consequence of shipping real data (see the section above) and
-> hasn't been reconciled yet: either the check needs to start validating against a full run instead
-> of the offline fallback, or it needs a documented reason to keep checking the fallback path
-> specifically while the real data legitimately diverges from it. Worth resolving before the next
-> push to `main`, not something to be surprised by in CI.
 
 [`refresh-data.yml`](.github/workflows/refresh-data.yml) runs on the 3rd of each month and on
 demand. It runs the pipeline, validates the output with the app's own test suite, and opens a pull
@@ -400,6 +280,103 @@ component branches on a mineral id, and no source module knows what copper is.
 | [ADB-WTO TiCM](https://critmin.org) | Non-commercial reuse with attribution | Bilateral trade flows |
 | [IEA Critical Minerals Data Explorer](https://www.iea.org/data-and-statistics/data-tools/critical-minerals-data-explorer) | CC BY 4.0 | Mine-versus-refine supply |
 | [Natural Earth via world-atlas](https://github.com/topojson/world-atlas) | Public domain | Landmass outlines |
+| [Terrain Tiles on AWS](https://registry.opendata.aws/terrain-tiles/) (Mapzen/Tilezen: SRTM, GMTED2010, ETOPO1) | Open data, attribution | Shaded relief base map, built by `tools/build_basemap.py` |
+
+## Open ideas
+
+### Account for recycled copper
+
+The app tracks primary copper only: ore and concentrate, smelted intermediates, and refined metal.
+Recycled copper is missing, and it is a large part of supply: scrap feeds smelters and refineries
+alongside mined ore. It also matters to the story. China imports large volumes of copper scrap,
+and the US exports a lot of it, so leaving scrap out understates China's import dependence and
+hides another way US copper leaves the country before it is refined. Country roles and net
+positions are currently computed without it.
+
+Where to start:
+
+- **The trade code is already in the config.** HS 7404, "Copper waste and scrap", is listed in
+  [`etl/config/minerals.json`](etl/config/minerals.json) with `"active": false`.
+- **It does not fit the three stages.** Scrap is not mine, process or refine output; it re-enters
+  the chain at the smelter or refinery. It probably needs its own flow kind ("scrap"), with its own
+  colour, layer switch and line in the country dossier, rather than being filed under an existing
+  stage.
+- **Check the source.** The TiCM extracts under `etl/raw/manual/adb-wto-ticm/` would need a 7404
+  extract; confirm TiCM carries it, or find another bilateral source.
+- **Decide how roles treat it.** For example, whether exporting scrap counts toward a
+  "processing gap", and whether a scrap-importing smelter country reads differently from one
+  importing ore.
+- **Say so in the app until then.** The Sources & method caveats already state that scrap is not
+  included.
+
+
+## Learning more
+
+Notes for getting from fascinated to well read on mining, copper and critical minerals, before
+putting claims out in public. Compiled from memory in October 2026, not from a fresh search: check
+editions and dates before citing any of it.
+
+### Start here (books)
+
+- **Ed Conway, *Material World* (2023).** Six raw materials that underpin modern life, copper among
+  them; the best single overview of how a mineral gets from the ground into everything.
+- **Ernest Scheyder, *The War Below* (2024).** A Reuters reporter on lithium, copper and the fight
+  over US mines and permitting. Closest to this project's national-security angle.
+- **Javier Blas and Jack Farchy, *The World for Sale* (2021).** The commodity traders (Glencore,
+  Trafigura, Vitol and others). Explains why Switzerland shows up as a copper "trading hub" with no
+  mines.
+- **Guillaume Pitron, *The Rare Metals War* (English edition 2020).** How China came to dominate
+  rare-earth and minor-metal processing; useful contrast with copper.
+- **Siddharth Kara, *Cobalt Red* (2023).** Cobalt mining in the DR Congo, the same Copperbelt that
+  produces much of the world's copper.
+- **Henry Sanderson, *Volt Rush* (2022).** The battery-metals race and China's place in it.
+- **Timothy LeCain, *Mass Destruction* (2009).** The history of the giant open-pit copper mines
+  that wired America.
+
+### Primary sources (free, and what to cite)
+
+- **USGS Mineral Commodity Summaries** — the annual two-page copper chapter: US production,
+  imports, reliance, world mine production by country. The standard citation for US figures.
+- **International Copper Study Group, *The World Copper Factbook*** — free annual primer covering
+  mining, smelting, refining, scrap, trade and use.
+- **IEA Global Critical Minerals Outlook** — annual; supply concentration in mining versus refining
+  and how it is changing.
+- **The US critical minerals list** (USGS, updated every few years) — check the current list to see
+  which minerals are officially "critical" before saying so.
+- **USGS porphyry copper deposit model (Scientific Investigations Report 2010-5070-B)** — the
+  geology of the deposit type behind most mined copper, and why it clusters along the Andes.
+
+### Keeping current
+
+- **Andy Home's metals column at Reuters** — regular, data-driven copper market commentary.
+- **Bloomberg's *Odd Lots* podcast** — frequent episodes on commodities, mining and supply chains.
+- **CSIS Critical Minerals Security Program** — US-focused policy analysis.
+
+### Vocabulary worth having straight
+
+- **Concentrate:** ore crushed and floated to roughly 20–40% copper; what Chile and Peru ship to
+  smelters. Trade tonnages are often gross weight, not copper content.
+- **Smelting and refining:** concentrate is smelted to matte, then blister and anode, then refined
+  to cathode (about 99.99% copper). **SX-EW** skips the smelter by leaching ore and plating copper
+  directly, which is how the DR Congo exports refined copper straight from the mine.
+- **TC/RCs (treatment and refining charges):** the fee miners pay smelters. Very low or negative
+  TC/RCs mean too much smelting capacity chasing too little concentrate.
+- **Porphyry and sediment-hosted deposits:** the two main sources of mined copper (the Andes versus
+  the Central African Copperbelt).
+- **Primary versus secondary copper:** mined versus recycled. See "Account for recycled copper"
+  above.
+
+### Before posting with your name on it
+
+- **Say which stage.** "China controls X% of copper" means very different things for mining,
+  smelting, refining and use. Pick one and name it.
+- **Say value or volume, gross or contained.** Trade values (this app) and tonnes of copper content
+  (USGS) rank countries differently.
+- **Date every number.** Markets, sanctions and lists change yearly. Cite the year and the source.
+- **Check this app's own caveats.** Capital-city endpoints, the 500-flow limit, mirror data for
+  countries such as Russia, no scrap or finished products. They are listed in Sources & method.
+- **Trace every claim to a primary source.** USGS, ICSG or IEA for the big numbers; a news report
+  for an event; this app for the trade picture it actually shows.
 
 ## Licence
 

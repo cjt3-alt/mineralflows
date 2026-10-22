@@ -70,17 +70,16 @@ jobs:
       - name: Test
         run: python etl/test_pipeline.py
 
-      - name: Check the offline fallback still produces a valid dataset
-        # The bare-runner case: no network, no drops. It has to produce a dataset
-        # that validates against the contract, because that is what the pipeline
-        # falls back to when a source is down.
+      - name: Check the fallback path still produces a valid dataset
+        # The bare-runner case: no network, no drops. It still has to produce a
+        # dataset that passes validation, so a source outage degrades to the seed
+        # rather than breaking the site.
         #
-        # This deliberately does NOT compare against the committed public/data.
-        # That directory is the output of a full run (real sources, manual drops
-        # included), so it can never equal the offline seed fallback. The
-        # committed files are validated against the schema by `npm test` in the
-        # build job, and every change to them arrives as a reviewed refresh PR.
-        # `--check` still exists for local use against a full run.
+        # --dry-run, not --check. public/data is a full run against live and
+        # manual sources, which this runner cannot reproduce, so comparing the
+        # two would always fail. Drift in the committed data is caught by
+        # refresh-data.yml instead, which re-runs the full pipeline monthly and
+        # opens a PR with any difference.
         run: python etl/pipeline.py --offline --no-manual --dry-run
 
   deploy:

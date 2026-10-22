@@ -37,7 +37,8 @@ function facilityPoint(over: Partial<PointDatum['facility']['properties']> = {})
     lat: -24.2667,
     lng: -69.0667,
     color: '#ff7a45',
-    radius: 0.45,
+    stage: 'mine',
+    size: 3.5,
     confidence: over.confidence ?? 'high',
     facility: {
       type: 'Feature',
@@ -70,6 +71,8 @@ function flowArc(estimated: boolean): ArcDatum {
     altitude: 0.3,
     width: 2,
     color: '#ff7a45',
+    kind: 'mine',
+    weight: 1,
     confidence: 'high',
     value: estimated
       ? {
@@ -172,6 +175,58 @@ describe('DetailPanel', () => {
     const onClose = renderPanel({ kind: 'facility', point: facilityPoint() })
     await userEvent.click(screen.getByRole('button', { name: /close detail panel/i }))
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('shows a country dossier with its trade position and partners', () => {
+    renderPanel({
+      kind: 'country',
+      iso3: 'CHL',
+      summary: {
+        iso3: 'CHL',
+        exportsUsd: 21_000_000_000,
+        importsUsd: 0,
+        exportsByKind: { mine: 21_000_000_000, process: 0, refine: 0 },
+        importsByKind: { mine: 0, process: 0, refine: 0 },
+        exportsBuyerReportedUsd: 0,
+        topDestinations: [{ iso3: 'CHN', usd: 21_000_000_000 }],
+        topOrigins: [],
+        destinationsByKind: { mine: [], process: [], refine: [] },
+        originsByKind: { mine: [], process: [], refine: [] },
+        facilities: { mine: 3, process: 0, refine: 0 },
+        shareOfImports: 0,
+        shareOfExports: 0.2,
+      },
+    })
+    expect(screen.getByRole('heading', { name: 'Chile' })).toBeTruthy()
+    expect(screen.getByText(/net exporter/)).toBeTruthy()
+    expect(screen.getByText('China')).toBeTruthy()
+    expect(screen.queryByText(/buyers/)).toBeNull()
+  })
+
+  /** A country that reports none of its own exports, as Russia in this data. */
+  it('says when a country\'s exports are known only from its buyers\' records', () => {
+    const exportsUsd = 4_000_000_000
+    renderPanel({
+      kind: 'country',
+      iso3: 'CHN',
+      summary: {
+        iso3: 'CHN',
+        exportsUsd,
+        importsUsd: 0,
+        exportsByKind: { mine: 0, process: 0, refine: exportsUsd },
+        importsByKind: { mine: 0, process: 0, refine: 0 },
+        exportsBuyerReportedUsd: exportsUsd,
+        topDestinations: [],
+        topOrigins: [],
+        destinationsByKind: { mine: [], process: [], refine: [] },
+        originsByKind: { mine: [], process: [], refine: [] },
+        facilities: { mine: 0, process: 0, refine: 0 },
+        shareOfImports: 0,
+        shareOfExports: 0.02,
+      },
+    })
+    expect(screen.getByText(/All of China's exports here/)).toBeTruthy()
+    expect(screen.getByText(/buyers.*customs records/)).toBeTruthy()
   })
 
   it('takes focus when it opens, so the keyboard lands somewhere useful', () => {

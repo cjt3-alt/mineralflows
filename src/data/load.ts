@@ -21,6 +21,37 @@ import {
  * blank globe with no explanation.
  */
 
+/** Common English names for countries whose official short names read badly in prose. */
+export const COMMON_NAMES: Record<string, string> = {
+  COD: 'DR Congo',
+  COG: 'Republic of the Congo',
+  KOR: 'South Korea',
+  PRK: 'North Korea',
+  RUS: 'Russia',
+  EGY: 'Egypt',
+  IRN: 'Iran',
+  VEN: 'Venezuela',
+  YEM: 'Yemen',
+  TWN: 'Taiwan',
+  HKG: 'Hong Kong',
+  MAC: 'Macao',
+  VNM: 'Vietnam',
+  LAO: 'Laos',
+  SVK: 'Slovakia',
+  KGZ: 'Kyrgyzstan',
+  CZE: 'Czechia',
+  TUR: 'Türkiye',
+  SYR: 'Syria',
+  GMB: 'The Gambia',
+  BHS: 'The Bahamas',
+  MKD: 'North Macedonia',
+  MDA: 'Moldova',
+  FSM: 'Micronesia',
+  LCA: 'Saint Lucia',
+  VCT: 'Saint Vincent and the Grenadines',
+  KNA: 'Saint Kitts and Nevis',
+}
+
 /** File names, relative to public/data/. */
 export const DATA_FILES = {
   minerals: 'minerals.json',
@@ -141,6 +172,13 @@ export function parseDataset(raw: RawFiles): Dataset {
   }
 
   if (problems.length > 0) throw new ReferentialError(problems)
+
+  // The World Bank's official short names read awkwardly in a sentence
+  // ("Congo, Dem. Rep."); show the names people use. Codes are unchanged.
+  for (const [iso3, display] of Object.entries(COMMON_NAMES)) {
+    const country = countries[iso3]
+    if (country) countries[iso3] = { ...country, name: display }
+  }
 
   const priceIndex = new Map(prices.map((p) => [p.mineral_id + ':' + p.year, p]))
 

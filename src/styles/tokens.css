@@ -2,75 +2,66 @@
  * MineralFlows design tokens
  * ==========================
  *
- * The rule this palette exists to enforce: the interface chrome has no accent
- * colour of its own. Every saturated pixel on screen is a mineral, coming from
- * minerals.json. Borders, labels, panels and bars are all drawn from a single
- * cool near-monochrome ramp, so the only thing competing for attention is the
- * data. That is what keeps this from reading as generic-dark-dashboard, where
- * a house blue or teal is sprayed across buttons, links and focus rings.
+ * The register is an operations console: the kind of screen a supply-chain
+ * analyst or a defense-tech team would keep up on a wall. Three rules hold it
+ * together.
  *
- * Ramp (6 values, dark to light):
- *   void    #05070a  page ground, and the globe backdrop
- *   surface #0b0f16  bars and panels, one step off the ground
- *   line    #1a2331  hairline borders and dividers, never a fill
- *   muted   #707d95  secondary text, units, inactive controls
- *   text    #d8e1ee  primary text
- *   alert   #ff5f56  errors, and the low-confidence marker only
+ * 1. Data is warm, interface is cool. Every copper-to-gold pixel is a mineral
+ *    (from minerals.json, shaded by stage in derive.ts). The interface itself
+ *    is a cold blue-grey ramp with one cyan accent, used only for what the
+ *    viewer is pointing at: selection, hover, focus, the keyboard cursor. So
+ *    the two never compete, and "what am I looking at" is always cyan.
  *
- * Type: IBM Plex Sans for prose and interface text, IBM Plex Mono for anything
- * that is a measurement — values, tonnages, coordinates, ISO codes, HS codes,
- * source ids, dates. One family, two roles, so the register shift reads as
- * meaningful rather than decorative. Plex was drawn for engineering
- * documentation, which is the voice this wants.
+ * 2. Red means caution and nothing else: low confidence, estimated values,
+ *    errors.
  *
- * Scale is small and tight; this is an instrument, not a landing page.
+ * 3. Type has two voices. IBM Plex Mono, uppercase and tracked, for labels,
+ *    codes and measurements, which is the console voice. IBM Plex Sans for
+ *    anything a person reads as a sentence. Plex was drawn for engineering
+ *    documentation, which is the tone this wants.
  */
 
 :root {
-  /* Ramp */
-  --mf-void: #05070a;
-  --mf-surface: #0b0f16;
-  --mf-line: #1a2331;
-  /* Raised from #66738a: that sat at 4.2:1 on the page ground, which is under
-     AA for the 10 and 11px sizes this colour is mostly used at. #707d95 is
-     4.9:1 on the ground and 4.6:1 on a surface, and still reads as secondary. */
-  --mf-muted: #707d95;
-  --mf-text: #d8e1ee;
-  --mf-alert: #ff5f56;
+  /* Ground and surfaces */
+  --mf-void: #03060a;
+  --mf-surface: #080d14;
+  --mf-surface-raised: #0d141e;
+  --mf-glass: rgba(7, 12, 19, 0.84);
 
-  /* Derived, still from the ramp — no new hues */
-  --mf-surface-raised: #10151e;
-  --mf-line-strong: #26334a;
-  --mf-text-dim: #96a3b8;
+  /* Lines */
+  --mf-line: #152130;
+  --mf-line-strong: #22344a;
+
+  /* Text. Muted is 5.0:1 on the ground, so it stays AA at small sizes. */
+  --mf-muted: #74879f;
+  --mf-text-dim: #a2b4c9;
+  --mf-text: #e1e9f2;
+
+  /* Signals */
+  --mf-accent: #5ad8f0;
+  --mf-accent-soft: rgba(90, 216, 240, 0.12);
+  --mf-alert: #ff6b5e;
+  --mf-ok: #46d68c;
+
+  /* Data ramp for legend swatches; the globe computes the same shades in derive.ts. */
+  --mf-copper-raw: #b8582f;
+  --mf-copper: #ff7a45;
+  --mf-copper-refined: #ffcfa5;
 
   /* Type */
   --mf-font-sans:
     'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mf-font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+  --mf-font-display:
+    'IBM Plex Sans Condensed', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
 
-  --mf-text-2xs: 0.625rem; /* 10px — axis ticks, dense mono labels */
-  --mf-text-xs: 0.6875rem; /* 11px — mono data labels, badges */
-  --mf-text-sm: 0.8125rem; /* 13px — interface default */
-  --mf-text-base: 0.9375rem; /* 15px — panel body */
-  --mf-text-lg: 1.125rem; /* 18px — panel headings */
-  --mf-text-xl: 1.5rem; /* 24px — wordmark, the largest thing here */
-
-  /* Spacing rhythm */
-  --mf-gap-1: 0.25rem;
-  --mf-gap-2: 0.5rem;
-  --mf-gap-3: 0.75rem;
-  --mf-gap-4: 1rem;
-  --mf-gap-6: 1.5rem;
-
-  /* Chrome geometry. Radii stay small; nothing here is a soft card. */
+  /* Geometry. Square corners: nothing here is a soft card. */
   --mf-radius: 2px;
-  --mf-radius-lg: 3px;
-  --mf-rail-width: 13rem;
-  --mf-panel-width: 22rem;
-  --mf-bar-height: 3rem;
+  --mf-rail-width: 19rem;
+  --mf-panel-width: 23rem;
 
   /* Motion. Only ever in response to an action. */
-  --mf-transition: 120ms ease-out;
+  --mf-transition: 140ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
