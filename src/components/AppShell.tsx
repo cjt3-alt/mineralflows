@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { MapCanvas, type TerrainLayers } from './MapCanvas.tsx'
 import { ChokepointView } from './ChokepointView.tsx'
+import { FlowsHeadline, FlowsPanel } from './FlowsOverlay.tsx'
 import { buildChokepoint } from '../data/chokepoint.ts'
 import { chooseSeam, wrapLng } from './mapDynamics.ts'
 import { isOpenOceanMeridian } from '../data/geo.ts'
@@ -78,6 +79,9 @@ function toggleLayer(list: Stage[], value: Stage): Stage[] {
 
 const LIST_LENGTH = 8
 
+/** The relief image is still the old navy tint; off until it is rebuilt warm (tools/build_basemap.py). */
+const TERRAIN: TerrainLayers = { relief: false }
+
 export function AppShell() {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
@@ -89,12 +93,6 @@ export function AppShell() {
   const [mode, setMode] = useState<'story' | 'flows'>(() =>
     new URLSearchParams(window.location.search).get('view') === 'flows' ? 'flows' : 'story',
   )
-  const [terrainLayers, setTerrainLayers] = useState<TerrainLayers>({ relief: true })
-  const onToggleTerrain = useCallback(
-    (layer: keyof TerrainLayers) => setTerrainLayers((t) => ({ ...t, [layer]: !t[layer] })),
-    [],
-  )
-
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   const isSmall = useMediaQuery('(max-width: 767px)')
 
@@ -320,6 +318,9 @@ export function AppShell() {
   const storyOn = mode === 'story' && chokepoint !== null
   const v = view!
   const nothingVisible = v.points.length === 0 && v.arcs.length === 0
+  const shownMinerals = filters.mineralIds.length > 0 ? filters.mineralIds : data.activeMinerals.map((m) => m.id)
+  const flowsMineralName =
+    shownMinerals.length === 1 ? (data.mineralsById.get(shownMinerals[0]!)?.name ?? 'Critical minerals') : 'Critical minerals'
 
   const railProps: FilterRailProps = {
     overview: v.overview,
@@ -341,8 +342,6 @@ export function AppShell() {
     onHoverFlow: setHoverId,
     onSelectFlow: onSelectArc,
     shade: v.shade,
-    terrainLayers,
-    onToggleTerrain,
   }
 
   const legend = (
@@ -390,16 +389,6 @@ export function AppShell() {
 
       {!storyOn && (
       <div className="flex min-h-0 flex-1">
-        {!isSmall && (
-          <nav
-            aria-label="Controls"
-            className="scroll-quiet flex shrink-0 flex-col overflow-y-auto border-r border-line bg-surface"
-            style={{ width: 'var(--mf-rail-width)' }}
-          >
-            <FilterRail {...railProps} />
-          </nav>
-        )}
-
         <main id="map" tabIndex={-1} className="stage relative min-w-0 flex-1 overflow-hidden">
           <MapCanvas
             points={v.points}
@@ -409,16 +398,26 @@ export function AppShell() {
             externalHoverId={hoverId}
             focusCountry={filters.country}
             centralMeridian={centralMeridian}
-            terrainLayers={terrainLayers}
+            terrainLayers={TERRAIN}
             // The floating panel is 23rem wide with a 1rem gap; on phones it is a sheet instead.
             countryRoles={v.roles}
-            insetRight={!isSmall && panelSelection !== null ? 23 * 16 + 16 : 0}
+            insetRight={isSmall ? 0 : panelSelection !== null ? 23 * 16 + 16 : 20.5 * 16 + 32}
             reducedMotion={reducedMotion}
             onSelectPoint={onSelectPoint}
             onSelectArc={onSelectArc}
             onSelectCountry={onFocusCountry}
             onClearSelection={onClearSelection}
           />
+
+          <FlowsHeadline
+            mineralName={flowsMineralName}
+            year={v.dataYear}
+            tradeUsd={v.overview.tradeUsd}
+            valueByKind={v.valueByKind}
+            focusName={filters.country ? (data.countries[filters.country]?.name ?? filters.country) : null}
+          />
+
+          {!isSmall && panelSelection === null && <FlowsPanel {...railProps} />}
 
           {!isSmall && <div className="pointer-events-none absolute bottom-6 left-6">{legend}</div>}
 

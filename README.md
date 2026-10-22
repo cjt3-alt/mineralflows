@@ -16,7 +16,7 @@ the world would have to make up, copy a link, download the table as CSV, or copy
 trade-flow explorer described below is one click away (or `?view=flows`). Figures come from
 `public/data/production.json`, built from the USGS Mineral Commodity Summaries; see "Sources &
 method" in the app for what they do and do not show, and
-[`src/components/palette.ts`](src/components/palette.ts) for how the colours were chosen and
+[`src/styles/palette.ts`](src/styles/palette.ts) for how the colours were chosen and
 validated (verdigris ore, copper metal, gold smelter heat, on warm graphite).
 
 **Currently scoped to copper only.** The app and ETL support four minerals (copper, lithium, cobalt,

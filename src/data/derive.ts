@@ -1,5 +1,6 @@
 import type { Dataset } from './load.ts'
 import { STAGES, type Confidence, type FacilityFeature, type Flow, type Mineral, type Stage } from './schema.ts'
+import { COPPER_GLOW_HEX, MOLTEN_HEX, ORE_HEX } from '../styles/palette.ts'
 
 /**
  * Everything between the validated dataset and what the globe draws: filtering,
@@ -179,31 +180,17 @@ export const FLOW_KIND_DETAIL: Record<Stage, string> = {
 
 /* ------------------------------------------------------------------- colour */
 
-function hexToRgb(hex: string): [number, number, number] {
-  const v = hex.replace('#', '')
-  return [parseInt(v.slice(0, 2), 16), parseInt(v.slice(2, 4), 16), parseInt(v.slice(4, 6), 16)]
-}
-
-function rgbToHex([r, g, b]: [number, number, number]): string {
-  return '#' + [r, g, b].map((c) => Math.round(Math.max(0, Math.min(255, c))).toString(16).padStart(2, '0')).join('')
-}
-
-function mix(a: string, b: string, t: number): string {
-  const x = hexToRgb(a)
-  const y = hexToRgb(b)
-  return rgbToHex([x[0] + (y[0] - x[0]) * t, x[1] + (y[1] - x[1]) * t, x[2] + (y[2] - x[2]) * t])
-}
-
 /**
- * One hue per mineral, three lightnesses per stage: raw material is the
- * darkest, refined metal the brightest. It reads as the material itself being
- * worked up the chain, and it keeps working when several minerals are on screen
- * at once, because hue still says which mineral it is.
+ * The colour of a stage, shared with the chokepoint view so the two pages speak
+ * one language: ore in the ground is verdigris, the smelter's heat is gold,
+ * refined metal is copper. It does not vary with the mineral. When more
+ * minerals are switched on, which one a mark belongs to is said by the chips,
+ * the legend and the detail panel, not by a second hue.
  */
-export function stageShade(mineralHex: string, stage: Stage): string {
-  if (stage === 'mine') return mix(mineralHex, '#2a1208', 0.35)
-  if (stage === 'process') return mineralHex
-  return mix(mineralHex, '#fff1d6', 0.6)
+export function stageShade(_mineralHex: string, stage: Stage): string {
+  if (stage === 'mine') return ORE_HEX
+  if (stage === 'process') return MOLTEN_HEX
+  return COPPER_GLOW_HEX
 }
 
 /* ------------------------------------------------------------------- values */

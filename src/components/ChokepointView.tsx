@@ -12,7 +12,7 @@ import countriesTopology from 'world-atlas/countries-110m.json'
 import type { Topology } from 'topojson-specification'
 import { COUNTRY_SHAPES } from '../data/geo.ts'
 import { formatShare, shockOf, toCsv, type ChokepointModel, type CountryRow } from '../data/chokepoint.ts'
-import { COPPER_HEX, ORE_HEX, hexToRgb, toneAt } from './palette.ts'
+import { COPPER_HEX, ORE_HEX, hexToRgb, toneAt } from '../styles/palette.ts'
 
 /**
  * "The Chokepoint": the same world, drawn twice and morphed between. At one end

@@ -13,7 +13,7 @@
  *    smelter's heat is gold between them. The interface accent is a quiet
  *    champagne, used only for what the viewer is pointing at: selection, hover,
  *    focus, the keyboard cursor. Both data hues were run through the dataviz
- *    palette validator on this surface (see src/components/palette.ts).
+ *    palette validator on this surface (see src/styles/palette.ts).
  *
  * 2. Red means caution and nothing else: low confidence, estimated values,
  *    errors.
@@ -48,6 +48,7 @@
 
   /* Data ramp for legend swatches; the globe computes the same shades in derive.ts. */
   --mf-ore: #35a395;
+  --mf-ore-tint: #6fd0c0;
   --mf-molten: #d9b24c;
   --mf-copper: #d07a45;
   --mf-copper-refined: #f0b48a;

@@ -165,12 +165,23 @@ describe('summarizeCountry', () => {
 })
 
 describe('stageShade', () => {
-  it('darkens raw material and lightens refined metal around the mineral colour', () => {
-    const base = '#ff7a45'
-    const lum = (hex: string) => parseInt(hex.slice(1, 3), 16) + parseInt(hex.slice(3, 5), 16) + parseInt(hex.slice(5, 7), 16)
-    expect(stageShade(base, 'process')).toBe(base)
-    expect(lum(stageShade(base, 'mine'))).toBeLessThan(lum(base))
-    expect(lum(stageShade(base, 'refine'))).toBeGreaterThan(lum(base))
+  it('colours a stage the same whatever the mineral: ore, heat, metal', () => {
+    expect(stageShade('#d07a45', 'mine')).toBe(stageShade('#3fe0c5', 'mine'))
+    expect(stageShade('#d07a45', 'process')).toBe(stageShade('#5b8cff', 'process'))
+    expect(stageShade('#d07a45', 'refine')).toBe(stageShade('#999999', 'refine'))
+  })
+
+  it('gives each stage its own colour', () => {
+    const colours = new Set((['mine', 'process', 'refine'] as const).map((s) => stageShade('#d07a45', s)))
+    expect(colours.size).toBe(3)
+  })
+
+  it('makes ore the cool one and metal the warm one', () => {
+    const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+    const [oreR, , oreB] = channels(stageShade('#d07a45', 'mine'))
+    const [metalR, , metalB] = channels(stageShade('#d07a45', 'refine'))
+    expect(oreR! - oreB!).toBeLessThan(0)
+    expect(metalR! - metalB!).toBeGreaterThan(0)
   })
 })
 
