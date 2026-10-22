@@ -86,7 +86,7 @@ export function TopBar({
         <h1 className={`font-display font-semibold text-ink uppercase ${compact ? 'text-sm tracking-[0.08em]' : 'text-base tracking-[0.14em]'}`}>
           MineralFlows
         </h1>
-        {!compact && <span className="hud-label hidden text-muted md:inline">Supply chain monitor</span>}
+        {!compact && <span className="hud-label hidden whitespace-nowrap text-muted xl:inline">Supply chain monitor</span>}
       </div>
 
       <span aria-hidden="true" className={compact && mode ? 'hidden' : 'h-5 w-px bg-line-strong'} />
@@ -98,8 +98,8 @@ export function TopBar({
             className="inline-block h-2 w-2 shrink-0"
             style={{ backgroundColor: single.color }}
           />
-          <span className="hud-label truncate text-ink">{single.name}</span>
-          {dataYear !== null && <span className="hud-label hidden text-muted sm:inline">· Trade {dataYear}</span>}
+          <span className="hud-label whitespace-nowrap text-ink">{single.name}</span>
+          {dataYear !== null && <span className="hud-label hidden whitespace-nowrap text-muted 2xl:inline">· Trade {dataYear}</span>}
         </p>
       ) : (
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5" role="group" aria-label="Minerals">
@@ -140,7 +140,7 @@ export function TopBar({
               type="button"
               aria-pressed={mode === id}
               onClick={() => onChangeMode(id)}
-              className="hud-label px-2.5 py-1 transition-colors"
+              className="hud-label whitespace-nowrap px-2.5 py-1 transition-colors"
               style={{
                 color: mode === id ? 'var(--mf-text)' : 'var(--mf-muted)',
                 background: mode === id ? 'var(--mf-accent-soft)' : 'transparent',
@@ -163,7 +163,7 @@ export function TopBar({
         <button
           type="button"
           onClick={onOpenAbout}
-          className="hud-label border border-line-strong px-2.5 py-1 text-dim hover:border-accent hover:text-ink"
+          className="hud-label whitespace-nowrap border border-line-strong px-2.5 py-1 text-dim hover:border-accent hover:text-ink"
           style={{ borderRadius: 'var(--mf-radius)' }}
         >
           {compact ? 'About' : 'Sources & method'}

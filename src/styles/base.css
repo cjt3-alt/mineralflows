@@ -134,8 +134,8 @@ body {
   background:
     radial-gradient(circle at 55% 50%, rgba(40, 120, 150, 0.16) 0%, rgba(3, 6, 10, 0) 42%),
     radial-gradient(ellipse at center, rgba(3, 6, 10, 0) 55%, rgba(0, 0, 0, 0.55) 100%),
-    linear-gradient(rgba(90, 216, 240, 0.025) 1px, transparent 1px) 0 0 / 48px 48px,
-    linear-gradient(90deg, rgba(90, 216, 240, 0.025) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(rgba(217, 182, 114, 0.022) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(90deg, rgba(217, 182, 114, 0.022) 1px, transparent 1px) 0 0 / 48px 48px,
     var(--mf-void);
 }
 
@@ -218,8 +218,9 @@ dialog::backdrop {
   height: 2px;
   background: linear-gradient(
     to right,
-    var(--mf-copper) 0,
-    var(--mf-copper-refined) var(--fill, 0%),
+    var(--mf-ore) 0,
+    var(--mf-molten) calc(var(--fill, 0%) * 0.5),
+    var(--mf-copper) var(--fill, 0%),
     var(--mf-line-strong) var(--fill, 0%)
   );
 }
@@ -229,7 +230,7 @@ dialog::backdrop {
 }
 .stage-slider::-moz-range-progress {
   height: 2px;
-  background: var(--mf-copper-refined);
+  background: var(--mf-copper);
 }
 .stage-slider::-webkit-slider-thumb {
   -webkit-appearance: none;

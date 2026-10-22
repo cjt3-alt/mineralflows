@@ -110,7 +110,7 @@
       }
     ],
     "usgs_commodity_code": "copper",
-    "color": "#ff7a45",
+    "color": "#d07a45",
     "glow_intensity": 0.9,
     "sort_order": 1,
     "active": true

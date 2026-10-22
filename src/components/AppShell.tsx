@@ -179,7 +179,7 @@ export function AppShell() {
     const built = toArcData(flows, dataset, filters.topN)
 
     const tradeUsd = flows.reduce((sum, f) => sum + (resolveValue(f, dataset.priceFor).usd ?? 0), 0)
-    const baseColor = dataset.activeMinerals[0]?.color ?? '#ff7a45'
+    const baseColor = dataset.activeMinerals[0]?.color ?? '#d07a45'
     const shade = Object.fromEntries(STAGES.map((s) => [s, stageShade(baseColor, s)])) as Record<Stage, string>
 
     const summary =

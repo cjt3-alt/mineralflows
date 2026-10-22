@@ -72,20 +72,20 @@ export interface MapCanvasProps {
 
 /* ------------------------------------------------------------------ palette */
 
-const ACCENT = '#5ad8f0'
+const ACCENT = '#d9b672'
 /** Shown only until the relief image arrives, or with relief switched off. */
-const OCEAN_FILL = 'rgba(9, 17, 27, 0.75)'
-const GRATICULE = 'rgba(90, 216, 240, 0.06)'
-const LAND_UNDERFILL = 'rgba(14, 30, 44, 0.9)'
+const OCEAN_FILL = 'rgba(16, 12, 9, 0.75)'
+const GRATICULE = 'rgba(217, 182, 114, 0.05)'
+const LAND_UNDERFILL = 'rgba(30, 24, 19, 0.9)'
 /**
  * Borders are engraved into the dot matrix: a narrow channel is cleared along
  * each one, and a crisp hairline runs down its middle. Coastlines get a softer
  * line of their own, so land reads as shapes and countries as countries.
  */
-const BORDER = 'rgba(150, 196, 226, 0.62)'
+const BORDER = 'rgba(214, 190, 160, 0.5)'
 const BORDER_CHANNEL_PX = 3.4
 const BORDER_WIDTH_PX = 0.85
-const COASTLINE = 'rgba(110, 170, 205, 0.4)'
+const COASTLINE = 'rgba(190, 160, 130, 0.36)'
 const COASTLINE_WIDTH_PX = 0.8
 const COMET = '255, 244, 225'
 const PULSE = '255, 201, 138'

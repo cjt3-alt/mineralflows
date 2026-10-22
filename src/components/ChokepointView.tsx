@@ -5,6 +5,7 @@ import countriesTopology from 'world-atlas/countries-110m.json'
 import type { Topology } from 'topojson-specification'
 import { COUNTRY_SHAPES } from '../data/geo.ts'
 import { formatShare, type ChokepointModel, type CountryRow } from '../data/chokepoint.ts'
+import { COPPER_HEX, ORE_HEX, hexToRgb, toneAt } from './palette.ts'
 
 /**
  * "The Chokepoint": the same world, drawn twice and morphed between. At one end
@@ -30,9 +31,9 @@ export interface ChokepointViewProps {
 
 /* ------------------------------------------------------------------ palette */
 
-const RAW = [184, 88, 47] as const // ore: the colour of the rock
-const REFINED = [255, 207, 165] as const // metal: hot and bright
-const ACCENT = '90, 216, 240'
+const ACCENT = '217, 182, 114'
+const ORE_RGB = hexToRgb(ORE_HEX).join(',')
+const COPPER_RGB = hexToRgb(COPPER_HEX).join(',')
 const FONT_MONO = "'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace"
 const CENTRAL_MERIDIAN = 155 // Pacific in the middle, the cut running through the Atlantic
 const CENTER_LAT = 24
@@ -41,11 +42,7 @@ const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const smooth = (t: number) => t * t * (3 - 2 * t)
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
-const mix = (t: number): [number, number, number] => [
-  Math.round(lerp(RAW[0], REFINED[0], t)),
-  Math.round(lerp(RAW[1], REFINED[1], t)),
-  Math.round(lerp(RAW[2], REFINED[2], t)),
-]
+const mix = toneAt
 
 /* ----------------------------------------------------------------- geometry */
 
@@ -106,28 +103,28 @@ function buildLayout(model: ChokepointModel, width: number, height: number, dpr:
   const path = geoPath(projection, g)
 
   const ocean = g.createRadialGradient(width * 0.5, height * 0.45, 0, width * 0.5, height * 0.45, Math.max(width, height) * 0.75)
-  ocean.addColorStop(0, '#0b1724')
-  ocean.addColorStop(1, '#03060a')
+  ocean.addColorStop(0, '#1a1411')
+  ocean.addColorStop(1, '#090706')
   g.fillStyle = ocean
   g.fillRect(0, 0, width, height)
 
   g.beginPath()
   path(GRATICULE)
-  g.strokeStyle = 'rgba(90, 216, 240, 0.045)'
+  g.strokeStyle = 'rgba(217, 182, 114, 0.04)'
   g.lineWidth = 0.6
   g.stroke()
 
   g.beginPath()
   path(LAND)
-  g.fillStyle = 'rgba(17, 32, 47, 0.96)'
+  g.fillStyle = 'rgba(36, 29, 23, 0.96)'
   g.fill()
-  g.strokeStyle = 'rgba(110, 170, 205, 0.32)'
+  g.strokeStyle = 'rgba(196, 166, 134, 0.3)'
   g.lineWidth = 0.7
   g.stroke()
 
   g.beginPath()
   path(BORDERS)
-  g.strokeStyle = 'rgba(150, 196, 226, 0.2)'
+  g.strokeStyle = 'rgba(214, 190, 160, 0.16)'
   g.lineWidth = 0.55
   g.stroke()
 
@@ -391,10 +388,10 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
             <span>The gap</span>
             <span className="flex items-center gap-3 text-muted normal-case">
               <span className="flex items-center gap-1">
-                <i className="inline-block h-2 w-2 rounded-full border" style={{ borderColor: `rgb(${RAW.join(',')})` }} /> mined
+                <i className="inline-block h-2 w-2 rounded-full border" style={{ borderColor: `rgb(${ORE_RGB})` }} /> mined
               </span>
               <span className="flex items-center gap-1">
-                <i className="inline-block h-2 w-2 rounded-full" style={{ background: `rgb(${REFINED.join(',')})` }} /> refined
+                <i className="inline-block h-2 w-2 rounded-full" style={{ background: `rgb(${COPPER_RGB})` }} /> refined
               </span>
             </span>
           </p>
@@ -528,15 +525,15 @@ function GapRow({ row, t, axisMax, active }: { row: CountryRow; t: number; axisM
         <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-line-strong" />
         <span
           className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full"
-          style={{ left: pos(lo), width: `calc(${pos(hi)} - ${pos(lo)})`, background: 'rgba(255, 207, 165, 0.28)' }}
+          style={{ left: pos(lo), width: `calc(${pos(hi)} - ${pos(lo)})`, background: 'rgba(208, 122, 69, 0.3)' }}
         />
         <i
           className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border"
-          style={{ left: pos(row.mine), borderColor: `rgb(${RAW.join(',')})`, background: 'var(--mf-surface)' }}
+          style={{ left: pos(row.mine), borderColor: `rgb(${ORE_RGB})`, background: 'var(--mf-surface)' }}
         />
         <i
           className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{ left: pos(row.refine), background: `rgb(${REFINED.join(',')})` }}
+          style={{ left: pos(row.refine), background: `rgb(${COPPER_RGB})` }}
         />
         <i
           className="absolute top-1/2 h-[9px] w-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full"
@@ -638,15 +635,15 @@ function draw(
         if (i === 0) g.moveTo(x, y)
         else g.lineTo(x, y)
       }
-      g.strokeStyle = `rgba(255, 190, 140, ${(route.mirrored ? 0.22 : 0.5) * fade})`
+      g.strokeStyle = `rgba(232, 200, 120, ${(route.mirrored ? 0.22 : 0.5) * fade})`
       g.lineWidth = w
       g.lineCap = 'round'
       g.stroke()
       // The head of the shipment.
       const head = quadAt(a, c, b, upTo / steps)
       const glow = g.createRadialGradient(head[0], head[1], 0, head[0], head[1], 5 + w * 2)
-      glow.addColorStop(0, `rgba(255, 244, 225, ${0.95 * fade})`)
-      glow.addColorStop(1, 'rgba(255, 244, 225, 0)')
+      glow.addColorStop(0, `rgba(255, 240, 214, ${0.95 * fade})`)
+      glow.addColorStop(1, 'rgba(255, 240, 214, 0)')
       g.fillStyle = glow
       g.beginPath()
       g.arc(head[0], head[1], 5 + w * 2, 0, Math.PI * 2)
@@ -680,9 +677,9 @@ function draw(
     const box = { x: anchor[0] - w / 2, y: anchor[1] - 22, w, h: 14 }
     if (labelled.some((o) => box.x < o.x + o.w + 6 && box.x + box.w + 6 > o.x && box.y < o.y + o.h + 3 && box.y + box.h + 3 > o.y)) continue
     labelled.push(box)
-    g.fillStyle = 'rgba(3, 6, 10, 0.6)'
+    g.fillStyle = 'rgba(13, 11, 10, 0.64)'
     g.fillRect(box.x - 4, box.y - 1, box.w + 8, box.h + 2)
-    g.fillStyle = r.iso3 === model.leader.iso3 && e > 0.5 ? '#ffffff' : 'rgba(225, 233, 242, 0.92)'
+    g.fillStyle = r.iso3 === model.leader.iso3 && e > 0.5 ? '#fff6ea' : 'rgba(239, 231, 220, 0.92)'
     g.textAlign = 'left'
     g.fillText(text, box.x, box.y + box.h / 2)
   }
