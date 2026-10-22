@@ -53,15 +53,18 @@
   --mf-copper: #d07a45;
   --mf-copper-refined: #f0b48a;
 
-  /* Type */
-  --mf-font-sans:
-    'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mf-font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
-  --mf-font-display:
-    'IBM Plex Sans Condensed', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  /* Type. Archivo carries everything: a width axis lets the headline stand wide
+     and tight, in the manner of the industrial and defence brands this is
+     meant to sit beside, while body text stays at normal width. Martian Mono is
+     microtype only: labels, buttons, units. Newsreader, a text serif, carries
+     the sentences a person reads for meaning. */
+  --mf-font-sans: 'Archivo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mf-font-mono: 'Martian Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+  --mf-font-display: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  --mf-font-serif: 'Newsreader', 'Iowan Old Style', Georgia, serif;
 
-  /* Geometry. Square corners: nothing here is a soft card. */
-  --mf-radius: 2px;
+  /* Geometry. Square, with one chamfered corner on panels: a plate, not a card. */
+  --mf-radius: 0;
   --mf-rail-width: 19rem;
   --mf-panel-width: 23rem;
 

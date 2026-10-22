@@ -130,8 +130,8 @@ function buildLayout(model: ChokepointModel, width: number, height: number, dpr:
     height * 0.45,
     Math.max(width, height) * 0.75,
   )
-  ocean.addColorStop(0, '#1a1411')
-  ocean.addColorStop(1, '#090706')
+  ocean.addColorStop(0, '#15110f')
+  ocean.addColorStop(1, '#0d0b0a')
   g.fillStyle = ocean
   g.fillRect(0, 0, width, height)
 
@@ -143,15 +143,15 @@ function buildLayout(model: ChokepointModel, width: number, height: number, dpr:
 
   g.beginPath()
   path(LAND)
-  g.fillStyle = 'rgba(36, 29, 23, 0.96)'
+  g.fillStyle = 'rgba(46, 38, 30, 0.98)'
   g.fill()
-  g.strokeStyle = 'rgba(196, 166, 134, 0.3)'
+  g.strokeStyle = 'rgba(206, 178, 146, 0.42)'
   g.lineWidth = 0.7
   g.stroke()
 
   g.beginPath()
   path(BORDERS)
-  g.strokeStyle = 'rgba(214, 190, 160, 0.16)'
+  g.strokeStyle = 'rgba(214, 190, 160, 0.2)'
   g.lineWidth = 0.55
   g.stroke()
 
@@ -435,7 +435,7 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
           </h2>
         </div>
         <p
-          className="mt-1 min-h-[3.2em] max-w-[30rem] text-[0.95rem] leading-snug text-dim"
+          className="font-serif mt-2 min-h-[3.4em] max-w-[31rem] text-[1.1rem] leading-[1.3] text-dim"
           aria-live="polite"
         >
           {offRow && shock ? (
@@ -480,7 +480,6 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
             className="font-display text-[3.6rem] leading-[0.85] font-semibold tabular-nums sm:text-[5rem]"
             style={{
               color: shock ? 'var(--mf-alert)' : `rgb(${mix(ease).join(',')})`,
-              textShadow: `0 0 28px ${shock ? 'rgba(255, 122, 107, 0.4)' : `rgba(${mix(ease).join(',')}, 0.45)`}`,
             }}
           >
             {shock ? '−' + formatShare(shock.lostShare) : formatShare(leaderNow)}
@@ -576,7 +575,7 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
 
       {hintOn && !off && (
         <p
-          className="panel pointer-events-none absolute top-[17.5rem] right-5 hidden animate-pulse px-3 py-2 text-[0.75rem] text-ink sm:right-8 lg:block"
+          className="panel pointer-events-none absolute top-[17.5rem] right-5 hidden px-3 py-2 text-[0.75rem] text-ink sm:right-8 lg:block"
           style={{ width: '19.5rem' }}
         >
           Try it: click a country, here or on the map, to switch it off.
@@ -820,7 +819,6 @@ function GapRow({
             style={{
               left: pos(now),
               background: `rgb(${mix(t).join(',')})`,
-              boxShadow: `0 0 10px 2px rgba(${mix(t).join(',')}, 0.75)`,
             }}
           />
         </span>
@@ -880,7 +878,7 @@ function draw(
 
   // Additive glow: each country's bubble, sized by sqrt of its share.
   g.globalCompositeOperation = 'lighter'
-  const rMax = Math.min(width, height) * (width < 640 ? 0.17 : 0.13)
+  const rMax = Math.min(width, height) * (width < 640 ? 0.13 : 0.1)
   for (const row of rows.values()) {
     if (row.iso3 === offIso) continue
     const anchor = layout.anchors.get(row.iso3)
@@ -890,8 +888,8 @@ function draw(
     if (k < 0.08) continue
     const r = rMax * k
     const grad = g.createRadialGradient(anchor[0], anchor[1], 0, anchor[0], anchor[1], r)
-    grad.addColorStop(0, `rgba(${cr}, ${cg}, ${cb}, ${0.5 * k + 0.1})`)
-    grad.addColorStop(0.5, `rgba(${cr}, ${cg}, ${cb}, ${0.16 * k})`)
+    grad.addColorStop(0, `rgba(${cr}, ${cg}, ${cb}, ${0.26 * k + 0.05})`)
+    grad.addColorStop(0.5, `rgba(${cr}, ${cg}, ${cb}, ${0.07 * k})`)
     grad.addColorStop(1, `rgba(${cr}, ${cg}, ${cb}, 0)`)
     g.fillStyle = grad
     g.beginPath()
@@ -939,12 +937,12 @@ function draw(
       g.stroke()
       // The head of the shipment.
       const head = quadAt(a, c, b, upTo / steps)
-      const glow = g.createRadialGradient(head[0], head[1], 0, head[0], head[1], 5 + w * 2)
+      const glow = g.createRadialGradient(head[0], head[1], 0, head[0], head[1], 3 + w)
       glow.addColorStop(0, `rgba(255, 240, 214, ${0.95 * fade})`)
       glow.addColorStop(1, 'rgba(255, 240, 214, 0)')
       g.fillStyle = glow
       g.beginPath()
-      g.arc(head[0], head[1], 5 + w * 2, 0, Math.PI * 2)
+      g.arc(head[0], head[1], 3 + w, 0, Math.PI * 2)
       g.fill()
     }
   }

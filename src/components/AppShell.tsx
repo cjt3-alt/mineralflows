@@ -5,7 +5,7 @@ import { FlowsHeadline, FlowsPanel } from './FlowsOverlay.tsx'
 import { buildChokepoint } from '../data/chokepoint.ts'
 import { chooseSeam, wrapLng } from './mapDynamics.ts'
 import { isOpenOceanMeridian } from '../data/geo.ts'
-import { Banner, TopBar } from './TopBar.tsx'
+import { TopBar } from './TopBar.tsx'
 import { FilterRail, type FilterRailProps } from './FilterRail.tsx'
 import { DetailPanel, type Selection } from './DetailPanel.tsx'
 import { Legend, StatusBar } from './LegendBar.tsx'
@@ -283,7 +283,7 @@ export function AppShell() {
     return (
       <div className="stage flex h-full items-center justify-center" role="status">
         <p className="hud-label text-muted">
-          <span className="blink text-accent">■</span> Acquiring supply chain data…
+          Loading the data
         </p>
       </div>
     )
@@ -364,7 +364,6 @@ export function AppShell() {
         Skip to the map
       </a>
 
-      <Banner />
       <TopBar
         minerals={data.activeMinerals}
         selectedMineralIds={filters.mineralIds}

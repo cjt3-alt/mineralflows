@@ -18,6 +18,7 @@
   --font-sans: var(--mf-font-sans);
   --font-mono: var(--mf-font-mono);
   --font-display: var(--mf-font-display);
+  --font-serif: var(--mf-font-serif);
 
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
@@ -57,10 +58,21 @@ body {
 /* The console voice: tracked uppercase mono for labels, codes and readouts. */
 .hud-label {
   font-family: var(--mf-font-mono);
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   line-height: 1rem;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  font-weight: 400;
+}
+
+/* Headlines: wide and tight. */
+.font-display {
+  font-stretch: 114%;
+  letter-spacing: -0.028em;
+  font-weight: 500;
+}
+.font-serif {
+  font-optical-sizing: auto;
 }
 
 /* Section headers inside panels: an index number, a title, a hairline. */
@@ -84,59 +96,37 @@ body {
   color: var(--mf-accent);
 }
 
-/* Panels float over the stage like instrument glass: a faint vertical
-   gradient, a hairline of light along the top edge, and a soft drop. */
+/* Panels are plates: a flat fill, a 1px hairline, one chamfered corner. No blur,
+   no shadow. A border does not follow a clip-path, so the diagonal is a
+   background layer, which also means a panel needs no positioning of its own. */
 .panel {
-  background: linear-gradient(180deg, rgba(14, 22, 33, 0.82) 0%, rgba(6, 10, 16, 0.86) 100%);
-  border: 1px solid rgba(120, 160, 200, 0.12);
-  box-shadow:
-    inset 0 1px 0 rgba(160, 220, 255, 0.07),
-    0 18px 40px -12px rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(14px) saturate(1.1);
-  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  background-color: var(--mf-surface);
+  background-image: linear-gradient(
+    to bottom left,
+    transparent calc(50% - 0.75px),
+    var(--mf-line-strong) calc(50% - 0.75px),
+    var(--mf-line-strong) calc(50% + 0.75px),
+    transparent calc(50% + 0.75px)
+  );
+  background-repeat: no-repeat;
+  background-position: top right;
+  background-size: 15px 15px;
+  border: 1px solid var(--mf-line-strong);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
 
-/* Bracketed corners: the reticle around the globe stage and around panels. */
+/* No reticles. The class stays so existing markup does not break. */
 .hud-corner {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  border-color: color-mix(in srgb, var(--mf-accent) 45%, transparent);
+  display: none;
 }
 .bracketed {
   position: relative;
-}
-.bracketed::before,
-.bracketed::after {
-  content: '';
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border-color: var(--mf-accent);
-  pointer-events: none;
-}
-.bracketed::before {
-  top: -1px;
-  left: -1px;
-  border-top: 1px solid;
-  border-left: 1px solid;
-}
-.bracketed::after {
-  right: -1px;
-  bottom: -1px;
-  border-right: 1px solid;
-  border-bottom: 1px solid;
 }
 
 /* The globe stage: a faint grid, a cool glow behind the sphere and a vignette
    toward the edges, so the globe sits in a lit room rather than on a void. */
 .stage {
-  background:
-    radial-gradient(circle at 55% 50%, rgba(40, 120, 150, 0.16) 0%, rgba(3, 6, 10, 0) 42%),
-    radial-gradient(ellipse at center, rgba(3, 6, 10, 0) 55%, rgba(0, 0, 0, 0.55) 100%),
-    linear-gradient(rgba(217, 182, 114, 0.022) 1px, transparent 1px) 0 0 / 48px 48px,
-    linear-gradient(90deg, rgba(217, 182, 114, 0.022) 1px, transparent 1px) 0 0 / 48px 48px,
-    var(--mf-void);
+  background: var(--mf-void);
 }
 
 .tooltip {
@@ -147,13 +137,8 @@ body {
   min-width: 13rem;
   max-width: 17rem;
   padding: 0.5rem 0.625rem;
-  background: linear-gradient(180deg, rgba(14, 22, 33, 0.95), rgba(7, 11, 17, 0.95));
-  border: 1px solid rgba(120, 160, 200, 0.14);
-  border-left: 2px solid var(--mf-accent);
-  box-shadow:
-    inset 0 1px 0 rgba(160, 220, 255, 0.06),
-    0 10px 28px rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(8px);
+  background: var(--mf-surface);
+  border: 1px solid var(--mf-line-strong);
 }
 
 /* Toggle rows and segmented controls share one pressed state. */
@@ -195,8 +180,7 @@ body {
 }
 
 dialog::backdrop {
-  background: rgba(2, 4, 8, 0.72);
-  backdrop-filter: blur(2px);
+  background: rgba(10, 8, 7, 0.82);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -235,21 +219,19 @@ dialog::backdrop {
 .stage-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
-  margin-top: -7px;
-  border-radius: 50%;
+  width: 12px;
+  height: 18px;
+  margin-top: -8px;
+  border-radius: 0;
   border: 2px solid var(--mf-void);
   background: var(--thumb, var(--mf-copper));
-  box-shadow: 0 0 14px 3px var(--thumb, var(--mf-copper));
 }
 .stage-slider::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
+  width: 8px;
+  height: 14px;
+  border-radius: 0;
   border: 2px solid var(--mf-void);
   background: var(--thumb, var(--mf-copper));
-  box-shadow: 0 0 14px 3px var(--thumb, var(--mf-copper));
 }
 .stage-slider:focus-visible {
   outline: 2px solid var(--mf-accent);

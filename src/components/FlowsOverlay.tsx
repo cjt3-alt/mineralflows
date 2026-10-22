@@ -46,7 +46,7 @@ export function FlowsHeadline({ mineralName, year, tradeUsd, valueByKind, focusN
         <h2 className="font-display mt-2 text-[1.65rem] leading-[1.15] font-semibold tracking-tight text-ink sm:text-[2.35rem]">
           {focusName ? `${focusName}'s ${name} trade.` : `Where ${name} goes next.`}
         </h2>
-        <p className="mt-1 max-w-[30rem] text-[0.95rem] leading-snug text-dim">
+        <p className="font-serif mt-2 max-w-[31rem] text-[1.1rem] leading-[1.3] text-dim">
           {whole > 0 ? (
             <>
               <strong className="font-semibold" style={{ color: 'var(--mf-ore-tint)' }}>
@@ -66,7 +66,7 @@ export function FlowsHeadline({ mineralName, year, tradeUsd, valueByKind, focusN
         <p aria-hidden="true" className="mt-3 flex items-end gap-3">
           <span
             className="font-display text-[3.6rem] leading-[0.85] font-semibold tabular-nums sm:text-[5rem]"
-            style={{ color: 'var(--mf-copper-refined)', textShadow: '0 0 28px rgba(232, 144, 90, 0.4)' }}
+            style={{ color: 'var(--mf-copper-refined)' }}
           >
             {formatUsd(tradeUsd)}
           </span>
