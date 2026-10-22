@@ -3,12 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MineralFlows · Critical Minerals Supply Chain Monitor</title>
-    <meta
-      name="description"
-      content="Where critical minerals are mined, processed, and refined, and how they move between countries."
-    />
-    <link rel="icon" href="data:," />
+    <meta name="theme-color" content="#14110f" />
+    <title>%MF_TITLE%</title>
+    <meta name="description" content="%MF_DESC%" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    %MF_SOCIAL%
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,7 +16,17 @@
     />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Shown to crawlers, link previews and anyone whose JavaScript is slow or off.
+           React replaces it as soon as the app mounts. The numbers are filled in at
+           build time from public/data/production.json, so they cannot go stale. -->
+      <main style="max-width:40rem;margin:0 auto;padding:3rem 1.25rem;color:#efe7dc;font-family:system-ui,sans-serif">
+        <p style="font:500 11px ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:#9a8d7d">MineralFlows · %MF_EYEBROW%</p>
+        <h1 style="font-size:2rem;line-height:1.15;margin:.6rem 0;color:#f0b48a">%MF_HEADLINE%</h1>
+        <p style="line-height:1.5;color:#c2b5a5">%MF_DESC%</p>
+        <noscript><p style="color:#c2b5a5">This is an interactive map and needs JavaScript. The underlying figures are in the data files linked from the repository.</p></noscript>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
