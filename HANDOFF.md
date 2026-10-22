@@ -1,12 +1,89 @@
 # MineralFlows — where things stand
 
 Written 1 September 2026, at the end of the build session that completed phases 4 and 5.
-**Updated 13 September 2026** — see the section directly below for what changed since; the original
+**Updated 21 October 2026** — section 0d below is the current state. **Updated 13 September 2026** — see section 0 for what changed since; the original
 write-up follows it unchanged as a record of that first session, with two pointers added where its
 numbers are now stale.
 
 Repo: <https://github.com/cjt3-alt/mineralflows> (public)
 Live: <https://cjt3-alt.github.io/mineralflows/>
+
+---
+
+## 0d. The chokepoint redesign, 21 October 2026 (start here)
+
+**Where the work lives.** Branch `redesign/chokepoint`, branched from `main` at `9be46a8`. It is
+committed and **not pushed**; `main` and the live site are untouched, so merging is a fast-forward.
+Pushing the branch is safe (the deploy workflow only runs on `main`); merging it to `main` puts the
+redesign live. CJ liked where it landed and had not yet asked for either.
+
+**What changed**
+
+- **Front door: "The Chokepoint"** (`src/components/ChokepointView.tsx`, model in
+  `src/data/chokepoint.ts`). One world map morphed between where copper is mined and where it is
+  refined. China mines ~8% and refines ~48% (USGS MCS 2026, 2025 estimate). A scrubber, hover,
+  click a country to switch it off (arithmetic on output, not a forecast), HHI beside the top-3
+  share, copy link (`?stage=refined&off=CHN`), CSV, citation. The existing explorer is the second
+  view (`?view=flows`), redesigned to match (`FlowsOverlay.tsx`).
+- **New data file `public/data/production.json`**: mine and refinery output by country, mineral,
+  stage and year, with the USGS world total as denominator. ETL: `usgs_nmic.py`
+  `_extract_production_table`, `contract.py` `validate_production`, wired through `pipeline.py`.
+  Tests pin the finding's shape, not exact figures.
+- **CI** now runs `--offline --no-manual --dry-run` instead of comparing to `public/data` (which is
+  a full run and can never match the fallback). The raw TiCM CSVs are untracked and gitignored;
+  they stay on CJ's disk. The monthly Action cannot refresh trade flows without them, and
+  `refresh-data.yml` fails rather than open a PR that replaces real flows with seed ones. See
+  `etl/AUTOMATION.md` for the local or agent-run monthly loop.
+- **Design system, written down in `DESIGN.md`** (read it before touching visuals; it has a
+  does-it-look-vibecoded checklist). Palette: warm graphite, verdigris ore `#35a395`, gold heat,
+  copper metal `#d07a45`, champagne accent; validated with the dataviz palette validator
+  (`src/styles/palette.ts`). Type: Archivo (wide headlines), Martian Mono (microtype only),
+  Newsreader (serif for sentences), all self-hosted. Flat plates with one chamfered corner; no glass,
+  glow or fake status chrome. Stage colours are global, not per-mineral (`stageShade`).
+- Share metadata is computed at build time from `production.json` (`vite.config.ts`), so the page
+  title and link previews cannot go stale. The trade-flow map is lazy-loaded.
+
+**Decisions CJ made**
+
+- Copper only for now; more minerals later, so keep things generic (they are: the story picks up any
+  active mineral that has both mine and refinery tables).
+- Direction: defence, minerals and energy startup feel with a slight AI-lab influence; modern,
+  thoughtful, **not vibecoded**. CJ likes the current state.
+- Explicitly deferred: photography or satellite imagery, and a long-form "paper" method page.
+
+**Checked, and not checked**
+
+- Typecheck, lint, 119 JS tests and the ETL tests pass; production build works.
+- axe-core: 0 violations (contrast over the canvas checked by hand). Production build on localhost:
+  first paint 108 ms, largest paint 272 ms, layout shift 0 (a floor, not real-world numbers).
+- Looked at desktop and 375px. **Tablet width has not been checked.** The animation was judged from
+  frames, not watched at speed in a live browser.
+
+**Open items, roughly in order**
+
+1. **Decide: push the branch / merge to `main`.** Then watch the Deploy run (the first with a
+   working ETL job and the redesign).
+2. **Smelting has no country data.** USGS publishes only mine and refinery output by country. The
+   scrubber's middle is the ore journey (trade data), and the page says so. Options: ICSG smelter
+   capacity, or ICMM facility counts and capacities. This is the stage CJ cares most about.
+3. **Second mineral.** USGS has no refinery-by-country table for cobalt or rare earths; another
+   source is needed (IEA outlook is the likely one). Do not hard-code figures from memory.
+4. **Social card image (`public/og.png`, 1200x630)** and a rebuilt **explorer terrain image** both
+   need Pillow (`pip install pillow`, build-time only; ask CJ first). The relief image is switched
+   off until it is rebuilt in the warm palette (`tools/build_basemap.py` is already retinted).
+5. Remaining design ideas: a custom wordmark, real imagery, a light method page (all deferred).
+6. **`CLAUDE.md` pending action is still open:** enable "Allow GitHub Actions to create and approve
+   pull requests" in repo settings. Raise it at the start of the next session.
+
+**Small things to know**
+
+- Prettier is not configured in the repo. When formatting by hand use
+  `--no-semi --single-quote --print-width 110 --trailing-comma all`; running it with defaults
+  rewrites a file into double quotes and semicolons. `AppShell.tsx` was reflowed once, so its diff
+  is larger than the change.
+- The README has an old encoding glitch (a replacement character where a multiplication sign
+  should be) that predates this work.
+- `npm install` printed an `npm audit` notice that predates this work and has not been looked at.
 
 ---
 
