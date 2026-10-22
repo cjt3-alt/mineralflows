@@ -204,3 +204,53 @@ dialog::backdrop {
     transition: none;
   }
 }
+
+/* The Chokepoint scrubber: a hairline track that fills as the ore is carried
+   from mine to refinery, with a thumb that glows in the metal's current colour. */
+.stage-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+}
+.stage-slider::-webkit-slider-runnable-track {
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    var(--mf-copper) 0,
+    var(--mf-copper-refined) var(--fill, 0%),
+    var(--mf-line-strong) var(--fill, 0%)
+  );
+}
+.stage-slider::-moz-range-track {
+  height: 2px;
+  background: var(--mf-line-strong);
+}
+.stage-slider::-moz-range-progress {
+  height: 2px;
+  background: var(--mf-copper-refined);
+}
+.stage-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -7px;
+  border-radius: 50%;
+  border: 2px solid var(--mf-void);
+  background: var(--thumb, var(--mf-copper));
+  box-shadow: 0 0 14px 3px var(--thumb, var(--mf-copper));
+}
+.stage-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--mf-void);
+  background: var(--thumb, var(--mf-copper));
+  box-shadow: 0 0 14px 3px var(--thumb, var(--mf-copper));
+}
+.stage-slider:focus-visible {
+  outline: 2px solid var(--mf-accent);
+  outline-offset: 6px;
+}

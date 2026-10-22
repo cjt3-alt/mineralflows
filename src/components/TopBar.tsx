@@ -18,6 +18,9 @@ export interface TopBarProps {
   dataYear: number | null
   onOpenAbout: () => void
   compact?: boolean
+  /** Which view is showing, and how to switch. Omit to hide the switch. */
+  mode?: 'story' | 'flows'
+  onChangeMode?: (mode: 'story' | 'flows') => void
 }
 
 function useUtcClock(): string {
@@ -69,6 +72,8 @@ export function TopBar({
   dataYear,
   onOpenAbout,
   compact = false,
+  mode,
+  onChangeMode,
 }: TopBarProps) {
   const clock = useUtcClock()
   const showingAll = selectedMineralIds.length === 0
@@ -78,15 +83,15 @@ export function TopBar({
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface px-3 sm:px-4">
       <Mark />
       <div className="flex min-w-0 items-baseline gap-2">
-        <h1 className="font-display text-base font-semibold tracking-[0.14em] text-ink uppercase">
+        <h1 className={`font-display font-semibold text-ink uppercase ${compact ? 'text-sm tracking-[0.08em]' : 'text-base tracking-[0.14em]'}`}>
           MineralFlows
         </h1>
         {!compact && <span className="hud-label hidden text-muted md:inline">Supply chain monitor</span>}
       </div>
 
-      <span aria-hidden="true" className="h-5 w-px bg-line-strong" />
+      <span aria-hidden="true" className={compact && mode ? 'hidden' : 'h-5 w-px bg-line-strong'} />
 
-      {single ? (
+      {single && compact && mode ? null : single ? (
         <p className="flex min-w-0 items-center gap-2">
           <span
             aria-hidden="true"
@@ -119,6 +124,31 @@ export function TopBar({
               All
             </button>
           )}
+        </div>
+      )}
+
+      {mode && onChangeMode && (
+        <div role="group" aria-label="View" className="ml-2 flex items-center border border-line" style={{ borderRadius: 'var(--mf-radius)' }}>
+          {(
+            [
+              ['story', compact ? 'Story' : 'The chokepoint'],
+              ['flows', compact ? 'Flows' : 'Trade flows'],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={mode === id}
+              onClick={() => onChangeMode(id)}
+              className="hud-label px-2.5 py-1 transition-colors"
+              style={{
+                color: mode === id ? 'var(--mf-text)' : 'var(--mf-muted)',
+                background: mode === id ? 'var(--mf-accent-soft)' : 'transparent',
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       )}
 

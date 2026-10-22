@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { MapCanvas, type TerrainLayers } from './MapCanvas.tsx'
+import { ChokepointView } from './ChokepointView.tsx'
+import { buildChokepoint } from '../data/chokepoint.ts'
 import { chooseSeam, wrapLng } from './mapDynamics.ts'
 import { isOpenOceanMeridian } from '../data/geo.ts'
 import { Banner, TopBar } from './TopBar.tsx'
@@ -83,6 +85,10 @@ export function AppShell() {
   const [hoverId, setHoverId] = useState<string | null>(null)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+  // The chokepoint story is the front door; `?view=flows` opens the explorer directly.
+  const [mode, setMode] = useState<'story' | 'flows'>(() =>
+    new URLSearchParams(window.location.search).get('view') === 'flows' ? 'flows' : 'story',
+  )
   const [terrainLayers, setTerrainLayers] = useState<TerrainLayers>({ relief: true })
   const onToggleTerrain = useCallback(
     (layer: keyof TerrainLayers) => setTerrainLayers((t) => ({ ...t, [layer]: !t[layer] })),
@@ -120,11 +126,23 @@ export function AppShell() {
   // Reflect filters in the URL without adding history entries for every click.
   useEffect(() => {
     if (state.status !== 'ready') return
-    const query = filtersToSearchParams(filters).toString()
+    const params = filtersToSearchParams(filters)
+    if (mode === 'flows') params.set('view', 'flows')
+    const query = params.toString()
     window.history.replaceState(null, '', window.location.pathname + (query ? '?' + query : '') + window.location.hash)
-  }, [filters, state.status])
+  }, [filters, mode, state.status])
 
   const dataset = state.status === 'ready' ? state.dataset : null
+
+  /** The first active mineral the story can be told for, or null: then there is only the explorer. */
+  const chokepoint = useMemo(() => {
+    if (!dataset) return null
+    for (const mineral of dataset.activeMinerals) {
+      const model = buildChokepoint(dataset, mineral.id)
+      if (model) return model
+    }
+    return null
+  }, [dataset])
 
   /**
    * Where the flat map is cut, from every active flow rather than the filtered
@@ -299,6 +317,7 @@ export function AppShell() {
   }
 
   const data = state.dataset
+  const storyOn = mode === 'story' && chokepoint !== null
   const v = view!
   const nothingVisible = v.points.length === 0 && v.arcs.length === 0
 
@@ -355,8 +374,21 @@ export function AppShell() {
         dataYear={v.dataYear}
         onOpenAbout={openAbout}
         compact={isSmall}
+        {...(chokepoint ? { mode, onChangeMode: setMode } : {})}
       />
 
+      {storyOn && (
+        <main id="map" tabIndex={-1} className="min-h-0 min-w-0 flex-1">
+          <ChokepointView
+            model={chokepoint}
+            reducedMotion={reducedMotion}
+            compact={isSmall}
+            onExplore={() => setMode('flows')}
+          />
+        </main>
+      )}
+
+      {!storyOn && (
       <div className="flex min-h-0 flex-1">
         {!isSmall && (
           <nav
@@ -438,6 +470,7 @@ export function AppShell() {
           />
         </main>
       </div>
+      )}
 
       {!isSmall && <StatusBar meta={data.meta} onOpenAbout={openAbout} />}
       <AboutDialog open={aboutOpen} onClose={closeAbout} meta={data.meta} />
