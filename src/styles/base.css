@@ -30,6 +30,22 @@ body,
   height: 100%;
 }
 
+html {
+  color-scheme: dark;
+}
+
+/* Text that sets itself well: balanced headlines, no orphans in body copy. */
+/* text-wrap-style rather than the text-wrap shorthand: the shorthand also resets
+   the wrap mode, which silently breaks `truncate` and `whitespace-nowrap`. */
+h1,
+h2,
+h3 {
+  text-wrap-style: balance;
+}
+p {
+  text-wrap-style: pretty;
+}
+
 body {
   margin: 0;
   background: var(--mf-void);
@@ -236,4 +252,56 @@ dialog::backdrop {
 .stage-slider:focus-visible {
   outline: 2px solid var(--mf-accent);
   outline-offset: 6px;
+}
+
+
+/* ------------------------------------------------------------------- motion
+   Things arrive; they do not bounce. One decisive ease-out, short stagger, a
+   small distance. Nothing loops. Off entirely under reduced motion. */
+@keyframes mf-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes mf-slide {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: mf-rise 0.8s var(--mf-ease-out) both;
+  animation-delay: var(--d, 0ms);
+}
+.slide-in {
+  animation: mf-slide 0.8s var(--mf-ease-out) both;
+  animation-delay: var(--d, 0ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .slide-in {
+    animation: none;
+  }
+}
+
+/* Switching between the two views cross-fades rather than cutting. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.35s;
+  animation-timing-function: var(--mf-ease-inout);
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
 }

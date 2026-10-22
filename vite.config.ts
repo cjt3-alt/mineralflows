@@ -89,12 +89,33 @@ function shareMeta(): Plugin {
   }
 }
 
+/**
+ * Preload the Latin subsets of the three faces so the first paint is
+ * set in them rather than swapped a beat later. Build only: in dev there is no
+ * bundle, and the browser fetches fonts as it needs them.
+ */
+function fontPreload(): Plugin {
+  return {
+    name: 'mineralflows-font-preload',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        const preloads = Object.keys(ctx.bundle ?? {})
+          .filter((f) => /(archivo-latin-wdth|martian-mono-latin-wdth|newsreader-latin-wght)-normal.*\.woff2$/.test(f))
+          .map((f) => `<link rel="preload" as="font" type="font/woff2" crossorigin href="./${f}" />`)
+          .join('\n    ')
+        return preloads ? html.replace('</head>', `    ${preloads}\n  </head>`) : html
+      },
+    },
+  }
+}
+
 // Relative base so one build works in all three places we serve it from:
 // the project page at <user>.github.io/mineralflows/, the apex domain once
 // DNS is cut over, and a plain `file://` / static file server.
 export default defineConfig({
   base: './',
-  plugins: [react(), tailwindcss(), shareMeta()],
+  plugins: [react(), tailwindcss(), shareMeta(), fontPreload()],
   build: {
     outDir: 'dist',
     sourcemap: true,

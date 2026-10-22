@@ -38,15 +38,21 @@ export function FlowsHeadline({ mineralName, year, tradeUsd, valueByKind, focusN
             'radial-gradient(ellipse 75% 85% at 0% 0%, rgba(13, 11, 10, 0.9), rgba(13, 11, 10, 0.55) 55%, transparent 100%)',
         }}
       />
-      <div className="pointer-events-none absolute top-5 left-5 max-w-[min(34rem,calc(100%-2.5rem))] sm:top-7 sm:left-8">
-        <p className="hud-label text-muted">
+      <div className="pointer-events-none absolute top-5 left-5 max-w-[min(40rem,calc(100%-2.5rem))] sm:top-7 sm:left-8">
+        <p className="hud-label rise text-muted">
           {mineralName}
           {year !== null ? ` · trade ${year}` : ''} · {focusName ?? 'worldwide'}
         </p>
-        <h2 className="font-display mt-2 text-[1.65rem] leading-[1.15] font-semibold tracking-tight text-ink sm:text-[2.35rem]">
+        <h2
+          className="font-display rise mt-2 text-[clamp(1.6rem,0.9rem+2.4vw,3rem)] leading-[1.08] text-ink"
+          style={{ ['--d' as string]: '80ms' }}
+        >
           {focusName ? `${focusName}'s ${name} trade.` : `Where ${name} goes next.`}
         </h2>
-        <p className="font-serif mt-2 max-w-[31rem] text-[1.1rem] leading-[1.3] text-dim">
+        <p
+          className="font-serif rise mt-2 max-w-[31rem] text-[1.1rem] leading-[1.3] text-dim"
+          style={{ ['--d' as string]: '160ms' }}
+        >
           {whole > 0 ? (
             <>
               <strong className="font-semibold" style={{ color: 'var(--mf-ore-tint)' }}>
@@ -63,9 +69,13 @@ export function FlowsHeadline({ mineralName, year, tradeUsd, valueByKind, focusN
             'Nothing matches these filters.'
           )}
         </p>
-        <p aria-hidden="true" className="mt-3 flex items-end gap-3">
+        <p
+          aria-hidden="true"
+          className="rise mt-3 flex items-end gap-3"
+          style={{ ['--d' as string]: '240ms' }}
+        >
           <span
-            className="font-display text-[3.6rem] leading-[0.85] font-semibold tabular-nums sm:text-[5rem]"
+            className="font-display text-[clamp(3.4rem,1.6rem+4.6vw,6rem)] leading-[0.85] font-semibold tabular-nums"
             style={{ color: 'var(--mf-copper-refined)' }}
           >
             {formatUsd(tradeUsd)}
@@ -115,7 +125,8 @@ export function FlowsPanel(props: FlowsPanelProps) {
   return (
     <aside
       aria-label="Trade flow controls"
-      className="panel scroll-quiet absolute top-24 right-5 bottom-20 w-[20.5rem] overflow-y-auto p-3.5 sm:right-8"
+      className="panel slide-in scroll-quiet absolute top-7 right-8 bottom-6 w-[20.5rem] overflow-y-auto p-3.5"
+      style={{ ['--d' as string]: '300ms' }}
     >
       <p className="hud-label flex items-center justify-between text-dim">
         <span>The flows</span>

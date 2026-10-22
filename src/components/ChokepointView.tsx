@@ -32,8 +32,6 @@ export interface ChokepointViewProps {
   model: ChokepointModel
   reducedMotion: boolean
   compact: boolean
-  /** Hand over to the trade-flow explorer. */
-  onExplore: () => void
 }
 
 /* ------------------------------------------------------------------ palette */
@@ -208,7 +206,7 @@ function readShared(model: ChokepointModel): { stage: 0 | 1 | null; off: string 
   }
 }
 
-export function ChokepointView({ model, reducedMotion, compact, onExplore }: ChokepointViewProps) {
+export function ChokepointView({ model, reducedMotion, compact }: ChokepointViewProps) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const layoutRef = useRef<Layout | null>(null)
@@ -408,12 +406,12 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
       />
 
       {/* Headline: the one sentence the picture is making. */}
-      <div className="pointer-events-none absolute top-5 left-5 max-w-[min(34rem,calc(100%-2.5rem))] sm:top-7 sm:left-8">
-        <p className="hud-label text-muted">
+      <div className="pointer-events-none absolute top-5 left-5 max-w-[min(40rem,calc(100%-2.5rem))] sm:top-7 sm:left-8">
+        <p className="hud-label rise text-muted">
           {model.mineralName} · {model.year}
           {model.estimated ? ' est.' : ''} · by country
         </p>
-        <div className="relative mt-2 h-[2.6em] text-[1.65rem] leading-[1.15] sm:h-[2.4em] sm:text-[2.35rem]">
+        <div className="rise relative mt-2 h-[2.3em] text-[clamp(1.6rem,0.9rem+2.4vw,3rem)] leading-[1.08]" style={{ ["--d" as string]: "80ms" }}>
           <h2
             className="font-display absolute inset-0 font-semibold tracking-tight text-ink"
             style={{
@@ -435,7 +433,7 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
           </h2>
         </div>
         <p
-          className="font-serif mt-2 min-h-[3.4em] max-w-[31rem] text-[1.1rem] leading-[1.3] text-dim"
+          className="font-serif rise mt-2 min-h-[3.4em] max-w-[31rem] text-[1.1rem] leading-[1.3] text-dim" style={{ ["--d" as string]: "160ms" }}
           aria-live="polite"
         >
           {offRow && shock ? (
@@ -475,9 +473,9 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
             </>
           )}
         </p>
-        <p aria-hidden="true" className="mt-3 flex items-end gap-3">
+        <p aria-hidden="true" className="rise mt-3 flex items-end gap-3" style={{ ["--d" as string]: "240ms" }}>
           <span
-            className="font-display text-[3.6rem] leading-[0.85] font-semibold tabular-nums sm:text-[5rem]"
+            className="font-display text-[clamp(3.4rem,1.6rem+4.6vw,6rem)] leading-[0.85] font-semibold tabular-nums"
             style={{
               color: shock ? 'var(--mf-alert)' : `rgb(${mix(ease).join(',')})`,
             }}
@@ -492,23 +490,11 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
         </p>
       </div>
 
-      {/* Explore the trade flows. */}
-      <div className="absolute top-5 right-5 hidden sm:top-7 sm:right-8 sm:block">
-        <button
-          type="button"
-          onClick={onExplore}
-          className="hud-label panel border-line-strong px-3 py-2 text-ink hover:border-accent"
-          style={{ borderRadius: 'var(--mf-radius)' }}
-        >
-          Explore the trade flows →
-        </button>
-      </div>
-
       {/* The gap, country by country. */}
       {!compact && (
         <aside
           aria-label={`${model.mineralName} mine versus refinery share by country`}
-          className="panel absolute top-24 right-5 w-[19.5rem] p-3.5 sm:right-8"
+          className="panel slide-in absolute top-7 right-8 w-[19.5rem] p-3.5" style={{ ["--d" as string]: "300ms" }}
         >
           <p className="hud-label flex items-center justify-between text-dim">
             <span>The gap</span>
@@ -570,16 +556,12 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
               </span>
             </p>
           </div>
+          {hintOn && !off && (
+            <p className="mt-3 border-t border-line pt-2.5 text-xs text-ink">
+              Click any country, here or on the map, to switch it off.
+            </p>
+          )}
         </aside>
-      )}
-
-      {hintOn && !off && (
-        <p
-          className="panel pointer-events-none absolute top-[17.5rem] right-5 hidden px-3 py-2 text-[0.75rem] text-ink sm:right-8 lg:block"
-          style={{ width: '19.5rem' }}
-        >
-          Try it: click a country, here or on the map, to switch it off.
-        </p>
       )}
 
       {/* Country read-out on hover. */}
@@ -632,14 +614,6 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
               ['--thumb' as string]: `rgb(${mix(ease).join(',')})`,
             }}
           />
-          <button
-            type="button"
-            onClick={onExplore}
-            className="hud-label panel mx-auto mt-3 block border-line-strong px-3 py-2 text-ink hover:border-accent sm:hidden"
-            style={{ borderRadius: 'var(--mf-radius)' }}
-          >
-            Explore the trade flows →
-          </button>
           <p className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[0.68rem] text-dim">
             <ShareButton
               label={copied === 'link' ? 'Link copied' : 'Copy link'}

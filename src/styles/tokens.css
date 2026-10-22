@@ -58,17 +58,21 @@
      meant to sit beside, while body text stays at normal width. Martian Mono is
      microtype only: labels, buttons, units. Newsreader, a text serif, carries
      the sentences a person reads for meaning. */
-  --mf-font-sans: 'Archivo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mf-font-mono: 'Martian Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
-  --mf-font-display: 'Archivo', ui-sans-serif, system-ui, sans-serif;
-  --mf-font-serif: 'Newsreader', 'Iowan Old Style', Georgia, serif;
+  --mf-font-sans: 'Archivo Variable', 'Archivo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mf-font-mono: 'Martian Mono Variable', 'Martian Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+  --mf-font-display: 'Archivo Variable', 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  --mf-font-serif: 'Newsreader Variable', 'Newsreader', 'Iowan Old Style', Georgia, serif;
 
   /* Geometry. Square, with one chamfered corner on panels: a plate, not a card. */
   --mf-radius: 0;
   --mf-rail-width: 19rem;
   --mf-panel-width: 23rem;
 
-  /* Motion. Only ever in response to an action. */
+  /* Motion: one decisive ease-out for things arriving, one symmetrical ease for things morphing. */
+  --mf-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --mf-ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Short transitions for state changes. */
   --mf-transition: 140ms ease-out;
 }
 

@@ -26,11 +26,13 @@ export interface TopBarProps {
   onChangeMode?: (mode: 'story' | 'flows') => void
 }
 
+/** The gap, drawn: mined (a ring) and refined (a disc), joined. The same glyph as the dumbbell chart. */
 function Mark() {
   return (
-    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 22 22" className="shrink-0">
-      <polygon points="11,1.5 19.5,6.25 19.5,15.75 11,20.5 2.5,15.75 2.5,6.25" fill="none" stroke="var(--mf-copper)" strokeWidth="1.5" />
-      <circle cx="11" cy="11" r="2.4" fill="var(--mf-copper)" />
+    <svg aria-hidden="true" width="28" height="16" viewBox="0 0 28 16" className="shrink-0">
+      <line x1="7" y1="8" x2="19" y2="8" stroke="var(--mf-line-strong)" strokeWidth="1.5" />
+      <circle cx="4.5" cy="8" r="3.5" fill="none" stroke="var(--mf-ore)" strokeWidth="1.75" />
+      <circle cx="21.5" cy="8" r="5" fill="var(--mf-copper)" />
     </svg>
   )
 }
@@ -69,21 +71,28 @@ export function TopBar({
   const single = minerals.length === 1 ? minerals[0] : undefined
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-5 border-b border-line bg-void px-4 sm:px-8">
+    <header
+      className={`flex h-12 shrink-0 items-center border-b border-line bg-void px-4 sm:px-8 ${compact ? 'gap-3' : 'gap-5'}`}
+    >
       <div className="flex items-center gap-2.5">
         <Mark />
         <h1
           className="font-display whitespace-nowrap text-ink uppercase"
-          style={{ fontSize: compact ? '0.8125rem' : '0.9375rem', letterSpacing: '0.04em', fontStretch: '125%', fontWeight: 600 }}
+          style={{
+            fontSize: compact ? '0.75rem' : '0.9375rem',
+            letterSpacing: compact ? '0.02em' : '0.04em',
+            fontStretch: compact ? '112%' : '125%',
+            fontWeight: 600,
+          }}
         >
           MineralFlows
         </h1>
       </div>
 
       {mode && onChangeMode && (
-        <nav aria-label="View" className="flex h-full items-center gap-4 sm:gap-6">
+        <nav aria-label="View" className="flex h-full items-center gap-2 sm:gap-6">
           <NavLink active={mode === 'story'} onClick={() => onChangeMode('story')}>
-            {compact ? 'Chokepoint' : 'The chokepoint'}
+            {compact ? 'Story' : 'The chokepoint'}
           </NavLink>
           <NavLink active={mode === 'flows'} onClick={() => onChangeMode('flows')}>
             {compact ? 'Flows' : 'Trade flows'}
@@ -93,7 +102,11 @@ export function TopBar({
 
       {!compact && single && (
         <p className="hud-label hidden items-center gap-2 whitespace-nowrap text-muted lg:flex">
-          <span aria-hidden="true" className="inline-block h-1.5 w-1.5" style={{ backgroundColor: single.color }} />
+          <span
+            aria-hidden="true"
+            className="inline-block h-1.5 w-1.5"
+            style={{ backgroundColor: single.color }}
+          />
           {single.name}
           {dataYear !== null && <span className="text-line-strong">/</span>}
           {dataYear !== null && <span>Trade {dataYear}</span>}
@@ -112,7 +125,11 @@ export function TopBar({
                 onClick={() => onToggleMineral(mineral.id)}
                 className="toggle hud-label flex items-center gap-1.5 border border-line px-2 py-0.5 text-dim hover:text-ink"
               >
-                <span aria-hidden="true" className="inline-block h-2 w-2" style={{ backgroundColor: mineral.color }} />
+                <span
+                  aria-hidden="true"
+                  className="inline-block h-2 w-2"
+                  style={{ backgroundColor: mineral.color }}
+                />
                 {mineral.name}
               </button>
             )
@@ -128,7 +145,7 @@ export function TopBar({
       <button
         type="button"
         onClick={onOpenAbout}
-        className="hud-label ml-auto whitespace-nowrap border border-line-strong px-3 py-1.5 text-dim transition-colors hover:border-ink hover:text-ink"
+        className="hud-label ml-auto whitespace-nowrap border border-line-strong px-2.5 py-1.5 text-dim transition-colors hover:border-ink hover:text-ink sm:px-3"
       >
         {compact ? 'Method' : 'Sources & method'}
       </button>

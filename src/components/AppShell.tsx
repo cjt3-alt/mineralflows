@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { MapCanvas, type TerrainLayers } from './MapCanvas.tsx'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { flushSync } from 'react-dom'
+import type { TerrainLayers } from './MapCanvas.tsx'
 import { ChokepointView } from './ChokepointView.tsx'
 import { FlowsHeadline, FlowsPanel } from './FlowsOverlay.tsx'
 import { buildChokepoint } from '../data/chokepoint.ts'
@@ -40,9 +41,7 @@ import { STAGES, type Stage } from '../data/schema.ts'
  */
 
 type LoadState =
-  | { status: 'loading' }
-  | { status: 'ready'; dataset: Dataset }
-  | { status: 'error'; error: Error }
+  { status: 'loading' } | { status: 'ready'; dataset: Dataset } | { status: 'error'; error: Error }
 
 type PickedSelection = { kind: 'facility'; point: PointDatum } | { kind: 'flow'; arc: ArcDatum }
 
@@ -78,6 +77,9 @@ function toggleLayer(list: Stage[], value: Stage): Stage[] {
 }
 
 const LIST_LENGTH = 8
+
+/** The trade-flow map is the heavier half of the app and not the front door, so it loads when asked for. */
+const MapCanvas = lazy(() => import('./MapCanvas.tsx').then((m) => ({ default: m.MapCanvas })))
 
 /** The relief image is still the old navy tint; off until it is rebuilt warm (tools/build_basemap.py). */
 const TERRAIN: TerrainLayers = { relief: false }
@@ -127,7 +129,11 @@ export function AppShell() {
     const params = filtersToSearchParams(filters)
     if (mode === 'flows') params.set('view', 'flows')
     const query = params.toString()
-    window.history.replaceState(null, '', window.location.pathname + (query ? '?' + query : '') + window.location.hash)
+    window.history.replaceState(
+      null,
+      '',
+      window.location.pathname + (query ? '?' + query : '') + window.location.hash,
+    )
   }, [filters, mode, state.status])
 
   const dataset = state.status === 'ready' ? state.dataset : null
@@ -164,7 +170,11 @@ export function AppShell() {
 
     // Layer counts and values reflect the other filters but not their own, so
     // each row says what switching it on would give you.
-    const byMineral = filterFacilities(dataset.facilities, { mineralIds: filters.mineralIds, stages: [] }, activeIds)
+    const byMineral = filterFacilities(
+      dataset.facilities,
+      { mineralIds: filters.mineralIds, stages: [] },
+      activeIds,
+    )
     const facilityCounts = Object.fromEntries(
       STAGES.map((s) => [s, byMineral.filter((f) => f.properties.stage === s).length]),
     ) as Record<Stage, number>
@@ -178,21 +188,30 @@ export function AppShell() {
 
     const tradeUsd = flows.reduce((sum, f) => sum + (resolveValue(f, dataset.priceFor).usd ?? 0), 0)
     const baseColor = dataset.activeMinerals[0]?.color ?? '#d07a45'
-    const shade = Object.fromEntries(STAGES.map((s) => [s, stageShade(baseColor, s)])) as Record<Stage, string>
+    const shade = Object.fromEntries(STAGES.map((s) => [s, stageShade(baseColor, s)])) as Record<
+      Stage,
+      string
+    >
 
     const summary =
       filters.country === null
         ? null
         : summarizeCountry(filters.country, flowsWorld, byMineral, dataset.priceFor)
 
-    const searchable = [...countriesInPlay(allActiveFlows, byMineral)].filter((iso3) => iso3 in dataset.countries)
+    const searchable = [...countriesInPlay(allActiveFlows, byMineral)].filter(
+      (iso3) => iso3 in dataset.countries,
+    )
 
     // Every country's role, for the map's hover readout and the dossier.
     const world = valueByKind(flowsWorld, dataset.priceFor)
     const nameOf = (iso3: string) => dataset.countries[iso3]?.name ?? iso3
     const roles: Record<string, CountryRole> = {}
     for (const iso3 of searchable) {
-      roles[iso3] = countryRole(summarizeCountry(iso3, flowsWorld, byMineral, dataset.priceFor), world, nameOf)
+      roles[iso3] = countryRole(
+        summarizeCountry(iso3, flowsWorld, byMineral, dataset.priceFor),
+        world,
+        nameOf,
+      )
     }
     const years = flows.map((f) => f.year)
 
@@ -252,7 +271,10 @@ export function AppShell() {
     setFilters((f) => ({ ...f, mineralIds: toggle(f.mineralIds, id) }))
   }, [])
   const onClearMinerals = useCallback(() => setFilters((f) => ({ ...f, mineralIds: [] })), [])
-  const onToggleStage = useCallback((s: Stage) => setFilters((f) => ({ ...f, stages: toggleLayer(f.stages, s) })), [])
+  const onToggleStage = useCallback(
+    (s: Stage) => setFilters((f) => ({ ...f, stages: toggleLayer(f.stages, s) })),
+    [],
+  )
   const onToggleFlowKind = useCallback(
     (k: Stage) => setFilters((f) => ({ ...f, flowKinds: toggleLayer(f.flowKinds, k) })),
     [],
@@ -270,6 +292,19 @@ export function AppShell() {
     setSelection({ kind: 'flow', arc })
   }, [])
   const onClearSelection = useCallback(() => setSelection(null), [])
+
+  /** Switching views cross-fades where the browser can, and cuts where it cannot or the viewer asked for less motion. */
+  const changeMode = useCallback(
+    (next: 'story' | 'flows') => {
+      const doc = document as Document & { startViewTransition?: (update: () => void) => unknown }
+      if (!doc.startViewTransition || reducedMotion) {
+        setMode(next)
+        return
+      }
+      doc.startViewTransition(() => flushSync(() => setMode(next)))
+    },
+    [reducedMotion],
+  )
   const openAbout = useCallback(() => setAboutOpen(true), [])
   const closeAbout = useCallback(() => setAboutOpen(false), [])
 
@@ -282,9 +317,7 @@ export function AppShell() {
   if (state.status === 'loading') {
     return (
       <div className="stage flex h-full items-center justify-center" role="status">
-        <p className="hud-label text-muted">
-          Loading the data
-        </p>
+        <p className="hud-label text-muted">Loading the data</p>
       </div>
     )
   }
@@ -296,8 +329,8 @@ export function AppShell() {
           <p className="hud-label text-alert">Data load failed</p>
           <h1 className="mt-1 font-display text-xl text-ink">The data files did not load.</h1>
           <p className="mt-2 text-sm text-dim">
-            The app reads flat files from the same origin, so this is usually a missing or malformed
-            file rather than a network problem. The message below names the file and the record.
+            The app reads flat files from the same origin, so this is usually a missing or malformed file
+            rather than a network problem. The message below names the file and the record.
           </p>
           <pre className="mt-4 overflow-x-auto border border-line bg-void p-3 font-mono text-xs whitespace-pre-wrap text-alert">
             {state.error.message}
@@ -318,9 +351,12 @@ export function AppShell() {
   const storyOn = mode === 'story' && chokepoint !== null
   const v = view!
   const nothingVisible = v.points.length === 0 && v.arcs.length === 0
-  const shownMinerals = filters.mineralIds.length > 0 ? filters.mineralIds : data.activeMinerals.map((m) => m.id)
+  const shownMinerals =
+    filters.mineralIds.length > 0 ? filters.mineralIds : data.activeMinerals.map((m) => m.id)
   const flowsMineralName =
-    shownMinerals.length === 1 ? (data.mineralsById.get(shownMinerals[0]!)?.name ?? 'Critical minerals') : 'Critical minerals'
+    shownMinerals.length === 1
+      ? (data.mineralsById.get(shownMinerals[0]!)?.name ?? 'Critical minerals')
+      : 'Critical minerals'
 
   const railProps: FilterRailProps = {
     overview: v.overview,
@@ -372,102 +408,103 @@ export function AppShell() {
         dataYear={v.dataYear}
         onOpenAbout={openAbout}
         compact={isSmall}
-        {...(chokepoint ? { mode, onChangeMode: setMode } : {})}
+        {...(chokepoint ? { mode, onChangeMode: changeMode } : {})}
       />
 
       {storyOn && (
         <main id="map" tabIndex={-1} className="min-h-0 min-w-0 flex-1">
-          <ChokepointView
-            model={chokepoint}
-            reducedMotion={reducedMotion}
-            compact={isSmall}
-            onExplore={() => setMode('flows')}
-          />
+          <ChokepointView model={chokepoint} reducedMotion={reducedMotion} compact={isSmall} />
         </main>
       )}
 
       {!storyOn && (
-      <div className="flex min-h-0 flex-1">
-        <main id="map" tabIndex={-1} className="stage relative min-w-0 flex-1 overflow-hidden">
-          <MapCanvas
-            points={v.points}
-            arcs={v.arcs}
-            countries={data.countries}
-            selectedId={selectedId}
-            externalHoverId={hoverId}
-            focusCountry={filters.country}
-            centralMeridian={centralMeridian}
-            terrainLayers={TERRAIN}
-            // The floating panel is 23rem wide with a 1rem gap; on phones it is a sheet instead.
-            countryRoles={v.roles}
-            insetRight={isSmall ? 0 : panelSelection !== null ? 23 * 16 + 16 : 20.5 * 16 + 32}
-            reducedMotion={reducedMotion}
-            onSelectPoint={onSelectPoint}
-            onSelectArc={onSelectArc}
-            onSelectCountry={onFocusCountry}
-            onClearSelection={onClearSelection}
-          />
+        <div className="flex min-h-0 flex-1">
+          <main id="map" tabIndex={-1} className="stage relative min-w-0 flex-1 overflow-hidden">
+            <Suspense fallback={null}>
+              <MapCanvas
+                points={v.points}
+                arcs={v.arcs}
+                countries={data.countries}
+                selectedId={selectedId}
+                externalHoverId={hoverId}
+                focusCountry={filters.country}
+                centralMeridian={centralMeridian}
+                terrainLayers={TERRAIN}
+                // The floating panel is 23rem wide with a 1rem gap; on phones it is a sheet instead.
+                countryRoles={v.roles}
+                insetRight={isSmall ? 0 : panelSelection !== null ? 23 * 16 + 16 : 20.5 * 16 + 32}
+                reducedMotion={reducedMotion}
+                onSelectPoint={onSelectPoint}
+                onSelectArc={onSelectArc}
+                onSelectCountry={onFocusCountry}
+                onClearSelection={onClearSelection}
+              />
+            </Suspense>
 
-          <FlowsHeadline
-            mineralName={flowsMineralName}
-            year={v.dataYear}
-            tradeUsd={v.overview.tradeUsd}
-            valueByKind={v.valueByKind}
-            focusName={filters.country ? (data.countries[filters.country]?.name ?? filters.country) : null}
-          />
+            <FlowsHeadline
+              mineralName={flowsMineralName}
+              year={v.dataYear}
+              tradeUsd={v.overview.tradeUsd}
+              valueByKind={v.valueByKind}
+              focusName={filters.country ? (data.countries[filters.country]?.name ?? filters.country) : null}
+            />
 
-          {!isSmall && panelSelection === null && <FlowsPanel {...railProps} />}
+            {!isSmall && panelSelection === null && <FlowsPanel {...railProps} />}
 
-          {!isSmall && <div className="pointer-events-none absolute bottom-6 left-6">{legend}</div>}
+            {!isSmall && <div className="pointer-events-none absolute bottom-6 left-6">{legend}</div>}
 
-          {isSmall && !sheetOpen && panelSelection === null && (
-            <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-end justify-between gap-2">
-              <button
-                type="button"
-                onClick={() => setSheetOpen(true)}
-                className="panel hud-label pointer-events-auto px-3 py-2 text-ink"
-              >
-                ☰ Layers & search
-              </button>
-              <p className="panel hud-label px-2.5 py-2 text-dim">
-                {formatUsd(v.overview.tradeUsd)} · {v.arcs.length} flows
-              </p>
-            </div>
-          )}
-
-          {isSmall && sheetOpen && (
-            <div className="panel scroll-quiet absolute inset-x-0 bottom-0 z-20 max-h-[78%] overflow-y-auto border-x-0 border-b-0">
-              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface px-4 py-2">
-                <span className="hud-label text-dim">Layers & search</span>
-                <button type="button" onClick={() => setSheetOpen(false)} className="hud-label text-muted hover:text-ink">
-                  Done
+            {isSmall && !sheetOpen && panelSelection === null && (
+              <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-end justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSheetOpen(true)}
+                  className="panel hud-label pointer-events-auto px-3 py-2 text-ink"
+                >
+                  ☰ Layers & search
                 </button>
+                <p className="panel hud-label px-2.5 py-2 text-dim">
+                  {formatUsd(v.overview.tradeUsd)} · {v.arcs.length} flows
+                </p>
               </div>
-              <FilterRail {...railProps} />
-              <div className="p-4">{legend}</div>
-            </div>
-          )}
+            )}
 
-          {nothingVisible && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
-              <div className="panel bracketed pointer-events-auto max-w-sm p-4 text-center">
-                <p className="hud-label text-alert">No matches</p>
-                <p className="mt-1 text-sm text-ink">Nothing matches these filters.</p>
-                <p className="mt-1 text-xs text-dim">Switch a layer back on, or clear the country focus.</p>
+            {isSmall && sheetOpen && (
+              <div className="panel scroll-quiet absolute inset-x-0 bottom-0 z-20 max-h-[78%] overflow-y-auto border-x-0 border-b-0">
+                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface px-4 py-2">
+                  <span className="hud-label text-dim">Layers & search</span>
+                  <button
+                    type="button"
+                    onClick={() => setSheetOpen(false)}
+                    className="hud-label text-muted hover:text-ink"
+                  >
+                    Done
+                  </button>
+                </div>
+                <FilterRail {...railProps} />
+                <div className="p-4">{legend}</div>
               </div>
-            </div>
-          )}
+            )}
 
-          <DetailPanel
-            variant={isSmall ? 'sheet' : 'panel'}
-            selection={panelSelection}
-            mineralsById={data.mineralsById}
-            countries={data.countries}
-            onClose={onClosePanel}
-            onFocusCountry={onFocusCountry}
-          />
-        </main>
-      </div>
+            {nothingVisible && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+                <div className="panel bracketed pointer-events-auto max-w-sm p-4 text-center">
+                  <p className="hud-label text-alert">No matches</p>
+                  <p className="mt-1 text-sm text-ink">Nothing matches these filters.</p>
+                  <p className="mt-1 text-xs text-dim">Switch a layer back on, or clear the country focus.</p>
+                </div>
+              </div>
+            )}
+
+            <DetailPanel
+              variant={isSmall ? 'sheet' : 'panel'}
+              selection={panelSelection}
+              mineralsById={data.mineralsById}
+              countries={data.countries}
+              onClose={onClosePanel}
+              onFocusCountry={onFocusCountry}
+            />
+          </main>
+        </div>
       )}
 
       {!isSmall && <StatusBar meta={data.meta} onOpenAbout={openAbout} />}
