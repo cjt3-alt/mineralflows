@@ -178,3 +178,52 @@ export function formatShare(share: number): string {
   const pct = share * 100
   return pct < 1 ? '<1%' : Math.round(pct) + '%'
 }
+
+export interface Shock {
+  /** Share of world output at this stage that the country accounts for. */
+  lostShare: number
+  /** How much every other producer would have to raise output, as a fraction, to make it up. */
+  uplift: number
+}
+
+/**
+ * The arithmetic of losing one country at one stage: what share of the world's
+ * output goes missing, and how far everyone else would have to stretch to cover
+ * it. Output, not capacity: the figures say what was produced, not what could
+ * have been, so this is a measure of dependence, not a forecast of a shortfall.
+ */
+export function shockOf(row: CountryRow, stage: 'mine' | 'refine'): Shock {
+  const lostShare = stage === 'mine' ? row.mine : row.refine
+  return { lostShare, uplift: lostShare >= 1 ? Infinity : lostShare / (1 - lostShare) }
+}
+
+/** The table as CSV, for anyone who wants to check the numbers or chart them themselves. */
+export function toCsv(model: ChokepointModel): string {
+  const header = [
+    'country',
+    'iso3',
+    'mine_share',
+    'refine_share',
+    'mine_tonnes',
+    'refine_tonnes',
+    'year',
+    'estimated',
+    'unit',
+    'source',
+  ]
+  const lines = model.rows.map((r) =>
+    [
+      JSON.stringify(r.name),
+      r.iso3,
+      r.mine.toFixed(4),
+      r.refine.toFixed(4),
+      Math.round(r.mine * model.mineTonnes),
+      Math.round(r.refine * model.refineTonnes),
+      model.year,
+      model.estimated,
+      'tonnes of contained metal',
+      JSON.stringify('USGS Mineral Commodity Summaries ' + model.sourceUrl),
+    ].join(','),
+  )
+  return [header.join(','), ...lines].join('\n') + '\n'
+}

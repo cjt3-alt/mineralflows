@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { geoArea, geoCentroid, geoGraticule10, geoMercator, geoPath, type GeoPermissibleObjects } from 'd3-geo'
+import {
+  geoArea,
+  geoCentroid,
+  geoGraticule10,
+  geoMercator,
+  geoPath,
+  type GeoPermissibleObjects,
+} from 'd3-geo'
 import { feature, mesh } from 'topojson-client'
 import countriesTopology from 'world-atlas/countries-110m.json'
 import type { Topology } from 'topojson-specification'
 import { COUNTRY_SHAPES } from '../data/geo.ts'
-import { formatShare, type ChokepointModel, type CountryRow } from '../data/chokepoint.ts'
+import { formatShare, shockOf, toCsv, type ChokepointModel, type CountryRow } from '../data/chokepoint.ts'
 import { COPPER_HEX, ORE_HEX, hexToRgb, toneAt } from './palette.ts'
 
 /**
@@ -48,7 +55,11 @@ const mix = toneAt
 
 const topology = countriesTopology as unknown as Topology
 const LAND = feature(topology, topology.objects.land!) as unknown as GeoPermissibleObjects
-const BORDERS = mesh(topology, topology.objects.countries as never, (a, b) => a !== b) as unknown as GeoPermissibleObjects
+const BORDERS = mesh(
+  topology,
+  topology.objects.countries as never,
+  (a, b) => a !== b,
+) as unknown as GeoPermissibleObjects
 const GRATICULE = geoGraticule10()
 
 const SHAPES = new Map(COUNTRY_SHAPES.filter((s) => s.iso3 !== null).map((s) => [s.iso3!, s]))
@@ -60,7 +71,10 @@ function anchorOf(iso3: string): [number, number] | null {
   let best: GeoPermissibleObjects | null = null
   let bestArea = -1
   for (const polygon of shape.polygons) {
-    const geometry = { type: 'Polygon', coordinates: polygon } as GeoPermissibleObjects
+    const geometry = {
+      type: 'Polygon',
+      coordinates: polygon,
+    } as GeoPermissibleObjects
     const area = geoArea(geometry)
     if (area > bestArea) {
       best = geometry
@@ -78,7 +92,13 @@ interface Layout {
   base: HTMLCanvasElement
   paths: Map<string, Path2D>
   anchors: Map<string, [number, number]>
-  sites: { x: number; y: number; stage: 'mine' | 'process' | 'refine'; low: boolean }[]
+  sites: {
+    x: number
+    y: number
+    stage: 'mine' | 'process' | 'refine'
+    low: boolean
+    iso3: string
+  }[]
 }
 
 function buildLayout(model: ChokepointModel, width: number, height: number, dpr: number): Layout {
@@ -102,7 +122,14 @@ function buildLayout(model: ChokepointModel, width: number, height: number, dpr:
   g.scale(dpr, dpr)
   const path = geoPath(projection, g)
 
-  const ocean = g.createRadialGradient(width * 0.5, height * 0.45, 0, width * 0.5, height * 0.45, Math.max(width, height) * 0.75)
+  const ocean = g.createRadialGradient(
+    width * 0.5,
+    height * 0.45,
+    0,
+    width * 0.5,
+    height * 0.45,
+    Math.max(width, height) * 0.75,
+  )
   ocean.addColorStop(0, '#1a1411')
   ocean.addColorStop(1, '#090706')
   g.fillStyle = ocean
@@ -134,7 +161,10 @@ function buildLayout(model: ChokepointModel, width: number, height: number, dpr:
     const shape = SHAPES.get(row.iso3)
     if (!shape) continue
     const p2d = new Path2D()
-    geoPath(projection, p2d as unknown as CanvasRenderingContext2D)({
+    geoPath(
+      projection,
+      p2d as unknown as CanvasRenderingContext2D,
+    )({
       type: 'MultiPolygon',
       coordinates: shape.polygons,
     } as GeoPermissibleObjects)
@@ -145,7 +175,7 @@ function buildLayout(model: ChokepointModel, width: number, height: number, dpr:
 
   const sites = model.sites.map((s) => {
     const [x, y] = project([s.lon, s.lat])
-    return { x, y, stage: s.stage, low: s.lowConfidence }
+    return { x, y, stage: s.stage, low: s.lowConfidence, iso3: s.iso3 }
   })
 
   return { width, height, dpr, project, base, paths, anchors, sites }
@@ -166,18 +196,43 @@ function quadAt(a: [number, number], c: [number, number], b: [number, number], t
 
 /* ------------------------------------------------------------------ the view */
 
+/** A shared link can open at a stage, with a country already switched off. */
+function readShared(model: ChokepointModel): { stage: 0 | 1 | null; off: string | null } {
+  if (typeof window === 'undefined') return { stage: null, off: null }
+  const params = new URLSearchParams(window.location.search)
+  const wanted = params.get('off')
+  const stage = params.get('stage')
+  return {
+    stage: stage === 'refined' ? 1 : stage === 'mined' ? 0 : null,
+    off: wanted && model.rows.some((r) => r.iso3 === wanted) ? wanted : null,
+  }
+}
+
 export function ChokepointView({ model, reducedMotion, compact, onExplore }: ChokepointViewProps) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const layoutRef = useRef<Layout | null>(null)
-  const tRef = useRef(0)
-  const animRef = useRef<{ from: number; to: number; start: number; dur: number } | null>(null)
+  const shared = useMemo(() => readShared(model), [model])
+  const tRef = useRef<number>(shared.stage ?? 0)
+  const animRef = useRef<{
+    from: number
+    to: number
+    start: number
+    dur: number
+  } | null>(null)
   const hoverRef = useRef<string | null>(null)
-  const pinnedRef = useRef<string | null>(null)
-  const [t, setT] = useState(0)
+  const offRef = useRef<string | null>(shared.off)
+  const [t, setT] = useState<number>(shared.stage ?? 0)
   const [size, setSize] = useState({ width: 0, height: 0 })
-  const [hover, setHover] = useState<{ iso3: string; x: number; y: number } | null>(null)
-  const [pinned, setPinned] = useState<string | null>(null)
+  const [hover, setHover] = useState<{
+    iso3: string
+    x: number
+    y: number
+  } | null>(null)
+  const [off, setOff] = useState<string | null>(shared.off)
+  const [hintOn, setHintOn] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
+  const firstPlay = useRef(shared.stage === null)
 
   const rowsByIso = useMemo(() => new Map(model.rows.map((r) => [r.iso3, r])), [model])
   const maxShare = useMemo(() => Math.max(...model.rows.flatMap((r) => [r.mine, r.refine])), [model])
@@ -191,7 +246,12 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
         setT(to)
         return
       }
-      animRef.current = { from: tRef.current, to, start: performance.now(), dur }
+      animRef.current = {
+        from: tRef.current,
+        to,
+        start: performance.now(),
+        dur,
+      }
     },
     [reducedMotion],
   )
@@ -199,9 +259,20 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
   /* Play once on arrival: sit on the mines for a beat, then carry the ore across. */
   useEffect(() => {
     if (reducedMotion) return
-    const id = window.setTimeout(() => animateTo(1, 7200), 1700)
+    const id = window.setTimeout(() => {
+      if (firstPlay.current) animateTo(1, 7200)
+    }, 1700)
     return () => window.clearTimeout(id)
   }, [animateTo, reducedMotion])
+
+  /* Once the morph has finished by itself, tell people what they can do next. */
+  useEffect(() => {
+    if (t < 0.999 || !firstPlay.current || off) return
+    firstPlay.current = false
+    setHintOn(true)
+    const id = window.setTimeout(() => setHintOn(false), 11000)
+    return () => window.clearTimeout(id)
+  }, [t, off])
 
   /* Track the container. */
   useEffect(() => {
@@ -209,7 +280,10 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
     if (!el) return
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return
-      setSize({ width: Math.round(entry.contentRect.width), height: Math.round(entry.contentRect.height) })
+      setSize({
+        width: Math.round(entry.contentRect.width),
+        height: Math.round(entry.contentRect.height),
+      })
     })
     observer.observe(el)
     return () => observer.disconnect()
@@ -239,7 +313,8 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
       }
       const layout = layoutRef.current
       const canvas = canvasRef.current
-      if (layout && canvas) draw(canvas, layout, model, rowsByIso, maxShare, current, now, hoverRef.current, pinnedRef.current)
+      if (layout && canvas)
+        draw(canvas, layout, model, rowsByIso, maxShare, current, now, hoverRef.current, offRef.current)
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
@@ -271,11 +346,15 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
     setHover(null)
   }, [])
 
-  const onPick = useCallback(() => {
-    const next = hoverRef.current && hoverRef.current !== pinnedRef.current ? hoverRef.current : null
-    pinnedRef.current = next
-    setPinned(next)
+  /* Click a country to switch it off; click it again to bring it back. */
+  const toggleOff = useCallback((iso3: string | null) => {
+    const next = iso3 && iso3 !== offRef.current ? iso3 : null
+    offRef.current = next
+    setOff(next)
+    setHintOn(false)
   }, [])
+
+  const onPick = useCallback(() => toggleOff(hoverRef.current), [toggleOff])
 
   const onScrub = (value: number) => {
     animRef.current = null
@@ -294,17 +373,32 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
     () => [...model.rows].sort((a, b) => b.mine - b.refine - (a.mine - a.refine))[0],
     [model],
   )
-  const focus = pinned ?? hover?.iso3 ?? null
+  const focus = hover?.iso3 ?? off
+  const offRow = off ? rowsByIso.get(off) : undefined
+  const shockStage = ease < 0.5 ? 'mine' : 'refine'
+  const shock = offRow ? shockOf(offRow, shockStage) : null
   const focusRow = focus ? rowsByIso.get(focus) : undefined
   const name = model.mineralName.toLowerCase()
+  const flash = (what: string) => {
+    setCopied(what)
+    window.setTimeout(() => setCopied(null), 2200)
+  }
 
   return (
     <div ref={wrapRef} className="stage relative h-full w-full overflow-hidden">
       <canvas
         ref={canvasRef}
-        width={Math.round(size.width * Math.min(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1, 2))}
-        height={Math.round(size.height * Math.min(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1, 2))}
-        style={{ width: size.width, height: size.height, cursor: hover ? 'pointer' : 'default' }}
+        width={Math.round(
+          size.width * Math.min(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1, 2),
+        )}
+        height={Math.round(
+          size.height * Math.min(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1, 2),
+        )}
+        style={{
+          width: size.width,
+          height: size.height,
+          cursor: hover ? 'pointer' : 'default',
+        }}
         className="absolute inset-0"
         role="img"
         aria-label={`World map morphing from where ${name} is mined to where it is refined. ${leader.name} mines ${formatShare(leader.mine)} and refines ${formatShare(leader.refine)}.`}
@@ -322,7 +416,10 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
         <div className="relative mt-2 h-[2.6em] text-[1.65rem] leading-[1.15] sm:h-[2.4em] sm:text-[2.35rem]">
           <h2
             className="font-display absolute inset-0 font-semibold tracking-tight text-ink"
-            style={{ opacity: 1 - smooth(clamp01((t - 0.3) / 0.25)), transform: `translateY(${-smooth(clamp01((t - 0.3) / 0.25)) * 8}px)` }}
+            style={{
+              opacity: 1 - smooth(clamp01((t - 0.3) / 0.25)),
+              transform: `translateY(${-smooth(clamp01((t - 0.3) / 0.25)) * 8}px)`,
+            }}
           >
             Where {name} is dug.
           </h2>
@@ -337,31 +434,61 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
             Where it becomes metal.
           </h2>
         </div>
-        <p className="mt-1 min-h-[3.2em] max-w-[30rem] text-[0.95rem] leading-snug text-dim" aria-live="polite">
-          {phase === 'mined' &&
-            `No one country dominates the mines. The largest three account for ${formatShare(model.mineConcentration.top3)} of the world's ${name}.`}
-          {phase === 'moving' && `Most ore is not refined where it is dug. It ships, mostly across the Pacific.`}
-          {phase === 'refined' && (
+        <p
+          className="mt-1 min-h-[3.2em] max-w-[30rem] text-[0.95rem] leading-snug text-dim"
+          aria-live="polite"
+        >
+          {offRow && shock ? (
             <>
-              <strong className="font-semibold text-ink">{leader.name}</strong> mines {formatShare(leader.mine)} of the world&apos;s {name} and refines{' '}
+              Without <strong className="font-semibold text-ink">{offRow.name}</strong>,{' '}
+              {formatShare(shock.lostShare)} of the world&apos;s {shockStage === 'mine' ? 'mined' : 'refined'}{' '}
+              {name} disappears.{' '}
+              {Number.isFinite(shock.uplift)
+                ? `Every other country would have to raise output by ${Math.round(shock.uplift * 100)}% to make it up.`
+                : 'Nobody else produces any.'}{' '}
+              <button
+                type="button"
+                onClick={() => toggleOff(null)}
+                className="pointer-events-auto underline decoration-line-strong underline-offset-2 hover:text-ink"
+              >
+                Bring it back
+              </button>
+            </>
+          ) : null}
+          {!offRow &&
+            phase === 'mined' &&
+            `No one country dominates the mines. The largest three account for ${formatShare(model.mineConcentration.top3)} of the world's ${name}.`}
+          {!offRow &&
+            phase === 'moving' &&
+            `Most ore is not refined where it is dug. It ships, mostly across the Pacific.`}
+          {!offRow && phase === 'refined' && (
+            <>
+              <strong className="font-semibold text-ink">{leader.name}</strong> mines{' '}
+              {formatShare(leader.mine)} of the world&apos;s {name} and refines{' '}
               <strong className="font-semibold" style={{ color: 'var(--mf-copper-refined)' }}>
                 {formatShare(leader.refine)}
               </strong>
-              . {exporter && exporter.iso3 !== leader.iso3 ? `${exporter.name} digs ${formatShare(exporter.mine)} and refines ${formatShare(exporter.refine)}.` : ''}
+              .{' '}
+              {exporter && exporter.iso3 !== leader.iso3
+                ? `${exporter.name} digs ${formatShare(exporter.mine)} and refines ${formatShare(exporter.refine)}.`
+                : ''}
             </>
           )}
         </p>
         <p aria-hidden="true" className="mt-3 flex items-end gap-3">
           <span
             className="font-display text-[3.6rem] leading-[0.85] font-semibold tabular-nums sm:text-[5rem]"
-            style={{ color: `rgb(${mix(ease).join(',')})`, textShadow: `0 0 28px rgba(${mix(ease).join(',')}, 0.45)` }}
+            style={{
+              color: shock ? 'var(--mf-alert)' : `rgb(${mix(ease).join(',')})`,
+              textShadow: `0 0 28px ${shock ? 'rgba(255, 122, 107, 0.4)' : `rgba(${mix(ease).join(',')}, 0.45)`}`,
+            }}
           >
-            {formatShare(leaderNow)}
+            {shock ? '−' + formatShare(shock.lostShare) : formatShare(leaderNow)}
           </span>
           <span className="hud-label pb-1 text-muted">
-            {leader.name}
+            {offRow ? offRow.name : leader.name}
             <br />
-            {ease < 0.5 ? 'of world mining' : 'of world refining'}
+            {shock ? 'switched off' : ease < 0.5 ? 'of world mining' : 'of world refining'}
           </span>
         </p>
       </div>
@@ -388,32 +515,76 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
             <span>The gap</span>
             <span className="flex items-center gap-3 text-muted normal-case">
               <span className="flex items-center gap-1">
-                <i className="inline-block h-2 w-2 rounded-full border" style={{ borderColor: `rgb(${ORE_RGB})` }} /> mined
+                <i
+                  className="inline-block h-2 w-2 rounded-full border"
+                  style={{ borderColor: `rgb(${ORE_RGB})` }}
+                />{' '}
+                mined
               </span>
               <span className="flex items-center gap-1">
-                <i className="inline-block h-2 w-2 rounded-full" style={{ background: `rgb(${COPPER_RGB})` }} /> refined
+                <i
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ background: `rgb(${COPPER_RGB})` }}
+                />{' '}
+                refined
               </span>
             </span>
           </p>
           <ul className="mt-2.5 space-y-1.5">
             {ranked.map((row) => (
-              <GapRow key={row.iso3} row={row} t={ease} axisMax={maxShare} active={focus === row.iso3} />
+              <GapRow
+                key={row.iso3}
+                row={row}
+                t={ease}
+                axisMax={maxShare}
+                active={focus === row.iso3}
+                off={off === row.iso3}
+                onToggle={toggleOff}
+              />
             ))}
           </ul>
           <div className="mt-3 border-t border-line pt-2.5">
-            <p className="hud-label text-muted">Concentration, top 3 countries</p>
+            <p className="hud-label text-muted">Concentration index (HHI)</p>
             <p className="mt-1 flex items-baseline gap-2 tabular-nums">
-              <span className="font-display text-lg text-ink">{formatShare(lerp(model.mineConcentration.top3, model.refineConcentration.top3, ease))}</span>
+              <span className="font-display text-lg text-ink">
+                {Math.round(
+                  lerp(model.mineConcentration.hhi, model.refineConcentration.hhi, ease),
+                ).toLocaleString('en-US')}
+              </span>
               <span className="text-xs text-muted">
-                {formatShare(model.mineConcentration.top3)} mined → {formatShare(model.refineConcentration.top3)} refined
+                {model.mineConcentration.hhi.toLocaleString('en-US')} mined →{' '}
+                {model.refineConcentration.hhi.toLocaleString('en-US')} refined
+              </span>
+            </p>
+            <p className="mt-0.5 text-[0.68rem] leading-snug text-muted">
+              US antitrust treats a market above 1,800 as highly concentrated. Used here as a yardstick only,
+              and a lower bound.
+            </p>
+            <p className="hud-label mt-2.5 text-muted">Top 3 countries</p>
+            <p className="mt-1 flex items-baseline gap-2 tabular-nums">
+              <span className="font-display text-lg text-ink">
+                {formatShare(lerp(model.mineConcentration.top3, model.refineConcentration.top3, ease))}
+              </span>
+              <span className="text-xs text-muted">
+                {formatShare(model.mineConcentration.top3)} mined →{' '}
+                {formatShare(model.refineConcentration.top3)} refined
               </span>
             </p>
           </div>
         </aside>
       )}
 
-      {/* Country read-out on hover or pin. */}
-      {focusRow && (hover || pinned) && (
+      {hintOn && !off && (
+        <p
+          className="panel pointer-events-none absolute top-[17.5rem] right-5 hidden animate-pulse px-3 py-2 text-[0.75rem] text-ink sm:right-8 lg:block"
+          style={{ width: '19.5rem' }}
+        >
+          Try it: click a country, here or on the map, to switch it off.
+        </p>
+      )}
+
+      {/* Country read-out on hover. */}
+      {focusRow && hover && (
         <div
           className="panel pointer-events-none absolute z-10 px-3 py-2"
           style={{
@@ -424,7 +595,8 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
         >
           <p className="font-display text-sm font-semibold text-ink">{focusRow.name}</p>
           <p className="mt-0.5 text-xs text-dim tabular-nums">
-            Mines <span className="text-ink">{formatShare(focusRow.mine)}</span> · Refines <span className="text-ink">{formatShare(focusRow.refine)}</span>
+            Mines <span className="text-ink">{formatShare(focusRow.mine)}</span> · Refines{' '}
+            <span className="text-ink">{formatShare(focusRow.refine)}</span>
           </p>
           <p className="mt-0.5 text-[0.7rem] text-muted">{roleOf(focusRow)}</p>
         </div>
@@ -435,8 +607,16 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
         <div className="w-full max-w-[34rem]">
           <div className="flex items-end justify-between">
             <StopButton label="01 · Mined" active={phase === 'mined'} onClick={() => animateTo(0, 2200)} />
-            <StopButton label="02 · Shipped" active={phase === 'moving'} onClick={() => animateTo(0.5, 2200)} />
-            <StopButton label="03 · Refined" active={phase === 'refined'} onClick={() => animateTo(1, 2200)} />
+            <StopButton
+              label="02 · Shipped"
+              active={phase === 'moving'}
+              onClick={() => animateTo(0.5, 2200)}
+            />
+            <StopButton
+              label="03 · Refined"
+              active={phase === 'refined'}
+              onClick={() => animateTo(1, 2200)}
+            />
           </div>
           <input
             type="range"
@@ -448,7 +628,10 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
             aria-label={`Supply chain stage for ${name}, from mined to refined`}
             aria-valuetext={phase === 'mined' ? 'Mined' : phase === 'refined' ? 'Refined' : 'In transit'}
             className="stage-slider mt-2 w-full"
-            style={{ ['--fill' as string]: `${t * 100}%`, ['--thumb' as string]: `rgb(${mix(ease).join(',')})` }}
+            style={{
+              ['--fill' as string]: `${t * 100}%`,
+              ['--thumb' as string]: `rgb(${mix(ease).join(',')})`,
+            }}
           />
           <button
             type="button"
@@ -458,9 +641,27 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
           >
             Explore the trade flows →
           </button>
+          <p className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[0.68rem] text-dim">
+            <ShareButton
+              label={copied === 'link' ? 'Link copied' : 'Copy link'}
+              onClick={() => {
+                const url = new URL(window.location.href)
+                url.search = ''
+                url.searchParams.set('stage', phase === 'mined' ? 'mined' : 'refined')
+                if (off) url.searchParams.set('off', off)
+                void copyText(url.toString()).then(() => flash('link'))
+              }}
+            />
+            <ShareButton label="Download CSV" onClick={() => downloadCsv(model)} />
+            <ShareButton
+              label={copied === 'cite' ? 'Citation copied' : 'Cite'}
+              onClick={() => void copyText(citation(model)).then(() => flash('cite'))}
+            />
+          </p>
           <p className="mt-2 text-center text-[0.68rem] leading-snug text-muted">
             Source: USGS Mineral Commodity Summaries · {model.year}
-            {model.estimated ? ' (estimate)' : ''} · contained metal · shares of the published world total, so concentration figures are lower bounds
+            {model.estimated ? ' (estimate)' : ''} · contained metal · shares of the published world total, so
+            concentration figures are lower bounds
           </p>
         </div>
       </div>
@@ -487,9 +688,53 @@ export function ChokepointView({ model, reducedMotion, compact, onExplore }: Cho
           ))}
         </tbody>
       </table>
-
     </div>
   )
+}
+
+function ShareButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="hud-label text-dim underline decoration-line-strong underline-offset-4 hover:text-ink"
+    >
+      {label}
+    </button>
+  )
+}
+
+async function copyText(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    const area = document.createElement('textarea')
+    area.value = text
+    document.body.appendChild(area)
+    area.select()
+    document.execCommand('copy')
+    area.remove()
+  }
+}
+
+function citation(model: ChokepointModel): string {
+  return (
+    `MineralFlows. "${model.mineralName}: where it is mined versus where it is refined, ${model.year}." ` +
+    `Data: USGS Mineral Commodity Summaries (public domain), contained metal` +
+    `${model.estimated ? ', newest year an estimate' : ''}. ${window.location.origin}${window.location.pathname}`
+  )
+}
+
+function downloadCsv(model: ChokepointModel) {
+  const blob = new Blob([toCsv(model)], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `mineralflows-${model.mineralId}-${model.year}.csv`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 function roleOf(row: CountryRow): string {
@@ -513,34 +758,74 @@ function StopButton({ label, active, onClick }: { label: string; active: boolean
   )
 }
 
-function GapRow({ row, t, axisMax, active }: { row: CountryRow; t: number; axisMax: number; active: boolean }) {
+function GapRow({
+  row,
+  t,
+  axisMax,
+  active,
+  off,
+  onToggle,
+}: {
+  row: CountryRow
+  t: number
+  axisMax: number
+  active: boolean
+  off: boolean
+  onToggle: (iso3: string) => void
+}) {
   const pos = (share: number) => `${(share / axisMax) * 100}%`
   const now = lerp(row.mine, row.refine, t)
   const lo = Math.min(row.mine, row.refine)
   const hi = Math.max(row.mine, row.refine)
   return (
-    <li className="grid grid-cols-[5.2rem_1fr_2.3rem] items-center gap-2" style={{ opacity: active ? 1 : 0.92 }}>
-      <span className={`truncate text-[0.72rem] ${active ? 'text-ink' : 'text-dim'}`}>{row.name}</span>
-      <span className="relative block h-3">
-        <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-line-strong" />
+    <li>
+      <button
+        type="button"
+        onClick={() => onToggle(row.iso3)}
+        aria-pressed={off}
+        title={off ? `Bring ${row.name} back` : `Switch ${row.name} off`}
+        className="grid w-full cursor-pointer grid-cols-[5.2rem_1fr_2.3rem] items-center gap-2 text-left"
+        style={{ opacity: off ? 0.45 : active ? 1 : 0.92 }}
+      >
         <span
-          className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full"
-          style={{ left: pos(lo), width: `calc(${pos(hi)} - ${pos(lo)})`, background: 'rgba(208, 122, 69, 0.3)' }}
-        />
-        <i
-          className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border"
-          style={{ left: pos(row.mine), borderColor: `rgb(${ORE_RGB})`, background: 'var(--mf-surface)' }}
-        />
-        <i
-          className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{ left: pos(row.refine), background: `rgb(${COPPER_RGB})` }}
-        />
-        <i
-          className="absolute top-1/2 h-[9px] w-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{ left: pos(now), background: `rgb(${mix(t).join(',')})`, boxShadow: `0 0 10px 2px rgba(${mix(t).join(',')}, 0.75)` }}
-        />
-      </span>
-      <span className="text-right text-[0.72rem] text-ink tabular-nums">{formatShare(now)}</span>
+          className={`truncate text-[0.72rem] ${active ? 'text-ink' : 'text-dim'}`}
+          style={{ textDecoration: off ? 'line-through' : 'none' }}
+        >
+          {row.name}
+        </span>
+        <span className="relative block h-3">
+          <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-line-strong" />
+          <span
+            className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full"
+            style={{
+              left: pos(lo),
+              width: `calc(${pos(hi)} - ${pos(lo)})`,
+              background: 'rgba(208, 122, 69, 0.3)',
+            }}
+          />
+          <i
+            className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border"
+            style={{
+              left: pos(row.mine),
+              borderColor: `rgb(${ORE_RGB})`,
+              background: 'var(--mf-surface)',
+            }}
+          />
+          <i
+            className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{ left: pos(row.refine), background: `rgb(${COPPER_RGB})` }}
+          />
+          <i
+            className="absolute top-1/2 h-[9px] w-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{
+              left: pos(now),
+              background: `rgb(${mix(t).join(',')})`,
+              boxShadow: `0 0 10px 2px rgba(${mix(t).join(',')}, 0.75)`,
+            }}
+          />
+        </span>
+        <span className="text-right text-[0.72rem] text-ink tabular-nums">{formatShare(now)}</span>
+      </button>
     </li>
   )
 }
@@ -556,7 +841,7 @@ function draw(
   t: number,
   now: number,
   hoverIso: string | null,
-  pinnedIso: string | null,
+  offIso: string | null,
 ) {
   const { width, height, dpr } = layout
   const g = canvas.getContext('2d')!
@@ -572,6 +857,16 @@ function draw(
   for (const row of rows.values()) {
     const p2d = layout.paths.get(row.iso3)
     if (!p2d) continue
+    if (row.iso3 === offIso) {
+      g.fillStyle = 'rgba(13, 11, 10, 0.92)'
+      g.fill(p2d)
+      g.setLineDash([5, 4])
+      g.strokeStyle = 'rgba(255, 122, 107, 0.85)'
+      g.lineWidth = 1.2
+      g.stroke(p2d)
+      g.setLineDash([])
+      continue
+    }
     const share = lerp(row.mine, row.refine, e)
     const k = Math.sqrt(share / maxShare)
     g.fillStyle = `rgba(${cr}, ${cg}, ${cb}, ${0.06 + 0.5 * k})`
@@ -587,6 +882,7 @@ function draw(
   g.globalCompositeOperation = 'lighter'
   const rMax = Math.min(width, height) * (width < 640 ? 0.17 : 0.13)
   for (const row of rows.values()) {
+    if (row.iso3 === offIso) continue
     const anchor = layout.anchors.get(row.iso3)
     if (!anchor) continue
     const share = lerp(row.mine, row.refine, e)
@@ -607,6 +903,7 @@ function draw(
   const mineAlpha = 1 - smooth(clamp01(t / 0.7))
   const plantAlpha = smooth(clamp01((t - 0.3) / 0.7))
   for (const site of layout.sites) {
+    if (site.iso3 === offIso) continue
     const a = (site.stage === 'mine' ? mineAlpha : plantAlpha) * (site.low ? 0.45 : 1)
     if (a < 0.02) continue
     const size = site.stage === 'refine' ? 2.2 : site.stage === 'process' ? 1.9 : 1.3
@@ -622,6 +919,7 @@ function draw(
   if (fade > 0.01) {
     const maxValue = Math.max(...model.ore.map((o) => o.valueUsd), 1)
     for (const route of model.ore) {
+      if (route.from === offIso || route.to === offIso) continue
       const a = layout.anchors.get(route.from) ?? null
       const b = layout.anchors.get(route.to) ?? null
       if (!a || !b) continue
@@ -653,7 +951,7 @@ function draw(
   g.globalCompositeOperation = 'source-over'
 
   // Hover and pin outline.
-  for (const iso of new Set([hoverIso, pinnedIso])) {
+  for (const iso of new Set([hoverIso])) {
     const p2d = iso ? layout.paths.get(iso) : undefined
     if (!p2d) continue
     g.strokeStyle = `rgba(${ACCENT}, 0.95)`
@@ -667,7 +965,23 @@ function draw(
     .map((r) => ({ r, share: lerp(r.mine, r.refine, e) }))
     .sort((a, b) => b.share - a.share)
   g.textBaseline = 'middle'
+  if (offIso) {
+    const row = rows.get(offIso)
+    const anchor = layout.anchors.get(offIso)
+    if (row && anchor) {
+      const lost = e < 0.5 ? row.mine : row.refine
+      const text = `${row.name.toUpperCase()}  OFF  −${formatShare(lost)}`
+      g.font = `500 ${width < 640 ? 9 : 10.5}px ${FONT_MONO}`
+      const w = g.measureText(text).width
+      g.fillStyle = 'rgba(13, 11, 10, 0.8)'
+      g.fillRect(anchor[0] - w / 2 - 4, anchor[1] - 8, w + 8, 16)
+      g.fillStyle = '#ff7a6b'
+      g.textAlign = 'left'
+      g.fillText(text, anchor[0] - w / 2, anchor[1])
+    }
+  }
   for (const { r, share } of ordered) {
+    if (r.iso3 === offIso) continue
     if (share < 0.035) break
     const anchor = layout.anchors.get(r.iso3)
     if (!anchor) continue
@@ -675,7 +989,16 @@ function draw(
     g.font = `500 ${width < 640 ? 9 : 10.5}px ${FONT_MONO}`
     const w = g.measureText(text).width
     const box = { x: anchor[0] - w / 2, y: anchor[1] - 22, w, h: 14 }
-    if (labelled.some((o) => box.x < o.x + o.w + 6 && box.x + box.w + 6 > o.x && box.y < o.y + o.h + 3 && box.y + box.h + 3 > o.y)) continue
+    if (
+      labelled.some(
+        (o) =>
+          box.x < o.x + o.w + 6 &&
+          box.x + box.w + 6 > o.x &&
+          box.y < o.y + o.h + 3 &&
+          box.y + box.h + 3 > o.y,
+      )
+    )
+      continue
     labelled.push(box)
     g.fillStyle = 'rgba(13, 11, 10, 0.64)'
     g.fillRect(box.x - 4, box.y - 1, box.w + 8, box.h + 2)

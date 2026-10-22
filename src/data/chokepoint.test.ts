@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { parseDataset, type RawFiles } from './load.ts'
-import { buildChokepoint, canTellStory, concentrationOf, formatShare } from './chokepoint.ts'
+import { buildChokepoint, canTellStory, concentrationOf, formatShare, shockOf, toCsv } from './chokepoint.ts'
 
 function read(file: string): unknown {
   return JSON.parse(readFileSync(new URL('../../public/data/' + file, import.meta.url), 'utf8'))
@@ -73,5 +73,33 @@ describe('the copper chokepoint', () => {
     for (let i = 1; i < ore.length; i++) {
       expect(ore[i - 1]!.valueUsd).toBeGreaterThanOrEqual(ore[i]!.valueUsd)
     }
+  })
+})
+
+describe('switching a country off', () => {
+  it('turns a share into the uplift everyone else would need', () => {
+    expect(shockOf({ iso3: 'XXX', name: 'X', mine: 0.5, refine: 0.5 }, 'refine').uplift).toBeCloseTo(1, 6)
+    expect(shockOf({ iso3: 'XXX', name: 'X', mine: 0.2, refine: 0.2 }, 'mine').uplift).toBeCloseTo(0.25, 6)
+    expect(shockOf({ iso3: 'XXX', name: 'X', mine: 1, refine: 1 }, 'mine').uplift).toBe(Infinity)
+  })
+
+  it('makes the China refining shock several times its mining shock', () => {
+    const model = buildChokepoint(dataset, 'copper')
+    const china = model?.rows.find((r) => r.iso3 === 'CHN')
+    expect(china).toBeDefined()
+    if (!china) return
+    expect(shockOf(china, 'refine').uplift).toBeGreaterThan(0.7)
+    expect(shockOf(china, 'mine').uplift).toBeLessThan(0.15)
+  })
+})
+
+describe('toCsv', () => {
+  it('has a header and one line per country, quoted where names have commas', () => {
+    const model = buildChokepoint(dataset, 'copper')
+    expect(model).not.toBeNull()
+    if (!model) return
+    const lines = toCsv(model).trimEnd().split('\n')
+    expect(lines[0]).toContain('mine_share')
+    expect(lines).toHaveLength(model.rows.length + 1)
   })
 })
