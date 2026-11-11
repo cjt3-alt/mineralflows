@@ -7,7 +7,6 @@ import {
   type ArcDatum,
 } from '../data/derive.ts'
 import { STAGES, type Country, type Stage } from '../data/schema.ts'
-import type { TerrainLayers } from './MapCanvas.tsx'
 
 /**
  * The control column: what is on screen, what can be switched on and off, and
@@ -58,8 +57,6 @@ export interface FilterRailProps {
   /** Stage shades of the active mineral, for swatches that match the map. */
   shade: Record<Stage, string>
 
-  terrainLayers: TerrainLayers
-  onToggleTerrain: (layer: keyof TerrainLayers) => void
 }
 
 function Section({ index, title, children, aside }: { index: string; title: string; children: ReactNode; aside?: ReactNode }) {
@@ -87,7 +84,7 @@ function Kpi({ label, value, sub }: { label: string; value: string; sub?: string
   )
 }
 
-function LayerRow({
+export function LayerRow({
   on,
   onClick,
   swatch,
@@ -126,7 +123,7 @@ function LayerRow({
   )
 }
 
-function Dot({ color, size }: { color: string; size: number }) {
+export function Dot({ color, size }: { color: string; size: number }) {
   // The same soft glow the map gives smelters and refineries, scaled with size.
   return (
     <span
@@ -136,7 +133,7 @@ function Dot({ color, size }: { color: string; size: number }) {
   )
 }
 
-function Line({ color, thickness }: { color: string; thickness: number }) {
+export function Line({ color, thickness }: { color: string; thickness: number }) {
   // Dim at the exporter end, bright where it lands, like the arcs.
   return (
     <span
@@ -153,7 +150,7 @@ function Line({ color, thickness }: { color: string; thickness: number }) {
 const DOT_SIZE: Record<Stage, number> = { mine: 5, process: 8, refine: 10 }
 const LINE_THICKNESS: Record<Stage, number> = { mine: 2, process: 2, refine: 2 }
 
-function CountrySearch({
+export function CountrySearch({
   countries,
   searchable,
   onPick,
@@ -236,8 +233,6 @@ export function FilterRail(props: FilterRailProps) {
     onHoverFlow,
     onSelectFlow,
     shade,
-    terrainLayers,
-    onToggleTerrain,
   } = props
 
   const stageOn = (s: Stage) => stages.length === 0 || stages.includes(s)
@@ -343,28 +338,7 @@ export function FilterRail(props: FilterRailProps) {
         <p className="mt-2 text-xs text-muted">Largest flows by value. Arc width is value.</p>
       </Section>
 
-      <Section index="05" title="Terrain">
-        <div className="flex flex-col">
-          <LayerRow
-            on={terrainLayers.relief}
-            onClick={() => onToggleTerrain('relief')}
-            swatch={
-              <span
-                className="inline-block h-3 w-7"
-                style={{ background: 'linear-gradient(90deg, #0b1726, #2e4256 45%, #5a7690 55%, #1d2f40)' }}
-              />
-            }
-            label="Relief & sea floor"
-            value=""
-          />
-        </div>
-        <p className="mt-2 text-xs text-muted">
-          Most mined copper comes from porphyry deposits in young mountain belts. That is why the
-          Andes line up with Chile and Peru.
-        </p>
-      </Section>
-
-      <Section index="06" title="Largest flows">
+      <Section index="05" title="Largest flows">
         {topFlows.length === 0 ? (
           <p className="text-xs text-muted">No flows match these filters.</p>
         ) : (

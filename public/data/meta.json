@@ -27,6 +27,14 @@
       "coverage": "Indicative annual average prices, order-of-magnitude only, used where no price source covers a mineral."
     },
     {
+      "id": "usgs-nmic",
+      "name": "USGS Mineral Commodity Summaries",
+      "url": "https://www.usgs.gov/centers/national-minerals-information-center",
+      "vintage": "MCS 2026",
+      "retrieved_at": "2026-10-21",
+      "coverage": "World production by country and annual average prices, from the machine-readable Mineral Commodity Summaries data release. Prices cover copper; 31 country-stage production figures were read for cross-checking trade volumes."
+    },
+    {
       "id": "worldbank-countries",
       "name": "World Bank country API",
       "url": "https://datahelpdesk.worldbank.org/knowledgebase/articles/898590-country-api-queries",

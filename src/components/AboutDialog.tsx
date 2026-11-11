@@ -68,7 +68,59 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
           data, and every number on screen traces back to a named source below.
         </p>
 
-        <Block index="01" title="Reading the map">
+        <Block index="01" title="The chokepoint">
+          <p>
+            <span className="text-ink">The opening view compares two things.</span> The share of the
+            world&rsquo;s copper that each country <em>mines</em>, and the share each country{' '}
+            <em>refines</em> into metal. The figures are the US Geological Survey&rsquo;s world
+            production tables (Mineral Commodity Summaries 2026, public domain), in tonnes of
+            contained metal. A share is a country&rsquo;s output over the USGS&rsquo;s own published
+            world total. The newest year is a USGS estimate and is labelled as one.
+          </p>
+          <p>
+            <span className="text-ink">Only mining and refining are published by country.</span> The
+            middle of the scrubber is therefore the journey, not a third dataset: the ore routes drawn
+            there are the largest mine-to-smelter trade flows in the trade data below, and a
+            country&rsquo;s smelting is not shown separately.
+          </p>
+          <p>
+            <span className="text-ink">Concentration is a lower bound.</span> The HHI (Herfindahl-
+            Hirschman index) is the sum of squared percentage shares, up to 10,000 for a monopoly. It
+            uses only the countries the USGS lists; the unlisted remainder could make the picture
+            more even, never less. The 1,800 line is where US antitrust agencies treat a market as
+            highly concentrated (
+            <a
+              href="https://www.paulweiss.com/insights/client-memos/doj-and-ftc-issue-final-2023-merger-guidelines"
+              target="_blank"
+              rel="noreferrer"
+              className="underline decoration-line-strong underline-offset-2 hover:decoration-accent"
+            >
+              2023 Merger Guidelines, summary
+            </a>
+            ). Countries are not firms, so it is a yardstick, not a legal finding.
+          </p>
+          <p>
+            <span className="text-ink">&ldquo;Switch a country off&rdquo; is arithmetic.</span> It
+            removes a country&rsquo;s share of one year&rsquo;s output and says how far everyone else
+            would have to stretch to make it up. It uses output, not capacity: it does not model spare
+            capacity, stockpiles, substitution, scrap, or prices. It measures dependence; it does not
+            forecast a shortage.
+          </p>
+          <p>
+            <span className="text-ink">One thing to know about refined metal.</span> The USGS world
+            table does not say whether a country&rsquo;s refinery output includes metal recovered from
+            scrap. It may, so some refined copper counted here did not come from mined ore, and a
+            country can refine more than it mines for that reason as well as by importing ore.
+          </p>
+          <p>
+            <span className="text-ink">Colour carries meaning.</span> Verdigris is ore, the green of
+            oxidised copper and of malachite. Copper is metal. Gold is the smelter&rsquo;s heat between
+            them. Mined and refined are also told apart by shape (hollow and filled) and by direct
+            labels, and the pair was checked for the common forms of colour-blindness.
+          </p>
+        </Block>
+
+        <Block index="02" title="Reading the map">
           <p>
             <span className="text-ink">Points are sites.</span> Small, dark points are mines; larger,
             brighter ones are smelters and refineries, where the processing chokepoints sit. A hollow
@@ -82,8 +134,8 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
             metal. A dashed arc was reported only by the importer.
           </p>
           <p>
-            <span className="text-ink">Cyan is you.</span> Whatever you hover, select or focus turns
-            cyan. Click a country to see only its trade and a breakdown of its position.
+            <span className="text-ink">Gold is you.</span> Whatever you hover, select or focus turns
+            gold. Click a country to see only its trade and a breakdown of its position.
           </p>
           <p>
             <span className="text-ink">The projection is Mercator</span>, the one web maps use. Like
@@ -93,7 +145,7 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
           </p>
         </Block>
 
-        <Block index="02" title="Sources">
+        <Block index="03" title="Sources">
           <ul className="flex flex-col gap-3">
             {meta.sources.map((s) => (
               <li key={s.id} className="border-l-2 border-line-strong pl-3">
@@ -113,7 +165,7 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
           </ul>
         </Block>
 
-        <Block index="03" title="Base map">
+        <Block index="04" title="Base map">
           <ul className="flex flex-col gap-3">
             <li className="border-l-2 border-line-strong pl-3">
               <p className="text-ink">Terrain Tiles on AWS Open Data</p>
@@ -131,7 +183,7 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
           </ul>
         </Block>
 
-        <Block index="04" title="Country roles">
+        <Block index="05" title="Country roles">
           <p>
             Each country&rsquo;s role is worked out from its own numbers by the rules below, tried in
             order; the first that fits wins. Shares are of all trade in the data for that kind of
@@ -174,7 +226,7 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
           </ul>
         </Block>
 
-        <Block index="05" title="Caveats">
+        <Block index="06" title="Caveats">
           <ul className="list-disc space-y-1.5 pl-5 marker:text-muted">
             <li>
               Arcs start and end at capital cities. They show which countries trade, not which ports

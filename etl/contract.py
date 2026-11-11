@@ -16,6 +16,7 @@ import json
 import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
+from dataclasses import field as dc_field
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -233,6 +234,45 @@ def _price_problems(r: dict) -> list[str]:
     return p
 
 
+# ----------------------------------------------------------------- production
+
+
+def validate_production(records: Sequence[dict]) -> None:
+    _validate_each("production.json", records, _production_problems)
+    _check_unique(
+        "production.json",
+        records,
+        lambda r: f"{r['mineral_id']}:{r['stage']}:{r['year']}",
+        "production key",
+    )
+
+
+def _production_problems(r: dict) -> list[str]:
+    p: list[str] = []
+    _check(p, SLUG_RE.match(str(r.get("mineral_id", ""))) is not None, "mineral_id: must be a slug")
+    _check(p, r.get("stage") in STAGES, "stage: must be mine, process or refine")
+    year = r.get("year")
+    _check(p, isinstance(year, int) and 1900 <= year <= 2100, "year: must be between 1900 and 2100")
+    _check(p, bool(str(r.get("unit", "")).strip()), "unit: required")
+    total = r.get("world_total")
+    _check(p, _is_num(total) and total > 0, "world_total: must be positive")
+    other = r.get("other")
+    _check(p, _is_num(other) and other >= 0, "other: must be zero or more")
+    by_country = r.get("by_country")
+    if not isinstance(by_country, dict) or not by_country:
+        p.append("by_country: must be a non-empty object")
+    else:
+        for iso3, tonnes in by_country.items():
+            _check(
+                p, ISO3_RE.match(str(iso3)) is not None, f"by_country {iso3!r}: not an ISO3 code"
+            )
+            _check(p, _is_num(tonnes) and tonnes >= 0, f"by_country {iso3}: must be zero or more")
+    _check(p, isinstance(r.get("estimated"), bool), "estimated: must be true or false")
+    _check(p, bool(str(r.get("source", "")).strip()), "source: required")
+    _check_url(p, "source_url", r.get("source_url"), nullable=False)
+    return p
+
+
 # ------------------------------------------------------------------ countries
 
 
@@ -320,12 +360,15 @@ class Dataset:
     prices: list[dict]
     countries: dict[str, dict]
     meta: dict
+    #: Mine and refinery output by country. Empty on a seed-only run.
+    production: list[dict] = dc_field(default_factory=list)
 
     def validate(self) -> None:
         validate_minerals(self.minerals)
         validate_facilities(self.as_feature_collection())
         validate_flows(self.flows)
         validate_prices(self.prices)
+        validate_production(self.production)
         validate_countries(self.countries)
         validate_meta(self.meta)
         self._check_references()
@@ -367,6 +410,14 @@ class Dataset:
             if price["mineral_id"] not in mineral_ids:
                 problems.append(f"price: unknown mineral {price['mineral_id']!r}")
 
+        for record in self.production:
+            label = f"production {record['mineral_id']}/{record['stage']}/{record['year']}"
+            if record["mineral_id"] not in mineral_ids:
+                problems.append(f"{label}: unknown mineral")
+            for iso3 in record["by_country"]:
+                if iso3 not in self.countries:
+                    problems.append(f"{label}: country {iso3} missing from countries.json")
+
         if problems:
             raise DataValidationError(
                 "(references between files)", problems[:20], {"problems_found": len(problems)}
@@ -397,6 +448,7 @@ def write_dataset(dataset: Dataset, output_dir: Path = OUTPUT_DIR) -> dict[str, 
         ),
         "flows.json": write_json(output_dir / "flows.json", dataset.flows),
         "prices.json": write_json(output_dir / "prices.json", dataset.prices),
+        "production.json": write_json(output_dir / "production.json", dataset.production),
         "countries.json": write_json(output_dir / "countries.json", dataset.countries),
         "meta.json": write_json(output_dir / "meta.json", dataset.meta),
     }

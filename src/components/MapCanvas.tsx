@@ -72,20 +72,20 @@ export interface MapCanvasProps {
 
 /* ------------------------------------------------------------------ palette */
 
-const ACCENT = '#5ad8f0'
+const ACCENT = '#d9b672'
 /** Shown only until the relief image arrives, or with relief switched off. */
-const OCEAN_FILL = 'rgba(9, 17, 27, 0.75)'
-const GRATICULE = 'rgba(90, 216, 240, 0.06)'
-const LAND_UNDERFILL = 'rgba(14, 30, 44, 0.9)'
+const OCEAN_FILL = 'rgba(16, 12, 9, 0.75)'
+const GRATICULE = 'rgba(217, 182, 114, 0.05)'
+const LAND_UNDERFILL = 'rgba(30, 24, 19, 0.9)'
 /**
  * Borders are engraved into the dot matrix: a narrow channel is cleared along
  * each one, and a crisp hairline runs down its middle. Coastlines get a softer
  * line of their own, so land reads as shapes and countries as countries.
  */
-const BORDER = 'rgba(150, 196, 226, 0.62)'
+const BORDER = 'rgba(214, 190, 160, 0.5)'
 const BORDER_CHANNEL_PX = 3.4
 const BORDER_WIDTH_PX = 0.85
-const COASTLINE = 'rgba(110, 170, 205, 0.4)'
+const COASTLINE = 'rgba(190, 160, 130, 0.36)'
 const COASTLINE_WIDTH_PX = 0.8
 const COMET = '255, 244, 225'
 const PULSE = '255, 201, 138'
@@ -352,7 +352,6 @@ export function MapCanvas({
   const [hover, setHover] = useState<{ hit: Hit; x: number; y: number } | null>(null)
   const [hoverCountry, setHoverCountry] = useState<string | null>(null)
   const [pointer, setPointer] = useState<{ lat: number; lng: number } | null>(null)
-  const [readout, setReadout] = useState<{ lat: number; lng: number; k: number } | null>(null)
   const [cursor, setCursor] = useState(0)
   const [keyboardActive, setKeyboardActive] = useState(false)
 
@@ -529,11 +528,6 @@ export function MapCanvas({
 
   /* ------------------------------------------------------------ the view */
 
-  const reportView = useCallback(() => {
-    const c = unproject(visibleCentre.x, visibleCentre.y)
-    setReadout(c ? { lat: c.lat, lng: c.lng, k: viewRef.current.k } : null)
-  }, [unproject, visibleCentre])
-
   /** Apply a view (clamped top and bottom only) and schedule a crisp re-render once it settles. */
   const setView = useCallback(
     (next: View) => {
@@ -545,15 +539,13 @@ export function MapCanvas({
       const now = performance.now()
       if (now - lastReportRef.current > 100) {
         lastReportRef.current = now
-        reportView()
       }
       window.clearTimeout(settleRef.current)
       settleRef.current = window.setTimeout(() => {
         renderStatic()
-        reportView()
       }, 140)
     },
-    [mapRect, visible, reportView, renderStatic],
+    [mapRect, visible, renderStatic],
   )
 
   /** Animate to a view, via its nearest repeat so it never laps the world; any input cancels it. */
@@ -594,7 +586,6 @@ export function MapCanvas({
       viewRef.current = clampWrapView(viewRef.current, visible, mapRect)
     }
     renderStatic()
-    reportView()
     // Only when the canvas itself changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitted, mapRect])
@@ -1293,20 +1284,6 @@ export function MapCanvas({
       />
 
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        <span className="hud-corner top-3 left-3 border-t border-l" />
-        <span className="hud-corner top-3 right-3 border-t border-r" />
-        <span className="hud-corner bottom-3 left-3 border-b border-l" />
-        <span className="hud-corner right-3 bottom-3 border-r border-b" />
-        <div className="hud-label absolute top-5 left-6 hidden flex-col gap-0.5 sm:flex">
-          <span>
-            <span className="text-muted">VIEW </span>
-            <span className="text-dim">{readout ? formatLatLng(readout.lat, readout.lng, 1) : '—'}</span>
-          </span>
-          <span>
-            <span className="text-muted">ZOOM </span>
-            <span className="text-dim">{readout ? readout.k.toFixed(1) + '×' : '—'}</span>
-          </span>
-        </div>
         <div className="hud-label absolute right-6 bottom-5 hidden text-right sm:block">
           {pointer ? (
             <>
@@ -1350,7 +1327,7 @@ function MapButtons({ onZoomIn, onZoomOut, onHome }: { onZoomIn: () => void; onZ
   const cls =
     'flex h-8 w-8 items-center justify-center border-b border-line-strong text-dim last:border-b-0 hover:bg-accent/10 hover:text-accent'
   return (
-    <div className="panel absolute top-5 left-5 z-10 flex flex-col sm:top-16 sm:left-6" role="group" aria-label="Map view">
+    <div className="panel absolute right-3 bottom-24 z-10 flex flex-col sm:right-auto sm:bottom-[13.5rem] sm:left-8" role="group" aria-label="Map view">
       <button type="button" onClick={onZoomIn} className={cls} aria-label="Zoom in" title="Zoom in (+)">
         <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12">
           <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.4" />

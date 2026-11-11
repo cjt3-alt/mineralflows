@@ -96,23 +96,23 @@ def shade(e: np.ndarray, top: int) -> np.ndarray:
 
 
 def colourise(e: np.ndarray, hs: np.ndarray) -> np.ndarray:
-    """The app's palette: deep navy sea, cool slate land, relief in the light."""
+    """The app's palette: warm graphite sea, umber-grey land, relief in the light."""
     land = e > 0
     out = np.zeros(e.shape + (3,), dtype=np.float32)
 
     # Sea: darker with depth, with the sea floor's own relief kept faint.
     depth = np.clip(-e / 6000, 0, 1)[..., None]
-    shallow = np.array([12, 26, 40], dtype=np.float32)
-    deep = np.array([4, 9, 16], dtype=np.float32)
+    shallow = np.array([24, 19, 15], dtype=np.float32)
+    deep = np.array([9, 7, 6], dtype=np.float32)
     sea = shallow * (1 - depth) + deep * depth
     sea = sea * (0.82 + 0.36 * hs[..., None])
 
-    # Land: slate that lifts toward a cool steel with height, lit by the shade.
+    # Land: umber-grey that lifts toward warm stone with height, lit by the shade.
     # Height lifts the colour only gently, so high plateaus and ice sheets
     # (Tibet, Greenland) do not outshine the data drawn on top.
     height = np.clip(e / 5000, 0, 1)[..., None] ** 0.8
-    low = np.array([19, 33, 47], dtype=np.float32)
-    high = np.array([58, 82, 106], dtype=np.float32)
+    low = np.array([36, 29, 23], dtype=np.float32)
+    high = np.array([98, 82, 66], dtype=np.float32)
     ground = low * (1 - height) + high * height
     # Strong light/shadow contrast, so ranges read at world scale while flat
     # land (hillshade ~0.64) stays close to the base colour.

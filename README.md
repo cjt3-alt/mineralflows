@@ -8,6 +8,17 @@ a country search and the largest flows; a full-bleed map you can pan, zoom, hove
 dossier panel for whatever is selected, including a plain-English summary of each country's role in
 the trade.
 
+**The front door is "The Chokepoint."** The page opens on a world map drawn twice and morphed
+between: the countries that mine copper, and the countries that refine it into metal. China mines
+about 8% of the world's copper and refines about 48%; Peru mines about 12% and refines about 1%.
+Drag the scrubber from mined to refined, click a country to switch it off and see what the rest of
+the world would have to make up, copy a link, download the table as CSV, or copy a citation. The
+trade-flow explorer described below is one click away (or `?view=flows`). Figures come from
+`public/data/production.json`, built from the USGS Mineral Commodity Summaries; see "Sources &
+method" in the app for what they do and do not show, and
+[`src/styles/palette.ts`](src/styles/palette.ts) for how the colours were chosen and
+validated (verdigris ore, copper metal, gold smelter heat, on warm graphite).
+
 **Currently scoped to copper only.** The app and ETL support four minerals (copper, lithium, cobalt,
 rare earths) end to end, but as of 13 September 2026 lithium, cobalt, and rare earths are switched
 off in [`etl/config/minerals.json`](etl/config/minerals.json) (`"active": false`), to judge the app

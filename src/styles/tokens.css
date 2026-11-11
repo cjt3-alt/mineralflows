@@ -6,11 +6,14 @@
  * analyst or a defense-tech team would keep up on a wall. Three rules hold it
  * together.
  *
- * 1. Data is warm, interface is cool. Every copper-to-gold pixel is a mineral
- *    (from minerals.json, shaded by stage in derive.ts). The interface itself
- *    is a cold blue-grey ramp with one cyan accent, used only for what the
- *    viewer is pointing at: selection, hover, focus, the keyboard cursor. So
- *    the two never compete, and "what am I looking at" is always cyan.
+ * 1. The ground is warm graphite, not blue. Copper is the subject, so the
+ *    stage is lit the way a foundry is: near-black with a trace of brown, bone
+ *    white text, and two data hues taken from the metal itself. Ore is verdigris
+ *    (copper's own patina and the green of malachite); metal is copper; the
+ *    smelter's heat is gold between them. The interface accent is a quiet
+ *    champagne, used only for what the viewer is pointing at: selection, hover,
+ *    focus, the keyboard cursor. Both data hues were run through the dataviz
+ *    palette validator on this surface (see src/styles/palette.ts).
  *
  * 2. Red means caution and nothing else: low confidence, estimated values,
  *    errors.
@@ -23,44 +26,53 @@
 
 :root {
   /* Ground and surfaces */
-  --mf-void: #03060a;
-  --mf-surface: #080d14;
-  --mf-surface-raised: #0d141e;
-  --mf-glass: rgba(7, 12, 19, 0.84);
+  --mf-void: #0d0b0a;
+  --mf-surface: #14110f;
+  --mf-surface-raised: #1c1713;
+  --mf-glass: rgba(16, 13, 11, 0.86);
 
   /* Lines */
-  --mf-line: #152130;
-  --mf-line-strong: #22344a;
+  --mf-line: #2a221b;
+  --mf-line-strong: #40352b;
 
-  /* Text. Muted is 5.0:1 on the ground, so it stays AA at small sizes. */
-  --mf-muted: #74879f;
-  --mf-text-dim: #a2b4c9;
-  --mf-text: #e1e9f2;
+  /* Text. Muted is 5.8:1 on the surface, so it stays AA at small sizes. */
+  --mf-muted: #9a8d7d;
+  --mf-text-dim: #c2b5a5;
+  --mf-text: #efe7dc;
 
   /* Signals */
-  --mf-accent: #5ad8f0;
-  --mf-accent-soft: rgba(90, 216, 240, 0.12);
-  --mf-alert: #ff6b5e;
-  --mf-ok: #46d68c;
+  --mf-accent: #d9b672;
+  --mf-accent-soft: rgba(217, 182, 114, 0.13);
+  --mf-alert: #ff7a6b;
+  --mf-ok: #5ecf95;
 
   /* Data ramp for legend swatches; the globe computes the same shades in derive.ts. */
-  --mf-copper-raw: #b8582f;
-  --mf-copper: #ff7a45;
-  --mf-copper-refined: #ffcfa5;
+  --mf-ore: #35a395;
+  --mf-ore-tint: #6fd0c0;
+  --mf-molten: #d9b24c;
+  --mf-copper: #d07a45;
+  --mf-copper-refined: #f0b48a;
 
-  /* Type */
-  --mf-font-sans:
-    'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mf-font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
-  --mf-font-display:
-    'IBM Plex Sans Condensed', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  /* Type. Archivo carries everything: a width axis lets the headline stand wide
+     and tight, in the manner of the industrial and defence brands this is
+     meant to sit beside, while body text stays at normal width. Martian Mono is
+     microtype only: labels, buttons, units. Newsreader, a text serif, carries
+     the sentences a person reads for meaning. */
+  --mf-font-sans: 'Archivo Variable', 'Archivo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mf-font-mono: 'Martian Mono Variable', 'Martian Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+  --mf-font-display: 'Archivo Variable', 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  --mf-font-serif: 'Newsreader Variable', 'Newsreader', 'Iowan Old Style', Georgia, serif;
 
-  /* Geometry. Square corners: nothing here is a soft card. */
-  --mf-radius: 2px;
+  /* Geometry. Square, with one chamfered corner on panels: a plate, not a card. */
+  --mf-radius: 0;
   --mf-rail-width: 19rem;
   --mf-panel-width: 23rem;
 
-  /* Motion. Only ever in response to an action. */
+  /* Motion: one decisive ease-out for things arriving, one symmetrical ease for things morphing. */
+  --mf-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --mf-ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Short transitions for state changes. */
   --mf-transition: 140ms ease-out;
 }
 
