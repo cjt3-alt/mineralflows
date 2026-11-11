@@ -1,7 +1,7 @@
 import type { Mineral } from '../data/schema.ts'
 
 /**
- * The navigation: a wordmark, two views, and the method. Nothing decorative. An
+ * The navigation: a wordmark and the method. The map's own controls (lens, search) live on the map. Nothing decorative. An
  * earlier version carried a live UTC clock, a "dataset loaded" light and a
  * classification banner; none of them said anything true or useful, and they
  * made a page of public data look like it was cosplaying a command centre.
@@ -21,9 +21,6 @@ export interface TopBarProps {
   dataYear: number | null
   onOpenAbout: () => void
   compact?: boolean
-  /** Which view is showing, and how to switch. Omit to hide the switch. */
-  mode?: 'story' | 'flows'
-  onChangeMode?: (mode: 'story' | 'flows') => void
 }
 
 /** The gap, drawn: mined (a ring) and refined (a disc), joined. The same glyph as the dumbbell chart. */
@@ -37,25 +34,6 @@ function Mark() {
   )
 }
 
-function NavLink({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
-  return (
-    <button
-      type="button"
-      aria-current={active ? 'page' : undefined}
-      onClick={onClick}
-      className="hud-label relative h-full whitespace-nowrap px-1 transition-colors"
-      style={{ color: active ? 'var(--mf-text)' : 'var(--mf-muted)' }}
-    >
-      {children}
-      <span
-        aria-hidden="true"
-        className="absolute inset-x-1 bottom-0 h-px"
-        style={{ background: active ? 'var(--mf-copper)' : 'transparent' }}
-      />
-    </button>
-  )
-}
-
 export function TopBar({
   minerals,
   selectedMineralIds,
@@ -64,8 +42,6 @@ export function TopBar({
   dataYear,
   onOpenAbout,
   compact = false,
-  mode,
-  onChangeMode,
 }: TopBarProps) {
   const showingAll = selectedMineralIds.length === 0
   const single = minerals.length === 1 ? minerals[0] : undefined
@@ -88,17 +64,6 @@ export function TopBar({
           MineralFlows
         </h1>
       </div>
-
-      {mode && onChangeMode && (
-        <nav aria-label="View" className="flex h-full items-center gap-2 sm:gap-6">
-          <NavLink active={mode === 'story'} onClick={() => onChangeMode('story')}>
-            {compact ? 'Story' : 'The chokepoint'}
-          </NavLink>
-          <NavLink active={mode === 'flows'} onClick={() => onChangeMode('flows')}>
-            {compact ? 'Flows' : 'Trade flows'}
-          </NavLink>
-        </nav>
-      )}
 
       {!compact && single && (
         <p className="hud-label hidden items-center gap-2 whitespace-nowrap text-muted lg:flex">

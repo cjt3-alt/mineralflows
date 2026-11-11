@@ -1,15 +1,10 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { flushSync } from 'react-dom'
-import type { TerrainLayers } from './MapCanvas.tsx'
-import { ChokepointView } from './ChokepointView.tsx'
-import { FlowsHeadline, FlowsPanel } from './FlowsOverlay.tsx'
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { ExplorerView } from './ExplorerView.tsx'
+import type { Lens } from '../map/ExploreMap.tsx'
 import { buildChokepoint } from '../data/chokepoint.ts'
-import { chooseSeam, wrapLng } from './mapDynamics.ts'
-import { isOpenOceanMeridian } from '../data/geo.ts'
 import { TopBar } from './TopBar.tsx'
-import { FilterRail, type FilterRailProps } from './FilterRail.tsx'
-import { DetailPanel, type Selection } from './DetailPanel.tsx'
-import { Legend, StatusBar } from './LegendBar.tsx'
+import type { Selection } from './DetailPanel.tsx'
+import { StatusBar } from './LegendBar.tsx'
 import { AboutDialog } from './AboutDialog.tsx'
 import { loadDataset, type Dataset } from '../data/load.ts'
 import {
@@ -19,7 +14,6 @@ import {
   filterFlows,
   filtersFromSearchParams,
   filtersToSearchParams,
-  formatUsd,
   resolveValue,
   stageShade,
   countryRole,
@@ -62,39 +56,22 @@ function toggle<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value]
 }
 
-/**
- * Layer switches: every layer is on by default (stored as an empty list), a
- * click turns one off, and the last one on cannot be turned off. Turning the
- * last missing one back on returns to the empty "all" list, so the URL stays
- * clean.
- */
-function toggleLayer(list: Stage[], value: Stage): Stage[] {
-  const on: Stage[] = list.length === 0 ? [...STAGES] : list
-  const next = on.includes(value) ? on.filter((s) => s !== value) : [...on, value]
-  if (next.length === 0) return list
-  if (next.length === STAGES.length) return []
-  return STAGES.filter((s) => next.includes(s))
-}
-
-const LIST_LENGTH = 8
-
-/** The trade-flow map is the heavier half of the app and not the front door, so it loads when asked for. */
-const MapCanvas = lazy(() => import('./MapCanvas.tsx').then((m) => ({ default: m.MapCanvas })))
-
-/** The relief image is still the old navy tint; off until it is rebuilt warm (tools/build_basemap.py). */
-const TERRAIN: TerrainLayers = { relief: false }
-
 export function AppShell() {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
   const [selection, setSelection] = useState<PickedSelection | null>(null)
-  const [hoverId, setHoverId] = useState<string | null>(null)
   const [aboutOpen, setAboutOpen] = useState(false)
-  const [sheetOpen, setSheetOpen] = useState(false)
-  // The chokepoint story is the front door; `?view=flows` opens the explorer directly.
-  const [mode, setMode] = useState<'story' | 'flows'>(() =>
-    new URLSearchParams(window.location.search).get('view') === 'flows' ? 'flows' : 'story',
-  )
+  // The lens is what the map shows. Old links (?stage=refined, ?view=flows) still land somewhere sensible.
+  const [lens, setLens] = useState<Lens>(() => {
+    const q = new URLSearchParams(window.location.search)
+    const asked = q.get('lens') ?? (q.get('view') === 'flows' ? 'trade' : q.get('stage'))
+    return asked === 'refined' || asked === 'trade' ? asked : 'mined'
+  })
+  // The guided opening plays on a fresh arrival, not when someone shares a link to a particular view.
+  const [playIntro] = useState(() => {
+    const q = new URLSearchParams(window.location.search)
+    return !q.has('lens') && !q.has('country') && !q.has('stage') && !q.has('view') && q.get('intro') !== '0'
+  })
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   const isSmall = useMediaQuery('(max-width: 767px)')
 
@@ -127,14 +104,14 @@ export function AppShell() {
   useEffect(() => {
     if (state.status !== 'ready') return
     const params = filtersToSearchParams(filters)
-    if (mode === 'flows') params.set('view', 'flows')
+    if (lens !== 'mined') params.set('lens', lens)
     const query = params.toString()
     window.history.replaceState(
       null,
       '',
       window.location.pathname + (query ? '?' + query : '') + window.location.hash,
     )
-  }, [filters, mode, state.status])
+  }, [filters, lens, state.status])
 
   const dataset = state.status === 'ready' ? state.dataset : null
 
@@ -146,22 +123,6 @@ export function AppShell() {
       if (model) return model
     }
     return null
-  }, [dataset])
-
-  /**
-   * Where the flat map is cut, from every active flow rather than the filtered
-   * set, so the map does not re-centre when a filter changes.
-   */
-  const centralMeridian = useMemo(() => {
-    if (!dataset) return 0
-    const active = new Set(dataset.activeMinerals.map((m) => m.id))
-    const flows = dataset.flows.flatMap((f) => {
-      const from = dataset.countries[f.from_iso3]
-      const to = dataset.countries[f.to_iso3]
-      if (!active.has(f.mineral_id) || !from || !to) return []
-      return [{ fromLng: from.lon, toLng: to.lon, usd: resolveValue(f, dataset.priceFor).usd ?? 0 }]
-    })
-    return wrapLng(chooseSeam(flows, isOpenOceanMeridian) + 180)
   }, [dataset])
 
   const view = useMemo(() => {
@@ -271,40 +232,16 @@ export function AppShell() {
     setFilters((f) => ({ ...f, mineralIds: toggle(f.mineralIds, id) }))
   }, [])
   const onClearMinerals = useCallback(() => setFilters((f) => ({ ...f, mineralIds: [] })), [])
-  const onToggleStage = useCallback(
-    (s: Stage) => setFilters((f) => ({ ...f, stages: toggleLayer(f.stages, s) })),
-    [],
-  )
-  const onToggleFlowKind = useCallback(
-    (k: Stage) => setFilters((f) => ({ ...f, flowKinds: toggleLayer(f.flowKinds, k) })),
-    [],
-  )
-  const onChangeTopN = useCallback((topN: number) => setFilters((f) => ({ ...f, topN })), [])
   const onFocusCountry = useCallback((iso3: string) => {
     setSelection(null)
-    setSheetOpen(false)
     setFilters((f) => ({ ...f, country: iso3 }))
   }, [])
-  const onClearFocus = useCallback(() => setFilters((f) => ({ ...f, country: null })), [])
   const onSelectPoint = useCallback((point: PointDatum) => setSelection({ kind: 'facility', point }), [])
   const onSelectArc = useCallback((arc: ArcDatum) => {
-    setSheetOpen(false)
     setSelection({ kind: 'flow', arc })
   }, [])
   const onClearSelection = useCallback(() => setSelection(null), [])
 
-  /** Switching views cross-fades where the browser can, and cuts where it cannot or the viewer asked for less motion. */
-  const changeMode = useCallback(
-    (next: 'story' | 'flows') => {
-      const doc = document as Document & { startViewTransition?: (update: () => void) => unknown }
-      if (!doc.startViewTransition || reducedMotion) {
-        setMode(next)
-        return
-      }
-      doc.startViewTransition(() => flushSync(() => setMode(next)))
-    },
-    [reducedMotion],
-  )
   const openAbout = useCallback(() => setAboutOpen(true), [])
   const closeAbout = useCallback(() => setAboutOpen(false), [])
 
@@ -348,48 +285,8 @@ export function AppShell() {
   }
 
   const data = state.dataset
-  const storyOn = mode === 'story' && chokepoint !== null
   const v = view!
-  const nothingVisible = v.points.length === 0 && v.arcs.length === 0
-  const shownMinerals =
-    filters.mineralIds.length > 0 ? filters.mineralIds : data.activeMinerals.map((m) => m.id)
-  const flowsMineralName =
-    shownMinerals.length === 1
-      ? (data.mineralsById.get(shownMinerals[0]!)?.name ?? 'Critical minerals')
-      : 'Critical minerals'
-
-  const railProps: FilterRailProps = {
-    overview: v.overview,
-    countries: data.countries,
-    searchableCountries: v.searchable,
-    focusCountry: filters.country,
-    onFocusCountry,
-    onClearFocus,
-    stages: filters.stages,
-    facilityCounts: v.facilityCounts,
-    onToggleStage,
-    flowKinds: filters.flowKinds,
-    valueByKind: v.valueByKind,
-    onToggleFlowKind,
-    topN: filters.topN,
-    onChangeTopN,
-    topFlows: v.arcs.slice(0, LIST_LENGTH),
-    selectedId,
-    onHoverFlow: setHoverId,
-    onSelectFlow: onSelectArc,
-    shade: v.shade,
-  }
-
-  const legend = (
-    <Legend
-      maxValueUsd={v.maxValueUsd}
-      shownArcCount={v.arcs.length}
-      totalArcCount={v.totalMatching}
-      hasEstimatedValues={v.hasEstimated}
-      hasLowConfidenceFlows={v.hasLowConfidenceFlows}
-      color={v.shade.process}
-    />
-  )
+  const flowsMineralName = chokepoint?.mineralName ?? 'Critical minerals'
 
   return (
     <div className="flex h-full flex-col">
@@ -408,104 +305,31 @@ export function AppShell() {
         dataYear={v.dataYear}
         onOpenAbout={openAbout}
         compact={isSmall}
-        {...(chokepoint ? { mode, onChangeMode: changeMode } : {})}
       />
 
-      {storyOn && (
-        <main id="map" tabIndex={-1} className="min-h-0 min-w-0 flex-1">
-          <ChokepointView model={chokepoint} reducedMotion={reducedMotion} compact={isSmall} />
-        </main>
-      )}
-
-      {!storyOn && (
-        <div className="flex min-h-0 flex-1">
-          <main id="map" tabIndex={-1} className="stage relative min-w-0 flex-1 overflow-hidden">
-            <Suspense fallback={null}>
-              <MapCanvas
-                points={v.points}
-                arcs={v.arcs}
-                countries={data.countries}
-                selectedId={selectedId}
-                externalHoverId={hoverId}
-                focusCountry={filters.country}
-                centralMeridian={centralMeridian}
-                terrainLayers={TERRAIN}
-                // The floating panel is 23rem wide with a 1rem gap; on phones it is a sheet instead.
-                countryRoles={v.roles}
-                insetRight={isSmall ? 0 : panelSelection !== null ? 23 * 16 + 16 : 20.5 * 16 + 32}
-                reducedMotion={reducedMotion}
-                onSelectPoint={onSelectPoint}
-                onSelectArc={onSelectArc}
-                onSelectCountry={onFocusCountry}
-                onClearSelection={onClearSelection}
-              />
-            </Suspense>
-
-            <FlowsHeadline
-              mineralName={flowsMineralName}
-              year={v.dataYear}
-              tradeUsd={v.overview.tradeUsd}
-              valueByKind={v.valueByKind}
-              focusName={filters.country ? (data.countries[filters.country]?.name ?? filters.country) : null}
-            />
-
-            {!isSmall && panelSelection === null && <FlowsPanel {...railProps} />}
-
-            {!isSmall && <div className="pointer-events-none absolute bottom-6 left-6">{legend}</div>}
-
-            {isSmall && !sheetOpen && panelSelection === null && (
-              <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-end justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSheetOpen(true)}
-                  className="panel hud-label pointer-events-auto px-3 py-2 text-ink"
-                >
-                  ☰ Layers & search
-                </button>
-                <p className="panel hud-label px-2.5 py-2 text-dim">
-                  {formatUsd(v.overview.tradeUsd)} · {v.arcs.length} flows
-                </p>
-              </div>
-            )}
-
-            {isSmall && sheetOpen && (
-              <div className="panel scroll-quiet absolute inset-x-0 bottom-0 z-20 max-h-[78%] overflow-y-auto border-x-0 border-b-0">
-                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface px-4 py-2">
-                  <span className="hud-label text-dim">Layers & search</span>
-                  <button
-                    type="button"
-                    onClick={() => setSheetOpen(false)}
-                    className="hud-label text-muted hover:text-ink"
-                  >
-                    Done
-                  </button>
-                </div>
-                <FilterRail {...railProps} />
-                <div className="p-4">{legend}</div>
-              </div>
-            )}
-
-            {nothingVisible && (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
-                <div className="panel bracketed pointer-events-auto max-w-sm p-4 text-center">
-                  <p className="hud-label text-alert">No matches</p>
-                  <p className="mt-1 text-sm text-ink">Nothing matches these filters.</p>
-                  <p className="mt-1 text-xs text-dim">Switch a layer back on, or clear the country focus.</p>
-                </div>
-              </div>
-            )}
-
-            <DetailPanel
-              variant={isSmall ? 'sheet' : 'panel'}
-              selection={panelSelection}
-              mineralsById={data.mineralsById}
-              countries={data.countries}
-              onClose={onClosePanel}
-              onFocusCountry={onFocusCountry}
-            />
-          </main>
-        </div>
-      )}
+      <main id="map" tabIndex={-1} className="stage relative min-h-0 min-w-0 flex-1 overflow-hidden">
+        <h2 className="sr-only">{flowsMineralName} supply chain map</h2>
+        <ExplorerView
+          lens={lens}
+          onChangeLens={setLens}
+          model={chokepoint}
+          points={v.points}
+          arcs={v.arcs}
+          countries={data.countries}
+          mineralsById={data.mineralsById}
+          selection={panelSelection}
+          selectedId={selectedId}
+          focusCountry={filters.country}
+          reducedMotion={reducedMotion}
+          compact={isSmall}
+          playIntro={playIntro}
+          onSelectPoint={onSelectPoint}
+          onSelectArc={onSelectArc}
+          onFocusCountry={onFocusCountry}
+          onClearSelection={onClearSelection}
+          onClosePanel={onClosePanel}
+        />
+      </main>
 
       {!isSmall && <StatusBar meta={data.meta} onOpenAbout={openAbout} />}
       <AboutDialog open={aboutOpen} onClose={closeAbout} meta={data.meta} />
