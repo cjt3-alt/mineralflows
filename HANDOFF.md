@@ -54,16 +54,7 @@ in-app browser. **Not checked:** real-device touch gestures, tablet width, axe, 
 phone, and the intro's pacing at real frame rates (the in-app pane does not run animation frames
 unless poked, so flights were judged by state, not watched).
 
-**Next, roughly in order**
-1. Depth of content, the thing most likely to decide whether people stay. No facility has a capacity
-   (0 of 1,229) and 551 are low confidence. Sources to look at: company annual reports and USGS
-   country chapters for capacity, ICSG for smelter and refinery capacity (also fills the smelting
-   gap), Wikidata for operators and opening years. Do not hard-code figures from memory.
-2. A second mineral (cobalt and rare earths need a non-USGS refinery table; IEA is the likely one).
-   The lenses, panels and search are mineral-generic.
-3. Curated "tours" for Take me somewhere (largest pits, the biggest smelter, a route end to end).
-4. Self-host the Esri labels' fallback and consider a vector basemap for road/town names.
-5. Items from 0d that still stand: social card image, wordmark, method page.
+**Next.** See `ROADMAP.md`: more data on the mines themselves (outlines, capacity, history), making uncertainty and modelled estimates a visible feature, a second mineral, and curated tours.
 
 ---
 

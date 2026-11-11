@@ -1,6 +1,6 @@
 # MineralFlows
 
-Start with `HANDOFF.md` section 0 for where things stand.
+Start with `HANDOFF.md` section 0 for where things stand. What to build next is in `ROADMAP.md`.
 
 ## Pending actions for CJ
 
