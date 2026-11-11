@@ -2,12 +2,11 @@ import { feature } from 'topojson-client'
 import type { Topology } from 'topojson-specification'
 import coarseTopology from 'world-atlas/countries-110m.json'
 import { NUMERIC_TO_ISO3 } from '../data/geo.ts'
-import type { ChokepointModel } from '../data/chokepoint.ts'
 
 /**
  * Country polygons for the map, at Natural Earth 1:50m (loaded when the map
- * is, not before), each stamped with the country's share of world mine and
- * refinery output so the map can colour itself from the feature alone.
+ * is, not before). Shapes only: each year's shares of world output are laid on
+ * top as feature state, so changing the year recolours without reloading shapes.
  */
 
 export type Bounds = [number, number, number, number]
@@ -91,17 +90,13 @@ function unwrapGeometry(g: GeoJSON.Geometry): GeoJSON.Geometry {
  * `coarse` (1:110m) is small enough to draw at once; `fine` (1:50m) follows and
  * replaces it, so the land appears immediately and sharpens a moment later.
  */
-export async function loadCountryGeo(
-  model: ChokepointModel | null,
-  detail: 'coarse' | 'fine' = 'fine',
-): Promise<CountryGeo> {
+export async function loadCountryGeo(detail: 'coarse' | 'fine' = 'fine'): Promise<CountryGeo> {
   const topology = (
     detail === 'coarse' ? coarseTopology : (await import('world-atlas/countries-50m.json')).default
   ) as unknown as Topology
   const countries = topology.objects.countries
   if (!countries) return { collection: { type: 'FeatureCollection', features: [] }, places: {} }
 
-  const shares = new Map((model?.rows ?? []).map((r) => [r.iso3, r]))
   const raw = feature(topology, countries) as unknown as GeoJSON.FeatureCollection
   const places: CountryGeo['places'] = {}
 
@@ -112,12 +107,11 @@ export async function loadCountryGeo(
     // Antarctica is off the map's edge and only ever a grey slab in the way.
     if (iso3 === 'ATA' || (f.properties as { name?: string } | null)?.name === 'Antarctica') continue
     const geometry = unwrapGeometry(f.geometry)
-    const row = shares.get(iso3)
     const name = (f.properties as { name?: string } | null)?.name ?? iso3
     features.push({
       type: 'Feature',
       geometry,
-      properties: { iso3, name, mine: row?.mine ?? 0, refine: row?.refine ?? 0 },
+      properties: { iso3, name },
     })
     if (iso3) {
       const polygons =
@@ -129,7 +123,7 @@ export async function loadCountryGeo(
       if (polygons.length > 0) {
         const bounds = mainBounds(polygons)
         places[iso3] = {
-          name: row?.name ?? name,
+          name,
           lng: (bounds[0] + bounds[2]) / 2,
           lat: (bounds[1] + bounds[3]) / 2,
           bounds,

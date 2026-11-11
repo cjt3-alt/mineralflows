@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { ExplorerView } from './ExplorerView.tsx'
 import type { Lens } from '../map/ExploreMap.tsx'
-import { buildChokepoint } from '../data/chokepoint.ts'
+import { buildChokepointSeries } from '../data/chokepoint.ts'
 import { TopBar } from './TopBar.tsx'
 import type { Selection } from './DetailPanel.tsx'
 import { StatusBar } from './LegendBar.tsx'
@@ -115,15 +115,16 @@ export function AppShell() {
 
   const dataset = state.status === 'ready' ? state.dataset : null
 
-  /** The first active mineral the story can be told for, or null: then there is only the explorer. */
-  const chokepoint = useMemo(() => {
-    if (!dataset) return null
+  /** One model per year for the first active mineral the story can be told for; empty: the map has no shares to show. */
+  const chokepoints = useMemo(() => {
+    if (!dataset) return []
     for (const mineral of dataset.activeMinerals) {
-      const model = buildChokepoint(dataset, mineral.id)
-      if (model) return model
+      const series = buildChokepointSeries(dataset, mineral.id)
+      if (series.length > 0) return series
     }
-    return null
+    return []
   }, [dataset])
+  const chokepoint = chokepoints[chokepoints.length - 1] ?? null
 
   const view = useMemo(() => {
     if (!dataset) return null
@@ -312,7 +313,8 @@ export function AppShell() {
         <ExplorerView
           lens={lens}
           onChangeLens={setLens}
-          model={chokepoint}
+          models={chokepoints}
+          priceHistory={data.priceHistory}
           points={v.points}
           arcs={v.arcs}
           countries={data.countries}

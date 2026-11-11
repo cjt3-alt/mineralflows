@@ -68,7 +68,10 @@ jobs:
           python -m ruff format --check etl/
 
       - name: Test
-        run: python etl/test_pipeline.py
+        run: |
+          python etl/test_pipeline.py
+          python etl/test_outlines.py
+          python etl/test_history.py
 
       - name: Check the fallback path still produces a valid dataset
         # The bare-runner case: no network, no drops. It still has to produce a

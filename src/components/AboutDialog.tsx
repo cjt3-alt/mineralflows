@@ -164,6 +164,14 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
               </li>
             ))}
           </ul>
+          <p className="mt-3 text-xs leading-relaxed text-muted">
+            The timeline runs 2020 to the newest year. Each year&rsquo;s figure is the newest USGS release
+            that carries it; a year is shown as an estimate (an asterisk) until USGS has revised it. The
+            USGS has changed its wording between releases (copper mine output was &ldquo;contained&rdquo; in
+            the 2022 release and &ldquo;recoverable&rdquo; from 2023), so a step between years can be a
+            change of definition, not a change in the world. Prices are World Bank annual averages in
+            nominal US dollars.
+          </p>
         </Block>
 
         <Block index="04" title="Base map">
@@ -175,6 +183,16 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
                 Geographics and the GIS User Community, loaded live from Esri&rsquo;s tile servers and
                 used under their terms with attribution. Imagery dates vary by place and are often
                 a few years old, so a pit may look different on the ground today.
+              </p>
+            </li>
+            <li className="border-l-2 border-line-strong pl-3">
+              <p className="text-ink">Global-scale mining polygons, Version 2</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted">
+                Maus, da Silva, Gutschlhofer, da Rosa, Giljum, Gass, Luckeneder, Lieber and McCallum (2022),
+                PANGAEA, doi 10.1594/PANGAEA.942325, licensed CC BY-SA 4.0. About 45,000 outlines of land used
+                by mining, drawn by eye on 2019 Sentinel-2 imagery. We keep those within 3 km of a site in
+                our data and simplify them to about 20 m. A match is by location, not by name, so an outline
+                can cover neighbouring mines, and the file is not a census of every mine.
               </p>
             </li>
             <li className="border-l-2 border-line-strong pl-3">

@@ -42,6 +42,8 @@ export interface DetailPanelProps {
   sites?: readonly PointDatum[]
   /** Fly to and open another site. */
   onSelectSite?: (point: PointDatum) => void
+  /** Ground each site covers, from satellite-mapped mine outlines, by facility id. */
+  footprints?: ReadonlyMap<string, { km2: number; shared: boolean }>
   /**
    * `sheet` is the narrow-viewport layout: the same content, over the map
    * from the bottom edge rather than floating beside it.
@@ -176,6 +178,7 @@ function FacilityDetail({
   onFocusCountry,
   sites,
   onSelectSite,
+  footprint,
 }: {
   point: PointDatum
   mineralsById: ReadonlyMap<string, Mineral>
@@ -183,6 +186,7 @@ function FacilityDetail({
   onFocusCountry?: ((iso3: string) => void) | undefined
   sites?: readonly PointDatum[] | undefined
   onSelectSite?: ((point: PointDatum) => void) | undefined
+  footprint?: { km2: number; shared: boolean } | undefined
 }) {
   const p = point.facility.properties
   const [lng, lat] = point.facility.geometry.coordinates
@@ -248,6 +252,16 @@ function FacilityDetail({
             formatTonnes(p.capacity_tonnes_per_year) + '/yr'
           )}
         </Row>
+        <Row label="Mapped footprint">
+          {footprint === undefined ? (
+            <span className="text-muted">none matched</span>
+          ) : (
+            <span>
+              {footprint.km2 < 10 ? footprint.km2.toFixed(1) : Math.round(footprint.km2).toLocaleString('en-US')} km²
+              {footprint.shared && <span className="text-muted"> · shared</span>}
+            </span>
+          )}
+        </Row>
         <Row label="Coordinates">{formatLatLng(lat, lng, 3)}</Row>
         <Row label="Country">{p.country_iso3}</Row>
         <Row label="Updated">{p.last_updated}</Row>
@@ -280,6 +294,15 @@ function FacilityDetail({
               ))}
           </ul>
         </>
+      )}
+
+      {footprint !== undefined && (
+        <p className="mt-3 text-xs leading-relaxed text-muted">
+          The footprint is the satellite-mapped mining area (pits, dumps, tailings, plant) that sits on or beside this
+          site's marker, from Maus et al. 2022. It is matched by location, not by name
+          {footprint.shared ? ', and it is shared with neighbouring sites in the same complex' : ''}, so treat it as the
+          ground a mine covers, not a measure of its output.
+        </p>
       )}
 
       {p.source_url !== null && (
@@ -513,6 +536,7 @@ export function DetailPanel({
   onFocusCountry,
   sites,
   onSelectSite,
+  footprints,
   variant = 'panel',
 }: DetailPanelProps) {
   const panelRef = useRef<HTMLElement>(null)
@@ -584,6 +608,7 @@ export function DetailPanel({
           onFocusCountry={onFocusCountry}
           sites={sites}
           onSelectSite={onSelectSite}
+          footprint={footprints?.get(selection.point.id)}
         />
       ) : selection.kind === 'flow' ? (
         <FlowDetail arc={selection.arc} mineralsById={mineralsById} countries={countries} onFocusCountry={onFocusCountry} />

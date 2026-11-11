@@ -59,7 +59,10 @@ jobs:
           python -m ruff format --check etl/
 
       - name: Test the ETL
-        run: python etl/test_pipeline.py
+        run: |
+          python etl/test_pipeline.py
+          python etl/test_outlines.py
+          python etl/test_history.py
 
       - name: Run the pipeline
         id: run

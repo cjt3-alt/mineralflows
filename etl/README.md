@@ -14,6 +14,8 @@ python etl/pipeline.py --no-manual            # ignore the manual drops
 python etl/pipeline.py --offline --no-manual  # what a bare runner sees
 python etl/pipeline.py --dry-run              # validate and report, write nothing
 python etl/test_pipeline.py                   # the tests
+python etl/test_outlines.py                   # geometry tests for the mine outlines
+python etl/test_history.py                    # tests for the history scripts
 python -m ruff check etl/ && python -m ruff format --check etl/
 ```
 
@@ -21,6 +23,17 @@ The run always ends in one of two ways: valid files written, or a non-zero exit 
 that broke. A source that cannot be reached is a **skip**, printed with the reason. A source that
 returns malformed data is a **failure**, printed with the offending record. Those are different
 things and the pipeline never confuses them.
+
+## Side scripts that are not part of the monthly run
+
+These write files the monthly refresh does not touch, so a refresh can never drop them. Run them by
+hand when you want to update.
+
+| Script | Writes | Needs |
+| --- | --- | --- |
+| `python etl/history.py` | `production_history.json`: mine and refinery output for the years before the current USGS release, stitched from the 2022 to 2024 per-commodity releases on ScienceBase | network |
+| `python etl/price_history.py` | `price_history.json`: World Bank annual average prices, 2000 onward | the cached or downloaded Pink Sheet |
+| `python etl/outlines.py --gpkg <file>` | `outlines.geojson`: satellite-mapped mine footprints near our sites | the 24 MB GeoPackage from <https://doi.org/10.1594/PANGAEA.942325> (not committed); output is CC BY-SA 4.0 |
 
 ## What each source contributes
 

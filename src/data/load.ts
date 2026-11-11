@@ -61,6 +61,8 @@ export const DATA_FILES = {
   flows: 'flows.json',
   prices: 'prices.json',
   production: 'production.json',
+  productionHistory: 'production_history.json',
+  priceHistory: 'price_history.json',
   countries: 'countries.json',
   meta: 'meta.json',
 } as const
@@ -72,6 +74,10 @@ export interface RawFiles {
   prices: unknown
   /** Optional: a seed-only run has no production table. */
   production?: unknown
+  /** Optional: earlier years of `production`, from the USGS back-releases. */
+  productionHistory?: unknown
+  /** Optional: annual average prices back to 2000. */
+  priceHistory?: unknown
   countries: unknown
   meta: unknown
 }
@@ -85,7 +91,9 @@ export interface Dataset {
   facilities: FacilityFeature[]
   flows: Flow[]
   prices: Price[]
-  /** Mine and refinery output by country; empty when the run had no source for it. */
+  /** Annual average prices over a longer span than `prices`, for the timeline. */
+  priceHistory: Price[]
+  /** Mine and refinery output by country, every year available; empty when the run had no source for it. */
   production: Production[]
   countries: Record<string, Country>
   meta: Meta
@@ -125,7 +133,20 @@ export function parseDataset(raw: RawFiles): Dataset {
   )
   const flows = parseFile(DATA_FILES.flows, FlowsFileSchema, raw.flows)
   const prices = parseFile(DATA_FILES.prices, PricesFileSchema, raw.prices)
-  const production = parseFile(DATA_FILES.production, ProductionFileSchema, raw.production ?? [])
+  const currentProduction = parseFile(DATA_FILES.production, ProductionFileSchema, raw.production ?? [])
+  const historicProduction = parseFile(
+    DATA_FILES.productionHistory,
+    ProductionFileSchema,
+    raw.productionHistory ?? [],
+  )
+  const priceHistory = parseFile(DATA_FILES.priceHistory, PricesFileSchema, raw.priceHistory ?? [])
+  // The current file wins where both carry a year: it is the newer release.
+  const productionKey = (r: Production) => r.mineral_id + ':' + r.stage + ':' + r.year
+  const haveKeys = new Set(currentProduction.map(productionKey))
+  const production = [
+    ...historicProduction.filter((r) => !haveKeys.has(productionKey(r))),
+    ...currentProduction,
+  ].sort((a, b) => a.year - b.year)
   const countries = parseFile(DATA_FILES.countries, CountriesFileSchema, raw.countries)
   const meta = parseFile(DATA_FILES.meta, MetaSchema, raw.meta)
 
@@ -209,6 +230,7 @@ export function parseDataset(raw: RawFiles): Dataset {
     facilities,
     flows,
     prices,
+    priceHistory,
     production,
     countries,
     meta,
@@ -243,16 +265,44 @@ async function fetchJson(file: string): Promise<unknown> {
   }
 }
 
+/** A file the app can do without: a missing or unreadable one is an empty list, not an error. */
+async function fetchOptionalJson(file: string): Promise<unknown> {
+  try {
+    return await fetchJson(file)
+  } catch {
+    return []
+  }
+}
+
 /** Fetch, validate, and join the whole dataset. */
 export async function loadDataset(): Promise<Dataset> {
-  const [minerals, facilities, flows, prices, production, countries, meta] = await Promise.all([
-    fetchJson(DATA_FILES.minerals),
-    fetchJson(DATA_FILES.facilities),
-    fetchJson(DATA_FILES.flows),
-    fetchJson(DATA_FILES.prices),
-    fetchJson(DATA_FILES.production),
-    fetchJson(DATA_FILES.countries),
-    fetchJson(DATA_FILES.meta),
+  const [
+    [minerals, facilities, flows, prices, production, countries, meta],
+    [productionHistory, priceHistory],
+  ] = await Promise.all([
+    Promise.all([
+      fetchJson(DATA_FILES.minerals),
+      fetchJson(DATA_FILES.facilities),
+      fetchJson(DATA_FILES.flows),
+      fetchJson(DATA_FILES.prices),
+      fetchJson(DATA_FILES.production),
+      fetchJson(DATA_FILES.countries),
+      fetchJson(DATA_FILES.meta),
+    ]),
+    Promise.all([
+      fetchOptionalJson(DATA_FILES.productionHistory),
+      fetchOptionalJson(DATA_FILES.priceHistory),
+    ]),
   ])
-  return parseDataset({ minerals, facilities, flows, prices, production, countries, meta })
+  return parseDataset({
+    minerals,
+    facilities,
+    flows,
+    prices,
+    production,
+    productionHistory,
+    priceHistory,
+    countries,
+    meta,
+  })
 }

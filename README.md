@@ -23,7 +23,10 @@ concentrated it is, the "lose this country" arithmetic, a copy link and a CSV. F
 method" in the app for what they do and do not show, and
 [`src/styles/palette.ts`](src/styles/palette.ts) for how the colours were chosen and
 validated (verdigris ore, copper metal, gold smelter heat, on warm graphite). Satellite imagery and
-place labels are Esri World Imagery, loaded live and credited on the map.
+place labels are Esri World Imagery, loaded live and credited on the map. A year slider runs the
+mined and refined pictures from 2020 to 2025 (USGS back-releases, so China's refining share moves
+from 40% to 48%), and zoomed in, each mine shows its satellite-mapped footprint
+(Maus et al. 2022, CC BY-SA 4.0).
 
 **Currently scoped to copper only.** The app and ETL support four minerals (copper, lithium, cobalt,
 rare earths) end to end, but as of 13 September 2026 lithium, cobalt, and rare earths are switched

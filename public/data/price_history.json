@@ -1,0 +1,184 @@
+[
+ {
+  "mineral_id": "copper",
+  "year": 2000,
+  "avg_price_usd_per_tonne": 1813.5,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2001,
+  "avg_price_usd_per_tonne": 1578.25,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2002,
+  "avg_price_usd_per_tonne": 1559.58,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2003,
+  "avg_price_usd_per_tonne": 1779.17,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2004,
+  "avg_price_usd_per_tonne": 2866.0,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2005,
+  "avg_price_usd_per_tonne": 3678.83,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2006,
+  "avg_price_usd_per_tonne": 6722.08,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2007,
+  "avg_price_usd_per_tonne": 7118.17,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2008,
+  "avg_price_usd_per_tonne": 6956.0,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2009,
+  "avg_price_usd_per_tonne": 5149.92,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2010,
+  "avg_price_usd_per_tonne": 7534.67,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2011,
+  "avg_price_usd_per_tonne": 8828.17,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2012,
+  "avg_price_usd_per_tonne": 7962.25,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2013,
+  "avg_price_usd_per_tonne": 7332.08,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2014,
+  "avg_price_usd_per_tonne": 6863.25,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2015,
+  "avg_price_usd_per_tonne": 5510.5,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2016,
+  "avg_price_usd_per_tonne": 4868.0,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2017,
+  "avg_price_usd_per_tonne": 6170.17,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2018,
+  "avg_price_usd_per_tonne": 6529.92,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2019,
+  "avg_price_usd_per_tonne": 6009.92,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2020,
+  "avg_price_usd_per_tonne": 6173.83,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2021,
+  "avg_price_usd_per_tonne": 9317.08,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2022,
+  "avg_price_usd_per_tonne": 8822.25,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2023,
+  "avg_price_usd_per_tonne": 8490.33,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2024,
+  "avg_price_usd_per_tonne": 9142.0,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ },
+ {
+  "mineral_id": "copper",
+  "year": 2025,
+  "avg_price_usd_per_tonne": 9947.42,
+  "source": "worldbank-pinksheet",
+  "source_url": "https://www.worldbank.org/en/research/commodity-markets"
+ }
+]
