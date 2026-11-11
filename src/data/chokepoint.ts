@@ -76,8 +76,8 @@ export function concentrationOf(shares: number[]): Concentration {
   }
 }
 
-/** The newest year for which both a mine and a refinery table exist. */
-function latestCommonYear(dataset: Dataset, mineralId: string): number | null {
+/** Every year, oldest first, for which both a mine and a refinery table exist. */
+export function commonYears(dataset: Dataset, mineralId: string): number[] {
   const years = (stage: 'mine' | 'refine') =>
     new Set(
       dataset.production
@@ -85,8 +85,13 @@ function latestCommonYear(dataset: Dataset, mineralId: string): number | null {
         .map((p) => p.year),
     )
   const mine = years('mine')
-  const common = [...years('refine')].filter((y) => mine.has(y))
-  return common.length > 0 ? Math.max(...common) : null
+  return [...years('refine')].filter((y) => mine.has(y)).sort((a, b) => a - b)
+}
+
+/** The newest year for which both a mine and a refinery table exist. */
+function latestCommonYear(dataset: Dataset, mineralId: string): number | null {
+  const common = commonYears(dataset, mineralId)
+  return common.length > 0 ? common[common.length - 1]! : null
 }
 
 /** Whether the story can be told for this mineral at all. */
@@ -98,8 +103,10 @@ export function buildChokepoint(
   dataset: Dataset,
   mineralId: string,
   maxOreRoutes = 14,
+  /** A particular year; the newest one with both tables when omitted. */
+  atYear?: number,
 ): ChokepointModel | null {
-  const year = latestCommonYear(dataset, mineralId)
+  const year = atYear ?? latestCommonYear(dataset, mineralId)
   const mineral = dataset.mineralsById.get(mineralId)
   if (year === null || !mineral) return null
 
@@ -170,6 +177,17 @@ export function buildChokepoint(
     ore,
     sites,
   }
+}
+
+/**
+ * One model per year, oldest first, for the timeline. Trade flows and sites do
+ * not change with the year (the flows are one trade year), so every model
+ * carries the same ones; only the production shares move.
+ */
+export function buildChokepointSeries(dataset: Dataset, mineralId: string): ChokepointModel[] {
+  return commonYears(dataset, mineralId)
+    .map((year) => buildChokepoint(dataset, mineralId, 14, year))
+    .filter((m): m is ChokepointModel => m !== null)
 }
 
 /** A share as a whole percent, with "<1%" rather than a misleading 0%. */

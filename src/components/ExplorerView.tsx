@@ -5,7 +5,7 @@ import { formatShare, shockOf, toCsv } from '../data/chokepoint.ts'
 import { formatUsd, type ArcDatum, type PointDatum } from '../data/derive.ts'
 import type { Country } from '../data/schema.ts'
 import { DetailPanel, type Selection } from './DetailPanel.tsx'
-import type { Mineral } from '../data/schema.ts'
+import type { Mineral, Price } from '../data/schema.ts'
 
 const ExploreMap = lazy(() => import('../map/ExploreMap.tsx').then((m) => ({ default: m.ExploreMap })))
 
@@ -19,7 +19,10 @@ const ExploreMap = lazy(() => import('../map/ExploreMap.tsx').then((m) => ({ def
 export interface ExplorerViewProps {
   lens: Lens
   onChangeLens: (lens: Lens) => void
-  model: ChokepointModel | null
+  /** One model per year, oldest first; the last is the newest. Empty when the story cannot be told. */
+  models: ChokepointModel[]
+  /** Annual average prices, for the timeline. */
+  priceHistory: Price[]
   points: PointDatum[]
   arcs: ArcDatum[]
   countries: Record<string, Country>
@@ -258,9 +261,19 @@ function LensPanel({
   onFocusCountry,
   onSelectArc,
   onHide,
+  models,
+  prices,
+  playing,
+  onTogglePlay,
+  onYear,
 }: {
   lens: Lens
   model: ChokepointModel
+  models: ChokepointModel[]
+  prices: Price[]
+  playing: boolean
+  onTogglePlay: () => void
+  onYear: (year: number) => void
   arcs: ArcDatum[]
   countries: Record<string, Country>
   focusCountry: string | null
@@ -278,6 +291,19 @@ function LensPanel({
   const name = (iso3: string) => countries[iso3]?.name ?? iso3
   const [copied, setCopied] = useState(false)
   const first = rows[0]
+  // The country that leads in the newest year, and how its share moved over the whole period.
+  const newest = models[models.length - 1]
+  const oldest = models[0]
+  const leaderIso = newest ? [...newest.rows].sort((a, b) => b[stage] - a[stage])[0]?.iso3 : undefined
+  const trend =
+    newest && oldest && leaderIso
+      ? {
+          name: countries[leaderIso]?.name ?? leaderIso,
+          from: oldest.rows.find((r) => r.iso3 === leaderIso)?.[stage] ?? 0,
+          to: newest.rows.find((r) => r.iso3 === leaderIso)?.[stage] ?? 0,
+        }
+      : null
+  const price = prices.find((p) => p.mineral_id === model.mineralId && p.year === model.year)
 
   const download = useCallback(() => {
     const blob = new Blob([toCsv(model)], { type: 'text/csv' })
@@ -302,6 +328,44 @@ function LensPanel({
         {model.year}
         {model.estimated ? ' est.' : ''}
       </p>
+
+      {lens !== 'trade' && models.length > 1 && (
+        <div className="mt-3">
+          <div className="flex items-center gap-1" role="group" aria-label="Year">
+            <button
+              type="button"
+              onClick={onTogglePlay}
+              aria-label={playing ? 'Pause the timeline' : 'Play the timeline'}
+              className="hud-label mr-1 w-8 border border-line-strong py-1 text-center text-dim hover:border-accent hover:text-ink"
+            >
+              {playing ? 'II' : '▶'}
+            </button>
+            {models.map((m) => (
+              <button
+                key={m.year}
+                type="button"
+                aria-pressed={m.year === model.year}
+                onClick={() => onYear(m.year)}
+                className={
+                  'hud-label flex-1 border py-1 text-center tabular-nums ' +
+                  (m.year === model.year
+                    ? 'border-accent bg-accent/10 text-ink'
+                    : 'border-line text-muted hover:border-line-strong hover:text-ink')
+                }
+              >
+                {String(m.year).slice(2)}
+                {m.estimated ? '*' : ''}
+              </button>
+            ))}
+          </div>
+          {trend && (
+            <p className="mt-2 text-xs leading-snug text-muted">
+              {trend.name}: {percentWord(trend.from)} in {models[0]!.year}, {percentWord(trend.to)} in{' '}
+              {models[models.length - 1]!.year}.
+            </p>
+          )}
+        </div>
+      )}
 
       {lens === 'trade' ? (
         <>
@@ -373,6 +437,13 @@ function LensPanel({
         </>
       )}
 
+      {price && lens !== 'trade' && (
+        <p className="mt-3 text-xs leading-snug text-muted">
+          {model.mineralName} averaged ${Math.round(price.avg_price_usd_per_tonne).toLocaleString('en-US')} a tonne
+          in {price.year} (World Bank).
+        </p>
+      )}
+
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line pt-3">
         <button type="button" onClick={download} className="hud-label text-dim hover:text-ink">
           CSV
@@ -397,7 +468,8 @@ export function ExplorerView(props: ExplorerViewProps) {
   const {
     lens,
     onChangeLens,
-    model,
+    models,
+    priceHistory,
     points,
     arcs,
     countries,
@@ -417,7 +489,10 @@ export function ExplorerView(props: ExplorerViewProps) {
   const [satellite, setSatellite] = useState(false)
   const [mapReady, setMapReady] = useState(false)
   // -1 means the opening is over (or never played).
-  const [beat, setBeat] = useState<number>(props.playIntro && !reducedMotion && model ? 0 : -1)
+  const latest = models[models.length - 1] ?? null
+  const [beat, setBeat] = useState<number>(props.playIntro && !reducedMotion && latest ? 0 : -1)
+  const [year, setYear] = useState<number | null>(null)
+  const [playing, setPlaying] = useState(false)
   const [hint, setHint] = useState(false)
   const [summaryOpen, setSummaryOpen] = useState(true)
   // Asking the camera to go home waits for the next render, so it sees the panel insets as they will be, not as they were.
@@ -429,6 +504,76 @@ export function ExplorerView(props: ExplorerViewProps) {
   }, [])
 
   const introOn = beat >= 0
+  // The opening always tells the newest year; afterwards the viewer chooses.
+  const model = (introOn || year === null ? latest : models.find((m) => m.year === year)) ?? latest
+
+  // Play steps through the years once, then stops on the newest.
+  useEffect(() => {
+    if (!playing || !model) return
+    const i = models.indexOf(model)
+    const t = window.setTimeout(
+      () => {
+        const next = models[i + 1]
+        if (next) setYear(next.year)
+        else setPlaying(false)
+      },
+      i + 1 < models.length ? 1500 : 600,
+    )
+    return () => window.clearTimeout(t)
+  }, [playing, model, models])
+
+  const onTogglePlay = useCallback(() => {
+    if (playing) {
+      setPlaying(false)
+      return
+    }
+    // From the newest year, play starts again from the oldest.
+    if (models.length > 0 && model === models[models.length - 1]) setYear(models[0]!.year)
+    setPlaying(true)
+  }, [playing, models, model])
+
+  /* The mine footprints load once the map is up; they are about 1 MB and nothing needs them before then. */
+  const [outlines, setOutlines] = useState<GeoJSON.FeatureCollection | null>(null)
+  useEffect(() => {
+    if (!mapReady) return
+    let off = false
+    const base = import.meta.env.BASE_URL
+    fetch((base.endsWith('/') ? base : base + '/') + 'data/outlines.geojson')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json: GeoJSON.FeatureCollection | null) => {
+        if (!off && json && Array.isArray(json.features)) setOutlines(json)
+      })
+      .catch(() => {})
+    return () => {
+      off = true
+    }
+  }, [mapReady])
+
+  const footprints = useMemo(() => {
+    const out = new Map<string, { km2: number; shared: boolean }>()
+    for (const f of outlines?.features ?? []) {
+      const props = f.properties as { area_km2: number; facility_ids: string[] } | null
+      if (!props) continue
+      for (const id of props.facility_ids) {
+        const prev = out.get(id)
+        out.set(id, {
+          km2: (prev?.km2 ?? 0) + props.area_km2,
+          shared: (prev?.shared ?? false) || props.facility_ids.length > 1,
+        })
+      }
+    }
+    return out
+  }, [outlines])
+
+  const labelCountries = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const m of models) {
+      for (const r of m.rows) {
+        if (r.mine >= 0.015 || r.refine >= 0.015) seen.set(r.iso3, r.name)
+      }
+    }
+    return [...seen].map(([iso3, name]) => ({ iso3, name }))
+  }, [models])
   const roomForBoth = useRoomForBoth()
   // On a narrower screen the detail panel takes the summary's place rather than crowding the map.
   const showSummary = summaryOpen && !introOn && !compact && (selection === null || roomForBoth)
@@ -477,6 +622,8 @@ export function ExplorerView(props: ExplorerViewProps) {
   const replayIntro = useCallback(() => {
     onClearSelection()
     setHint(false)
+    setYear(null)
+    setPlaying(false)
     setBeat(0)
   }, [onClearSelection])
 
@@ -539,7 +686,7 @@ export function ExplorerView(props: ExplorerViewProps) {
     bottom: compact ? 120 : introOn ? 230 : 20,
   }
 
-  const copy = model && introOn ? beatCopy(model, beat) : null
+  const copy = latest && introOn ? beatCopy(latest, beat) : null
 
   return (
     <div className="absolute inset-0" onPointerDownCapture={() => introOn && skipIntro()}>
@@ -548,6 +695,8 @@ export function ExplorerView(props: ExplorerViewProps) {
           ref={mapRef}
           lens={lens}
           model={model}
+          labelCountries={labelCountries}
+          outlines={outlines}
           points={points}
           arcs={arcs}
           selectedId={selectedId}
@@ -631,6 +780,14 @@ export function ExplorerView(props: ExplorerViewProps) {
               onFocusCountry={countryChosen}
               onSelectArc={onSelectArc}
               onHide={() => setSummaryOpen(false)}
+              models={models}
+              prices={priceHistory}
+              playing={playing}
+              onTogglePlay={onTogglePlay}
+              onYear={(y) => {
+                setPlaying(false)
+                setYear(y)
+              }}
             />
           </div>
         </div>
@@ -706,6 +863,7 @@ export function ExplorerView(props: ExplorerViewProps) {
         onClose={onClosePanel}
         onFocusCountry={countryChosen}
         sites={points}
+        footprints={footprints}
         onSelectSite={(p) => goToPoint(p, 11.5)}
       />
     </div>

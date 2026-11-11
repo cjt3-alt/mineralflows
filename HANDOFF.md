@@ -41,6 +41,26 @@ under reduced motion. A "Replay the intro" link brings it back.
 - On screens under 1440px wide the detail panel takes the summary plate's place; at 1440 and up both
   show. On phones the plate becomes a one-line summary.
 
+**Added after the map shipped (10 November 2026, branch `data/outlines-and-history`)**
+
+- **Mine outlines.** `etl/outlines.py` matches the Maus et al. 2022 polygons (CC BY-SA 4.0, so
+  `public/data/outlines.geojson` carries that licence and the credit is in the About dialog) to our
+  sites: 902 of 1,229 matched (742 of 927 mines), 1,802 outlines, 952 kB, loaded by the browser after
+  the map is up. The match is spatial (within 3 km), so a polygon can cover neighbouring mines; cards
+  say so and flag "shared". Raw GeoPackage not committed.
+- **Timeline.** `etl/history.py` stitches the USGS 2022 to 2024 per-commodity releases into
+  `production_history.json` (2020 to 2023); with `production.json` (2024, 2025) that is six years.
+  The summary plate has year buttons and play; countries recolour by feature state, tweened. China's
+  refining share goes 40% to 48%, DR Congo's mining 8% to 14%. The 2025 per-commodity copper item has
+  no world table, and USGS changed its wording between releases (noted in the About dialog). Deeper
+  history (BGS, World Mining Data) is still open. Trade is one year (2024), so the slider is hidden in
+  the trade lens. No year slider on phones yet.
+- **Prices.** `etl/price_history.py` writes `price_history.json` (World Bank annual averages, 2000 to
+  2025); the plate shows the year's copper price.
+- The three scripts are side scripts: the monthly refresh does not touch their files, so it cannot drop
+  them. Tests: `etl/test_outlines.py`, `etl/test_history.py` (both run in CI).
+- **Not done from the list:** CEPII BACI needs a registration form, so trade history waits on that.
+
 **Removed** (git history has them): `ChokepointView`, `MapCanvas`, `FlowsOverlay`, `FilterRail`,
 `mapDynamics`, `cameraDynamics`, and the `d3-geo` dependency. Gone with them: the scrubber, the
 "switch a country off" toggle (its arithmetic survives as one sentence on the summary plate), the

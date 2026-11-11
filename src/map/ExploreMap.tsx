@@ -37,7 +37,12 @@ export interface ExploreMapHandle {
 
 export interface ExploreMapProps {
   lens: Lens
+  /** The year on screen: each country's share of world mine and refinery output. */
   model: ChokepointModel | null
+  /** Countries worth a label in any year, so labels do not appear and vanish as the year changes. */
+  labelCountries: { iso3: string; name: string }[]
+  /** Mine footprints, once loaded. */
+  outlines: GeoJSON.FeatureCollection | null
   points: PointDatum[]
   arcs: ArcDatum[]
   selectedId: string | null
@@ -83,8 +88,14 @@ const REFINE_RAMP: [number, string][] = [
   [0.48, '#e8905a'],
 ]
 
+/** Colour by a country's share, which is feature state so the year can change it without reloading shapes. */
 const ramp = (prop: string, stops: [number, string][]): ExpressionSpecification =>
-  ['interpolate', ['linear'], ['get', prop], ...stops.flat()] as unknown as ExpressionSpecification
+  [
+    'interpolate',
+    ['linear'],
+    ['coalesce', ['feature-state', prop], 0],
+    ...stops.flat(),
+  ] as unknown as ExpressionSpecification
 
 const expr = (e: unknown): ExpressionSpecification => e as ExpressionSpecification
 
@@ -111,7 +122,19 @@ const SITE_OPACITY: Record<Lens, Record<'mine' | 'process' | 'refine', number>> 
 }
 
 export const ExploreMap = forwardRef<ExploreMapHandle, ExploreMapProps>(function ExploreMap(props, ref) {
-  const { lens, model, points, arcs, selectedId, focusCountry, reducedMotion, insets, satellite } = props
+  const {
+    lens,
+    model,
+    labelCountries,
+    outlines,
+    points,
+    arcs,
+    selectedId,
+    focusCountry,
+    reducedMotion,
+    insets,
+    satellite,
+  } = props
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MlMap | null>(null)
   const geoRef = useRef<CountryGeo | null>(null)
@@ -119,6 +142,7 @@ export const ExploreMap = forwardRef<ExploreMapHandle, ExploreMapProps>(function
   const [geoReady, setGeoReady] = useState(false)
   // Bumped each time the country shapes (and so the labels) are replaced.
   const [geoVersion, setGeoVersion] = useState(0)
+  const [labelVersion, setLabelVersion] = useState(0)
   const tipRef = useRef<HTMLDivElement>(null)
   const readoutRef = useRef<HTMLParagraphElement>(null)
   const labelsRef = useRef<Map<string, { el: HTMLDivElement; mine: number; refine: number }>>(new Map())
@@ -128,6 +152,9 @@ export const ExploreMap = forwardRef<ExploreMapHandle, ExploreMapProps>(function
   live.current = props
   const pointsById = useRef<Map<string, PointDatum>>(new Map())
   const arcsById = useRef<Map<string, ArcDatum>>(new Map())
+  /** The year on screen, by country, for tooltips. */
+  const rowsRef = useRef<Map<string, { name: string; mine: number; refine: number }>>(new Map())
+  const shownShares = useRef<Map<string, { mine: number; refine: number }>>(new Map())
   const arcPaths = useRef<{ line: LngLat[]; phase: number }[]>([])
 
   const padding = useCallback(() => {
@@ -226,7 +253,12 @@ export const ExploreMap = forwardRef<ExploreMapHandle, ExploreMapProps>(function
         map.jumpTo({ center: home.center, zoom: home.zoom, padding: { left: i.left, right: i.right, top: i.top, bottom: i.bottom } })
       }
       // Plain land first, then the two data fills, then imagery over all of it.
-      map.addSource('countries', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+      map.addSource('countries', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+        promoteId: 'iso3',
+      })
+      map.addSource('outlines', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
       map.addSource('sites', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
       map.addSource('arcs', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
       map.addSource('flow-dots', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
@@ -271,6 +303,36 @@ export const ExploreMap = forwardRef<ExploreMapHandle, ExploreMapProps>(function
         source: 'places',
         minzoom: 6.8,
         paint: { 'raster-opacity': expr(['interpolate', ['linear'], ['zoom'], 6.8, 0, 8.2, 0.9]) },
+      })
+      // Mine footprints: the ground each site actually covers, from satellite-mapped polygons.
+      map.addLayer({
+        id: 'outline-fill',
+        type: 'fill',
+        source: 'outlines',
+        minzoom: 6,
+        paint: {
+          'fill-color': ORE_TINT,
+          'fill-opacity': expr(['interpolate', ['linear'], ['zoom'], 6, 0, 8.5, 0.2, 13, 0.1]),
+        },
+      })
+      map.addLayer({
+        id: 'outline-line',
+        type: 'line',
+        source: 'outlines',
+        minzoom: 6,
+        paint: {
+          'line-color': ORE_TINT,
+          'line-width': expr(['interpolate', ['linear'], ['zoom'], 6, 0.4, 12, 1.4]),
+          'line-opacity': expr(['interpolate', ['linear'], ['zoom'], 6, 0, 8, 0.85]),
+        },
+      })
+      map.addLayer({
+        id: 'outline-selected',
+        type: 'line',
+        source: 'outlines',
+        minzoom: 5,
+        filter: ['==', ['get', 'id'], -1],
+        paint: { 'line-color': ACCENT, 'line-width': 2.4, 'line-opacity': 0.95 },
       })
       // Invisible, always on, so a click or hover on any land resolves to a country.
       map.addLayer({
@@ -411,12 +473,13 @@ export const ExploreMap = forwardRef<ExploreMapHandle, ExploreMapProps>(function
       const country = map.queryRenderedFeatures(e.point, { layers: ['country-hit'] })[0]
       const iso3 = String(country?.properties?.iso3 ?? '')
       if (iso3) {
+        const row = rowsRef.current.get(iso3)
         return {
           kind: 'country' as const,
           iso3,
-          name: String(country?.properties?.name ?? iso3),
-          mine: Number(country?.properties?.mine ?? 0),
-          refine: Number(country?.properties?.refine ?? 0),
+          name: row?.name ?? String(country?.properties?.name ?? iso3),
+          mine: row?.mine ?? 0,
+          refine: row?.refine ?? 0,
         }
       }
       return null
@@ -494,49 +557,98 @@ export const ExploreMap = forwardRef<ExploreMapHandle, ExploreMapProps>(function
   }, [])
 
   /* ------------------------------------------------------ country shapes */
+  // Shapes load once, coarse first and sharpened a moment later; the year's shares go on as feature state.
   useEffect(() => {
     if (!ready) return
     let cancelled = false
+    let fineDone = false
     const apply = (geo: CountryGeo) => {
       const map = mapRef.current
       if (cancelled || !map) return
       geoRef.current = geo
       ;(map.getSource('countries') as GeoJSONSource | undefined)?.setData(geo.collection)
-
-      // One label per country that matters to the picture.
-      for (const { el } of labelsRef.current.values()) el.parentElement?.remove()
-      labelsRef.current.clear()
-      for (const row of model?.rows ?? []) {
-        if (row.mine < 0.015 && row.refine < 0.015) continue
-        const place = geo.places[row.iso3]
-        if (!place) continue
-        // MapLibre writes its own inline opacity on a marker's element, so the
-        // look and the fading live on a child it does not touch.
-        const wrap = document.createElement('div')
-        wrap.className = 'mf-label-wrap'
-        const el = document.createElement('div')
-        el.className = 'mf-label mf-label-quiet'
-        el.innerHTML = '<span class="mf-label-name"></span><span class="mf-label-pct"></span>'
-        ;(el.children[0] as HTMLElement).textContent = row.name
-        wrap.appendChild(el)
-        new maplibregl.Marker({ element: wrap, anchor: 'center' }).setLngLat([place.lng, place.lat]).addTo(map)
-        labelsRef.current.set(row.iso3, { el, mine: row.mine, refine: row.refine })
-      }
       setGeoReady(true)
       setGeoVersion((v) => v + 1)
     }
-    let fineDone = false
-    void loadCountryGeo(model, 'coarse').then((geo) => {
+    void loadCountryGeo('coarse').then((geo) => {
       if (!fineDone) apply(geo)
     })
-    void loadCountryGeo(model, 'fine').then((geo) => {
+    void loadCountryGeo('fine').then((geo) => {
       fineDone = true
       apply(geo)
     })
     return () => {
       cancelled = true
     }
-  }, [ready, model])
+  }, [ready])
+
+  /* ------------------------------------------------------------- labels */
+  useEffect(() => {
+    const map = mapRef.current
+    const geo = geoRef.current
+    if (!ready || !map || !geo) return
+    const labels = labelsRef.current
+    for (const { el } of labels.values()) el.parentElement?.remove()
+    labels.clear()
+    for (const c of labelCountries) {
+      const place = geo.places[c.iso3]
+      if (!place) continue
+      // MapLibre writes its own inline opacity on a marker's element, so the
+      // look and the fading live on a child it does not touch.
+      const wrap = document.createElement('div')
+      wrap.className = 'mf-label-wrap'
+      const el = document.createElement('div')
+      el.className = 'mf-label mf-label-quiet'
+      el.innerHTML = '<span class="mf-label-name"></span><span class="mf-label-pct"></span>'
+      ;(el.children[0] as HTMLElement).textContent = c.name
+      wrap.appendChild(el)
+      new maplibregl.Marker({ element: wrap, anchor: 'center' }).setLngLat([place.lng, place.lat]).addTo(map)
+      labels.set(c.iso3, { el, mine: 0, refine: 0 })
+    }
+    setLabelVersion((v) => v + 1)
+  }, [ready, geoVersion, labelCountries])
+
+  /* -------------------------------------------- shares for the year on screen */
+  useEffect(() => {
+    const map = mapRef.current
+    const geo = geoRef.current
+    if (!ready || !map || !geo) return
+    const target = new Map((model?.rows ?? []).map((r) => [r.iso3, r]))
+    rowsRef.current = new Map(target)
+    const isos = Object.keys(geo.places)
+    const from = new Map(isos.map((i) => [i, shownShares.current.get(i) ?? { mine: 0, refine: 0 }]))
+    const to = new Map(
+      isos.map((i) => [i, { mine: target.get(i)?.mine ?? 0, refine: target.get(i)?.refine ?? 0 }]),
+    )
+    const put = (t: number) => {
+      for (const iso of isos) {
+        const a = from.get(iso)!
+        const b = to.get(iso)!
+        const v = { mine: a.mine + (b.mine - a.mine) * t, refine: a.refine + (b.refine - a.refine) * t }
+        shownShares.current.set(iso, v)
+        map.setFeatureState({ source: 'countries', id: iso }, v)
+      }
+    }
+    // The labels carry the year's number as soon as it is chosen.
+    for (const [iso, label] of labelsRef.current) {
+      const row = target.get(iso)
+      label.mine = row?.mine ?? 0
+      label.refine = row?.refine ?? 0
+    }
+    if (reducedMotion) {
+      put(1)
+      return
+    }
+    let raf = 0
+    const start = performance.now()
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / 700)
+      put(1 - (1 - t) ** 3)
+      if (t < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [ready, geoVersion, labelVersion, model, reducedMotion])
 
   /* ---------------------------------------------------------------- sites */
   useEffect(() => {
@@ -552,6 +664,25 @@ export const ExploreMap = forwardRef<ExploreMapHandle, ExploreMapProps>(function
       })),
     })
   }, [ready, points])
+
+  /* -------------------------------------------------------------- outlines */
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !map || !outlines) return
+    ;(map.getSource('outlines') as GeoJSONSource | undefined)?.setData(outlines)
+  }, [ready, outlines])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !map) return
+    // Outline properties keep the facility ids as a JSON string, so match the quoted id inside it.
+    map.setFilter(
+      'outline-selected',
+      selectedId
+        ? (['in', `"${selectedId}"`, ['get', 'facility_ids']] as unknown as ExpressionSpecification)
+        : ['==', ['get', 'id'], -1],
+    )
+  }, [ready, outlines, selectedId])
 
   /* ----------------------------------------------------------------- arcs */
   useEffect(() => {
@@ -596,7 +727,7 @@ export const ExploreMap = forwardRef<ExploreMapHandle, ExploreMapProps>(function
       el.classList.toggle('mf-label-quiet', lens === 'trade' || share < 0.03)
       ;(el.children[1] as HTMLElement).textContent = lens === 'trade' ? '' : formatShare(share)
     }
-  }, [ready, geoReady, geoVersion, lens, reducedMotion])
+  }, [ready, geoReady, geoVersion, labelVersion, model, lens, reducedMotion])
 
   /* ------------------------------------------------------------ satellite */
   useEffect(() => {
