@@ -10,7 +10,64 @@ Live: <https://cjt3-alt.github.io/mineralflows/>
 
 ---
 
-## 0d. The chokepoint redesign, 21 October 2026 (start here)
+## 0e. The living map, November 2026 (start here)
+
+**Why.** The chokepoint page taught well but was a two-slide deck: about 30 seconds and done. CJ wanted
+a place people can spend time in, closer to Google Maps than a presentation: free dragging up and down
+as well as across, real zoom, satellite imagery, things to click into.
+
+**What it is now.** One map (`src/map/ExploreMap.tsx`, MapLibre GL, Web Mercator) with three lenses
+(Mined, Refined, Trade routes) switched from the top left. On a fresh visit a short guided opening
+plays the three lenses in turn, then settles on Mined and hands over (`ExplorerView.tsx`, `BEATS`);
+it is skipped by any click, by a shared link (`?lens=` or `?country=`), or with `?intro=0`, and is off
+under reduced motion. A "Replay the intro" link brings it back.
+
+- **Free movement.** `src/map/camera.ts` sets a wide resting view per lens (Americas and Africa for
+  mined, East Asia for refined, Eurasia for trade) at a zoom where the world is wider than the screen,
+  so there is somewhere to drag in every direction. Panel widths are passed as padding so the subject
+  is never behind a plate. The world repeats east-west. Min zoom fits the world to the width.
+- **Imagery.** Esri World Imagery fades in from zoom 4.2 to 6.4, Esri place labels from 6.8; the
+  Satellite button forces them on at every zoom. Markers become hollow rings up close so the site
+  shows through. Terms: free with attribution for this kind of use, but it is a third party's tile
+  server. If that ever becomes a problem the swap is one source in `STYLE`; NASA GIBS (public domain,
+  coarser) and EOX Sentinel-2 cloudless (non-commercial licence) were the alternatives considered.
+- **Countries** are 1:50m Natural Earth polygons (`countryGeo.ts`), shown coarse first (110m) and
+  sharpened a moment later. The atlas cuts at the antimeridian, so rings are unwrapped (`unwrapRing`);
+  Antarctica is dropped. Each carries its mine and refine share, and the two fills cross-fade.
+- **Trade** draws curved arcs (`arcGeometry.ts`, tested) with light moving along the top 70.
+- **Place cards.** `DetailPanel` facility cards now show the nearest site at the other end of the
+  chain and the operator's other sites; clicking one flies there. "Take me somewhere" lands on a random
+  mine, smelter or refinery in satellite. Search covers countries, site names and operators.
+- On screens under 1440px wide the detail panel takes the summary plate's place; at 1440 and up both
+  show. On phones the plate becomes a one-line summary.
+
+**Removed** (git history has them): `ChokepointView`, `MapCanvas`, `FlowsOverlay`, `FilterRail`,
+`mapDynamics`, `cameraDynamics`, and the `d3-geo` dependency. Gone with them: the scrubber, the
+"switch a country off" toggle (its arithmetic survives as one sentence on the summary plate), the
+layer toggles and the top-N slider. The citation button went too; CSV and copy link stayed. Say if any
+of these should come back.
+
+**Checked.** Typecheck, lint, 112 tests, production build (main chunk 106 kB gzipped; the map chunk,
+MapLibre included, is 322 kB gzipped and loads on arrival). Looked at the opening, all three lenses,
+satellite on a smelter in Inner Mongolia, a country dossier, a site card, and a phone width, in the
+in-app browser. **Not checked:** real-device touch gestures, tablet width, axe, performance on a slow
+phone, and the intro's pacing at real frame rates (the in-app pane does not run animation frames
+unless poked, so flights were judged by state, not watched).
+
+**Next, roughly in order**
+1. Depth of content, the thing most likely to decide whether people stay. No facility has a capacity
+   (0 of 1,229) and 551 are low confidence. Sources to look at: company annual reports and USGS
+   country chapters for capacity, ICSG for smelter and refinery capacity (also fills the smelting
+   gap), Wikidata for operators and opening years. Do not hard-code figures from memory.
+2. A second mineral (cobalt and rare earths need a non-USGS refinery table; IEA is the likely one).
+   The lenses, panels and search are mineral-generic.
+3. Curated "tours" for Take me somewhere (largest pits, the biggest smelter, a route end to end).
+4. Self-host the Esri labels' fallback and consider a vector basemap for road/town names.
+5. Items from 0d that still stand: social card image, wordmark, method page.
+
+---
+
+## 0d. The chokepoint redesign, 21 October 2026 (superseded by 0e for the front door; the data work stands)
 
 **Where the work lives.** Branch `redesign/chokepoint`, branched from `main` at `9be46a8`. It is
 committed and **not pushed**; `main` and the live site are untouched, so merging is a fast-forward.

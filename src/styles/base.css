@@ -305,3 +305,145 @@ dialog::backdrop {
     animation: none;
   }
 }
+
+/* ------------------------------------------------------------------- map */
+
+.mf-map {
+  background: #0b0908;
+}
+.mf-map .maplibregl-canvas {
+  outline: none;
+}
+
+/* MapLibre's own controls, restyled to the plate language: flat, square, hairline. */
+.mf-map .maplibregl-ctrl-group {
+  background: var(--mf-surface);
+  border: 1px solid var(--mf-line-strong);
+  border-radius: 0;
+  box-shadow: none;
+}
+.mf-map .maplibregl-ctrl-group button {
+  width: 34px;
+  height: 34px;
+  border-radius: 0;
+}
+.mf-map .maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--mf-line);
+}
+.mf-map .maplibregl-ctrl-group button:hover {
+  background: var(--mf-surface-raised);
+}
+.mf-map .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(0.85);
+}
+.mf-map .maplibregl-ctrl-attrib {
+  background: rgba(13, 11, 10, 0.82) !important;
+  color: var(--mf-muted);
+  font-family: var(--mf-font-mono);
+  font-size: 9px;
+}
+.mf-map .maplibregl-ctrl-attrib a {
+  color: var(--mf-text-dim);
+}
+.mf-map .maplibregl-ctrl-attrib-button {
+  filter: invert(1);
+}
+.mf-map .maplibregl-ctrl-scale {
+  background: transparent;
+  border-color: var(--mf-text-dim);
+  color: var(--mf-text-dim);
+  font-family: var(--mf-font-mono);
+  font-size: 10px;
+  text-shadow: 0 0 3px #000;
+}
+.mf-map .maplibregl-ctrl-bottom-left {
+  left: 22px;
+  bottom: 6px;
+}
+.mf-map .maplibregl-ctrl-bottom-right {
+  right: calc(var(--mf-inset-right, 0px) + 22px);
+  bottom: 6px;
+  transition: right 400ms var(--mf-ease-out);
+}
+
+/* Country names on the map: the share they hold, in the lens being shown. */
+.mf-label {
+  pointer-events: none;
+  text-align: center;
+  color: var(--mf-text);
+  text-shadow:
+    0 0 3px #000,
+    0 0 8px rgba(0, 0, 0, 0.9);
+  transition: opacity 600ms var(--mf-ease-inout);
+}
+.mf-label-name {
+  display: block;
+  font-family: var(--mf-font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mf-text-dim);
+}
+.mf-label-pct {
+  display: block;
+  font-family: var(--mf-font-display);
+  font-stretch: 114%;
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.mf-label-quiet {
+  opacity: 0;
+}
+.mf-labels-off .mf-label {
+  opacity: 0;
+}
+
+.mf-tip {
+  background: var(--mf-surface);
+  border: 1px solid var(--mf-line-strong);
+  padding: 6px 10px 7px;
+  max-width: 18rem;
+  transition: opacity 120ms ease-out;
+}
+.mf-tip-title {
+  font-size: 13px;
+  color: var(--mf-text);
+  line-height: 1.25;
+}
+.mf-tip-sub {
+  font-size: 11px;
+  color: var(--mf-muted);
+  line-height: 1.3;
+}
+.mf-readout {
+  text-shadow: 0 0 3px #000;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes mf-intro-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.mf-intro {
+  animation: mf-intro-in 800ms var(--mf-ease-out) both;
+  text-shadow:
+    0 0 6px rgba(0, 0, 0, 0.85),
+    0 0 18px rgba(0, 0, 0, 0.7);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mf-intro {
+    animation: none;
+  }
+  .maplibregl-ctrl-bottom-right {
+    transition: none;
+  }
+}

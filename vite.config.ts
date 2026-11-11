@@ -52,7 +52,7 @@ function shareMeta(): Plugin {
           title = `${headline} · MineralFlows`
           description =
             `Where ${name} is dug versus where it becomes metal, by country (USGS, ${year}${mine.estimated ? ' estimate' : ''}). ` +
-            'Drag from mine to refinery, switch a country off, and see the gap.'
+            'Drag the map from mine to refinery, drop onto satellite imagery of the sites, and see the gap.'
           eyebrow = `${mineral.name} · ${year}${mine.estimated ? ' est.' : ''}`
           break
         }

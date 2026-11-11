@@ -1,9 +1,10 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import {
   FLOW_KIND_DETAIL,
   FLOW_KIND_LABEL,
   STAGE_LABEL,
   STAGE_LABEL_SINGULAR,
+  distanceKm,
   formatLatLng,
   formatShare,
   formatTonnes,
@@ -37,6 +38,10 @@ export interface DetailPanelProps {
   onClose: () => void
   /** Offered on facilities and flows, to jump to a country's dossier. */
   onFocusCountry?: (iso3: string) => void
+  /** Every site on the map, so a site's card can point to its neighbours and its operator's other sites. */
+  sites?: readonly PointDatum[]
+  /** Fly to and open another site. */
+  onSelectSite?: (point: PointDatum) => void
   /**
    * `sheet` is the narrow-viewport layout: the same content, over the map
    * from the bottom edge rather than floating beside it.
@@ -129,21 +134,81 @@ function Figure({ label, value, note }: { label: string; value: ReactNode; note?
   )
 }
 
+function formatKm(km: number): string {
+  return km < 10 ? km.toFixed(1) + ' km' : Math.round(km).toLocaleString('en-US') + ' km'
+}
+
+function SiteButton({
+  point,
+  countries,
+  note,
+  onSelect,
+}: {
+  point: PointDatum
+  countries: Record<string, Country>
+  note: string
+  onSelect: (p: PointDatum) => void
+}) {
+  const f = point.facility.properties
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onSelect(point)}
+        className="flex w-full items-baseline justify-between gap-3 border-b border-line py-2 text-left hover:bg-accent/5"
+      >
+        <span className="min-w-0">
+          <span className="block truncate text-[13px] text-ink">{f.name}</span>
+          <span className="block truncate text-[11px] text-muted">
+            {STAGE_LABEL_SINGULAR[f.stage]} · {countries[f.country_iso3]?.name ?? f.country_iso3}
+          </span>
+        </span>
+        <span className="shrink-0 font-mono text-xs text-dim">{note}</span>
+      </button>
+    </li>
+  )
+}
+
 function FacilityDetail({
   point,
   mineralsById,
   countries,
   onFocusCountry,
+  sites,
+  onSelectSite,
 }: {
   point: PointDatum
   mineralsById: ReadonlyMap<string, Mineral>
   countries: Record<string, Country>
   onFocusCountry?: ((iso3: string) => void) | undefined
+  sites?: readonly PointDatum[] | undefined
+  onSelectSite?: ((point: PointDatum) => void) | undefined
 }) {
   const p = point.facility.properties
   const [lng, lat] = point.facility.geometry.coordinates
   const country = countries[p.country_iso3]
   const minerals = p.mineral_ids.map((id) => mineralsById.get(id)?.name ?? id)
+
+  // Where to go next: the closest site at the other end of the supply chain, and the same company's other sites.
+  const around = useMemo(() => {
+    if (!sites) return null
+    const here = point.id
+    const wantsDownstream = p.stage === 'mine'
+    let nearest: { point: PointDatum; km: number } | null = null
+    for (const s of sites) {
+      if (s.id === here) continue
+      const downstream = s.stage !== 'mine'
+      if (downstream !== wantsDownstream) continue
+      const km = distanceKm(point.lat, point.lng, s.lat, s.lng)
+      if (nearest === null || km < nearest.km) nearest = { point: s, km }
+    }
+    const operator = p.operator
+    const siblings =
+      operator === null || operator === p.name
+        ? []
+        : sites.filter((s) => s.id !== here && s.facility.properties.operator === operator)
+    return { nearest, siblings, operator }
+  }, [sites, point, p.stage, p.operator, p.name])
 
   return (
     <>
@@ -169,7 +234,7 @@ function FacilityDetail({
       {p.confidence === 'low' && (
         <Warning>
           This site is poorly documented in public sources. Its location, operator and output are
-          approximate, and it is drawn as a hollow ring on the map for that reason.
+          approximate, and it is drawn fainter on the map for that reason.
         </Warning>
       )}
 
@@ -187,6 +252,35 @@ function FacilityDetail({
         <Row label="Country">{p.country_iso3}</Row>
         <Row label="Updated">{p.last_updated}</Row>
       </dl>
+
+      {around && onSelectSite && around.nearest && (
+        <>
+          <SectionLabel>{p.stage === 'mine' ? 'Nearest smelter or refinery' : 'Nearest mine'}</SectionLabel>
+          <ul>
+            <SiteButton
+              point={around.nearest.point}
+              countries={countries}
+              note={formatKm(around.nearest.km)}
+              onSelect={onSelectSite}
+            />
+          </ul>
+        </>
+      )}
+
+      {around && onSelectSite && around.siblings.length > 0 && (
+        <>
+          <SectionLabel>More from {around.operator}</SectionLabel>
+          <ul>
+            {around.siblings
+              .map((s) => ({ s, km: distanceKm(point.lat, point.lng, s.lat, s.lng) }))
+              .sort((a, b) => a.km - b.km)
+              .slice(0, 6)
+              .map(({ s, km }) => (
+                <SiteButton key={s.id} point={s} countries={countries} note={formatKm(km)} onSelect={onSelectSite} />
+              ))}
+          </ul>
+        </>
+      )}
 
       {p.source_url !== null && (
         <div className="mt-4">
@@ -417,6 +511,8 @@ export function DetailPanel({
   countries,
   onClose,
   onFocusCountry,
+  sites,
+  onSelectSite,
   variant = 'panel',
 }: DetailPanelProps) {
   const panelRef = useRef<HTMLElement>(null)
@@ -462,7 +558,7 @@ export function DetailPanel({
         'panel scroll-quiet z-10 overflow-y-auto ' +
         (sheet
           ? 'absolute inset-x-0 bottom-0 max-h-[68%] border-x-0 border-b-0 p-4'
-          : 'absolute top-4 right-4 bottom-4 p-5')
+          : 'absolute top-[5.75rem] right-4 bottom-12 p-5 sm:right-8')
       }
       style={sheet ? undefined : { width: 'var(--mf-panel-width)' }}
     >
@@ -481,7 +577,14 @@ export function DetailPanel({
       </div>
 
       {selection.kind === 'facility' ? (
-        <FacilityDetail point={selection.point} mineralsById={mineralsById} countries={countries} onFocusCountry={onFocusCountry} />
+        <FacilityDetail
+          point={selection.point}
+          mineralsById={mineralsById}
+          countries={countries}
+          onFocusCountry={onFocusCountry}
+          sites={sites}
+          onSelectSite={onSelectSite}
+        />
       ) : selection.kind === 'flow' ? (
         <FlowDetail arc={selection.arc} mineralsById={mineralsById} countries={countries} onFocusCountry={onFocusCountry} />
       ) : (

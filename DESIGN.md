@@ -68,12 +68,12 @@ resets the wrap mode and silently breaks `truncate`.)
 
 ## Motion
 
-Things arrive; they do not bounce or loop. One decisive ease-out
+Things arrive; they do not bounce. The one thing that loops is light travelling along the trade
+routes in the trade lens, because that is what the picture is of. One decisive ease-out
 (`--mf-ease-out`) for arrivals, one symmetric ease for morphs. Small distances
-(10 to 16px), short stagger (80ms steps), 0.8s. Switching views cross-fades via
-the View Transitions API where supported. Everything is off under
-`prefers-reduced-motion`; the chokepoint then starts where the viewer puts it.
-Nothing pulses.
+(10 to 16px), short stagger (80ms steps), 0.8s. Switching lens dissolves one
+picture into the next (MapLibre paint transitions, 1.1s). Everything is off under
+`prefers-reduced-motion`: no guided opening, no flights, no moving light. Nothing pulses.
 
 ## Copy
 
@@ -110,5 +110,5 @@ Then run `axe` against the page and look at it at 375, 768 and 1440 wide.
 
 ## What is deliberately not here (yet)
 
-Photography or satellite imagery, a long-form "paper" method page, light mode.
+Photography, a long-form "paper" method page, light mode.
 Each is a considered next step, not an oversight.

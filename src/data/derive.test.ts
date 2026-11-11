@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   angularDistanceDegrees,
   arcAltitude,
+  distanceKm,
   facilityColor,
   filterFacilities,
   filterFlows,
@@ -403,5 +404,17 @@ describe('countryRole', () => {
     expect(role({ importsUsd: 1e8 }).id).toBe('minor')
     const r = role({ importsUsd: 2e9, importsByKind: { mine: 0, process: 0, refine: 2e9 } })
     expect(r.text).not.toMatch(/,,|, ,/)
+  })
+})
+
+describe('distanceKm', () => {
+  it('is zero for the same place and about 111 km per degree of latitude', () => {
+    expect(distanceKm(10, 20, 10, 20)).toBe(0)
+    expect(distanceKm(0, 0, 1, 0)).toBeCloseTo(111.19, 1)
+  })
+  it('puts Santiago and Lima about 2,450 km apart', () => {
+    const km = distanceKm(-33.45, -70.67, -12.05, -77.04)
+    expect(km).toBeGreaterThan(2400)
+    expect(km).toBeLessThan(2500)
   })
 })

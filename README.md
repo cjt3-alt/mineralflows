@@ -8,16 +8,22 @@ a country search and the largest flows; a full-bleed map you can pan, zoom, hove
 dossier panel for whatever is selected, including a plain-English summary of each country's role in
 the trade.
 
-**The front door is "The Chokepoint."** The page opens on a world map drawn twice and morphed
-between: the countries that mine copper, and the countries that refine it into metal. China mines
-about 8% of the world's copper and refines about 48%; Peru mines about 12% and refines about 1%.
-Drag the scrubber from mined to refined, click a country to switch it off and see what the rest of
-the world would have to make up, copy a link, download the table as CSV, or copy a citation. The
-trade-flow explorer described below is one click away (or `?view=flows`). Figures come from
+**The front door is a map you can get lost in.** The page opens with a short guided pass over one
+real map: where copper is mined, then where it is refined, then the trade routes between them, and
+then it hands the map over. Three buttons along the top flip between those lenses at any time. The
+map is a proper slippy map (MapLibre, Web Mercator): drag in every direction, scroll or pinch to
+zoom from the whole world down to a single pit, and satellite imagery fades in as you close in on a
+place (or stays on if you press Satellite). Click a country for its dossier, a mine, smelter or
+refinery for its record (with the nearest site at the other end of the chain and the operator's other
+sites), or a route for who ships to whom. Search finds countries and sites; "Take me somewhere" drops
+you on a random one. China mines about 8% of the world's copper and refines about 48%; Peru mines
+about 12% and refines about 1%. The summary plate has the ranked table, a plain-language read of how
+concentrated it is, the "lose this country" arithmetic, a copy link and a CSV. Figures come from
 `public/data/production.json`, built from the USGS Mineral Commodity Summaries; see "Sources &
 method" in the app for what they do and do not show, and
 [`src/styles/palette.ts`](src/styles/palette.ts) for how the colours were chosen and
-validated (verdigris ore, copper metal, gold smelter heat, on warm graphite).
+validated (verdigris ore, copper metal, gold smelter heat, on warm graphite). Satellite imagery and
+place labels are Esri World Imagery, loaded live and credited on the map.
 
 **Currently scoped to copper only.** The app and ETL support four minerals (copper, lithium, cobalt,
 rare earths) end to end, but as of 13 September 2026 lithium, cobalt, and rare earths are switched
@@ -143,15 +149,15 @@ every flow, drawn or not.
 ## Installed versions
 
 Resolved against the npm registry and PyPI on 2026-08-31, not pinned from memory. The 3D globe's
-`react-globe.gl` and `three` were removed in October 2026 when the app moved to a flat map; `d3-geo`
-(added then) provides the projection.
+`react-globe.gl` and `three` were removed in October 2026 when the app moved to a flat map. In
+November 2026 the hand-drawn canvas map was replaced by `maplibre-gl`, and `d3-geo` went with it.
 
 | Package             | Version  |
 | ------------------- | -------- |
 | vite                | 8.2.2    |
 | react / react-dom   | 19.2.8   |
 | typescript          | 6.0.3    |
-| d3-geo              | 3.1.1    |
+| maplibre-gl         | 5.24.0   |
 | tailwindcss         | 4.3.3    |
 | zod                 | 4.5.4    |
 | vitest              | 4.1.11   |

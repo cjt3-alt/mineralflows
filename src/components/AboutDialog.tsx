@@ -139,9 +139,10 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
           </p>
           <p>
             <span className="text-ink">The projection is Mercator</span>, the one web maps use. Like
-            every flat map it distorts: land near the poles is drawn larger than it is. The map is cut
-            where the least trade crosses, which for copper puts the Pacific, where the largest flows
-            run, in the middle.
+            every flat map it distorts: land near the poles is drawn larger than it is. The world
+            repeats east and west, so you can drag across the Pacific without hitting an edge, and zoom
+            from the whole planet down to a single pit. Satellite imagery fades in as you close in on a
+            place, or stays on if you switch it on.
           </p>
         </Block>
 
@@ -168,10 +169,12 @@ export function AboutDialog({ open, onClose, meta }: AboutDialogProps) {
         <Block index="04" title="Base map">
           <ul className="flex flex-col gap-3">
             <li className="border-l-2 border-line-strong pl-3">
-              <p className="text-ink">Terrain Tiles on AWS Open Data</p>
+              <p className="text-ink">Esri World Imagery</p>
               <p className="mt-0.5 text-xs leading-relaxed text-muted">
-                Elevation for the shaded relief of land and sea floor, from Mapzen&rsquo;s Tilezen
-                project. Sources include SRTM, GMTED2010 and ETOPO1. Shaded and tinted for this app.
+                Satellite imagery and place labels when you zoom in, from Esri, Maxar, Earthstar
+                Geographics and the GIS User Community, loaded live from Esri&rsquo;s tile servers and
+                used under their terms with attribution. Imagery dates vary by place and are often
+                a few years old, so a pit may look different on the ground today.
               </p>
             </li>
             <li className="border-l-2 border-line-strong pl-3">
