@@ -407,10 +407,16 @@ def snap_positions(facilities: list[dict], outline_features: list[dict]) -> dict
         "review": review,
         "hidden": {},
         "doubtful": {},
+        "verified": {},
     }
 
 
-def merge_reviewed(snapped: dict, reviewed: dict, facilities: list[dict]) -> dict:
+def merge_reviewed(
+    snapped: dict,
+    reviewed: dict,
+    facilities: list[dict],
+    outline_features: list[dict] | None = None,
+) -> dict:
     """Overlay hand-reviewed positions (`etl/reviewed_positions.json`) on the outline snaps.
 
     A reviewed position wins over a snap, and takes the site off the review list. It applies only
@@ -433,14 +439,37 @@ def merge_reviewed(snapped: dict, reviewed: dict, facilities: list[dict]) -> dic
             "moved_km": round(distance_km(tuple(here), (entry["lng"], entry["lat"])), 2),
             "method": entry["method"],
             "source": entry["source"],
-            "source_url": entry["source_url"],
+            **({"source_url": entry["source_url"]} if entry.get("source_url") else {}),
         }
         snapped["review"].pop(fid, None)
+    outlines_by_id = {f["properties"]["id"]: f for f in outline_features or []}
     for fid, check in reviewed.get("outline_checks", {}).get("records", {}).items():
         here = coords.get(fid)
         if here is None or abs(here[0] - check["from"][0]) > 1e-4:
             continue
         if abs(here[1] - check["from"][1]) > 1e-4:
+            continue
+        if check["decision"] in ("accepted", "switched"):
+            # Put the dot onto the named outline, whatever the automatic rule said.
+            feature = outlines_by_id.get(check["outline_id"])
+            if feature is None:
+                continue
+            parts = _parts(feature["geometry"])
+            near = min(parts, key=lambda rings: distance_to_polygon_km(here[0], here[1], rings))
+            x, y = nearest_inside_point(here[0], here[1], near)
+            snapped["positions"][fid] = {
+                "lng": round(x, 5),
+                "lat": round(y, 5),
+                "from": [round(here[0], 5), round(here[1], 5)],
+                "moved_km": round(distance_km(tuple(here), (x, y)), 2),
+                "outline_id": check["outline_id"],
+                "method": "snapped_to_outline",
+                "checked": True,
+            }
+            snapped["review"].pop(fid, None)
+            continue
+        if check["decision"] == "unresolved" and fid in snapped["review"]:
+            snapped["review"][fid] = f"unresolved after review: {check['note']}"
             continue
         moved = snapped["positions"].get(fid)
         if moved is None or moved["method"] != "snapped_to_outline":
@@ -463,6 +492,19 @@ def merge_reviewed(snapped: dict, reviewed: dict, facilities: list[dict]) -> dic
         if abs(here[1] - entry["from"][1]) > 1e-4:
             continue
         snapped["doubtful"][fid] = {"reason": entry["reason"]}
+    snapped["verified"] = {}
+    for fid, entry in reviewed.get("verified_in_place", {}).get("records", {}).items():
+        here = coords.get(fid)
+        if here is None or abs(here[0] - entry["from"][0]) > 1e-4:
+            continue
+        if abs(here[1] - entry["from"][1]) > 1e-4:
+            continue
+        snapped["verified"][fid] = {"note": entry["note"]}
+        snapped["review"].pop(fid, None)
+        snapped["doubtful"].pop(fid, None)
+    for fid in list(snapped["doubtful"]):
+        if fid in snapped["positions"]:  # placed since it was flagged
+            del snapped["doubtful"][fid]
     names = {f["properties"]["id"]: f["properties"].get("name") for f in facilities}
     snapped["hidden"] = {
         fid: {
@@ -516,6 +558,7 @@ def main(argv: list[str] | None = None) -> int:
         f"{len(snapped['positions'])} dots moved, "
         f"{len(snapped.get('hidden', {}))} duplicates hidden, "
         f"{len(snapped.get('doubtful', {}))} positions flagged doubtful, "
+        f"{len(snapped.get('verified', {}))} verified in place, "
         f"{len(snapped['review'])} left for review; {args.positions.name}"
     )
     return 0

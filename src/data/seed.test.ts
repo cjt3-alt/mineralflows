@@ -253,8 +253,8 @@ describe('applySitePositions', () => {
   it('carries doubtful positions without moving the dot', () => {
     const file = { doubtful: { a: { reason: 'in a town' }, b: { reason: 5 } } }
     const out = applySitePositions([facility('a', 10, 20)], file)
-    expect(out.doubtful.get('a')).toBe('in a town')
-    expect(out.doubtful.has('b')).toBe(false)
+    expect(out.notes.get('a')).toEqual({ kind: 'doubtful', text: 'in a town' })
+    expect(out.notes.has('b')).toBe(false)
     expect(out.facilities[0]!.geometry.coordinates).toEqual([10, 20])
   })
 
@@ -270,7 +270,7 @@ describe('applySitePositions', () => {
     expect(real.repositioned.size).toBeGreaterThan(100)
     expect([...real.repositioned.values()].filter((r) => r.closeCall).length).toBeGreaterThan(0)
     expect(real.hiddenDuplicates.size).toBe(4)
-    expect(real.doubtfulPositions.size).toBe(20)
+    expect(real.positionNotes.size).toBe(20)
     expect(real.facilities.some((f) => f.properties.name === 'Glogow refinery')).toBe(false)
     expect(real.facilities.some((f) => f.properties.name === 'Glogow metallurgical complex')).toBe(true)
     for (const r of real.repositioned.values()) {

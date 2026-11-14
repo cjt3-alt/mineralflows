@@ -22,6 +22,67 @@
    "method": "published_coordinates",
    "source": "Wikipedia (ru): Mednogorsk Copper-Sulphur Combine",
    "source_url": "https://ru.wikipedia.org/wiki/Медногорский_медно-серный_комбинат"
+  },
+  "icmm.icmm03924.refine": {
+   "lng": -76.53944,
+   "lat": 39.19786,
+   "from": [
+    -76.62292,
+    39.29118
+   ],
+   "method": "published_coordinates",
+   "source": "Maryland Department of the Environment site file for the former Cox Creek copper refinery, 1000 Kembo Road (39 11 55 N, 76 32 30 W), and a UST Map listing; checked on imagery",
+   "source_url": "https://mde.maryland.gov/programs/LAND/MarylandBrownfieldVCP/Documents/COX%20CREEK%20REFINING.pdf"
+  },
+  "icmm.icmm07661.mine": {
+   "lng": 17.72686,
+   "lat": -19.22669,
+   "from": [
+    18.0181,
+    -19.247
+   ],
+   "method": "placed_on_imagery",
+   "source": "Tsumeb smelter works near the town of Tsumeb, found on imagery after a published description of its position (about 2 km NE of the town centre)"
+  },
+  "icmm.icmm07661.process": {
+   "lng": 17.72686,
+   "lat": -19.22669,
+   "from": [
+    18.0181,
+    -19.247
+   ],
+   "method": "placed_on_imagery",
+   "source": "Tsumeb smelter works near the town of Tsumeb, found on imagery after a published description of its position (about 2 km NE of the town centre)"
+  },
+  "icmm.icmm07661.refine": {
+   "lng": 17.72686,
+   "lat": -19.22669,
+   "from": [
+    18.0181,
+    -19.247
+   ],
+   "method": "placed_on_imagery",
+   "source": "Tsumeb smelter works near the town of Tsumeb, found on imagery after a published description of its position (about 2 km NE of the town centre)"
+  },
+  "icmm.icmm13345.process": {
+   "lng": 22.1091,
+   "lat": 44.0764,
+   "from": [
+    22.16667,
+    44.08333
+   ],
+   "method": "placed_on_imagery",
+   "source": "Bor smelter complex on the east side of the town of Bor, found on imagery"
+  },
+  "icmm.icmm13345.refine": {
+   "lng": 22.1091,
+   "lat": 44.0764,
+   "from": [
+    22.16667,
+    44.08333
+   ],
+   "method": "placed_on_imagery",
+   "source": "Bor smelter complex on the east side of the town of Bor, found on imagery"
   }
  },
  "duplicates": {
@@ -46,6 +107,26 @@
     "name": "Legnica refinery",
     "duplicate_of": "icmm.icmm08457.refine",
     "reason": "Second entry for the Legnica copper smelter and refinery, geocoded to the town centre. The data already holds the plant at its real location as \"Legnica metallurgical complex\"."
+   },
+   "icmm.icmm05650.process": {
+    "name": "Hamburg refinery",
+    "duplicate_of": "icmm.icmm13500.process",
+    "reason": "Second entry for the Hamburg copper plant, geocoded away from the works. The data already holds the plant on its works as \"Hamburg Pb Refinery\"."
+   },
+   "icmm.icmm05650.refine": {
+    "name": "Hamburg refinery",
+    "duplicate_of": "icmm.icmm13500.refine",
+    "reason": "Second entry for the Hamburg copper plant, geocoded away from the works. The data already holds the plant on its works as \"Hamburg Pb Refinery\"."
+   },
+   "icmm.icmm13291.process": {
+    "name": "Altonorte refinery",
+    "duplicate_of": "icmm.icmm07921.process",
+    "reason": "Second entry for the Altonorte copper plant, geocoded away from the works. The data already holds the plant on its works as \"Altonorte\"."
+   },
+   "icmm.icmm13291.refine": {
+    "name": "Altonorte refinery",
+    "duplicate_of": "Altonorte",
+    "reason": "Second entry for the Altonorte copper plant, geocoded away from the works. The data already holds the plant on its works as \"Altonorte\"."
    }
   }
  },
@@ -696,22 +777,6 @@
  "doubtful_positions": {
   "note": "Smelter and refinery dots that look wrong on satellite imagery (14 November 2026) where no better position could be found. They are not moved: the dot stays where the source reports it, flagged. Applies only while the facility still reports the point in `from`.",
   "records": {
-   "icmm.icmm13345.process": {
-    "name": "Bor refinery",
-    "from": [
-     22.16667,
-     44.08333
-    ],
-    "reason": "Bor: the reported point is in hills about 5 km from the town. The smelter complex is in Bor itself."
-   },
-   "icmm.icmm13345.refine": {
-    "name": "Bor refinery",
-    "from": [
-     22.16667,
-     44.08333
-    ],
-    "reason": "Bor: the reported point is in hills about 5 km from the town. The smelter complex is in Bor itself."
-   },
    "icmm.icmm13547.process": {
     "name": "Irtysh refinery",
     "from": [
@@ -776,22 +841,6 @@
     ],
     "reason": "Wuhu: the reported point is in an apartment district."
    },
-   "icmm.icmm13291.process": {
-    "name": "Altonorte refinery",
-    "from": [
-     -70.333,
-     -23.8
-    ],
-    "reason": "Altonorte refinery: the reported point is in open desert, away from the smelter complex."
-   },
-   "icmm.icmm13291.refine": {
-    "name": "Altonorte refinery",
-    "from": [
-     -70.333,
-     -23.8
-    ],
-    "reason": "Altonorte refinery: the reported point is in open desert, away from the smelter complex."
-   },
    "icmm.icmm13386.process": {
     "name": "Chizhou Guan Hua refinery",
     "from": [
@@ -855,6 +904,86 @@
      28.00979
     ],
     "reason": "Khetri: the reported point is in barren hills about 5 km from the town and the copper complex."
+   },
+   "icmm.icmm01533.refine": {
+    "name": "Los Azules Romero",
+    "from": [
+     -69.8467,
+     -27.3914
+    ],
+    "reason": "Los Azules Romero: the reported point is in barren mountains with no plant in sight; this looks like a project, not a plant."
+   },
+   "icmm.icmm05631.process": {
+    "name": "Outokumpu Group",
+    "from": [
+     24.6694,
+     60.2152
+    ],
+    "reason": "Outokumpu Group: the reported point is in a green space beside a motorway in a suburb, not at a works."
+   },
+   "icmm.icmm05732.process": {
+    "name": "Otvozetgyar Salgotarjan Plant",
+    "from": [
+     19.8188,
+     48.1153
+    ],
+    "reason": "Otvozetgyar Salgotarjan: the reported point is in forest above the town, not at a plant."
+   },
+   "icmm.icmm13378.process": {
+    "name": "Changzhou refinery",
+    "from": [
+     119.96796,
+     31.77971
+    ],
+    "reason": "Changzhou: the reported point is in a city park among apartment blocks."
+   },
+   "icmm.icmm13378.refine": {
+    "name": "Changzhou refinery",
+    "from": [
+     119.96796,
+     31.77971
+    ],
+    "reason": "Changzhou: the reported point is in a city park among apartment blocks."
+   },
+   "icmm.icmm13727.process": {
+    "name": "Paranepanema refinery",
+    "from": [
+     -38.32194,
+     -12.69695
+    ],
+    "reason": "Paranapanema: the reported point is in a residential town; the plant is in the Dias d'Avila industrial area."
+   },
+   "icmm.icmm13727.refine": {
+    "name": "Paranepanema refinery",
+    "from": [
+     -38.32194,
+     -12.69695
+    ],
+    "reason": "Paranapanema: the reported point is in a residential town; the plant is in the Dias d'Avila industrial area."
+   },
+   "icmm.icmm13930.process": {
+    "name": "Yuntong",
+    "from": [
+     102.67841,
+     25.09667
+    ],
+    "reason": "Yuntong: the reported point is at the edge of a residential area under construction, not at a works."
+   },
+   "icmm.icmm21199.process": {
+    "name": "Yantai Guoxing Smelter",
+    "from": [
+     121.38667,
+     37.53339
+    ],
+    "reason": "Yantai Guoxing: the reported point is in the middle of a dense city."
+   },
+   "icmm.icmm21199.refine": {
+    "name": "Yantai Guoxing Smelter",
+    "from": [
+     121.38667,
+     37.53339
+    ],
+    "reason": "Yantai Guoxing: the reported point is in the middle of a dense city."
    }
   }
  },
@@ -862,6 +991,322 @@
   "note": "Random sample of 30 of the 71 plant sites with no mining outline within 3 km, looked at on imagery. 24 on or beside a plant, 6 doubtful (Altonorte refinery, Chizhou Guan Hua, Kunming, Barreiro, Guixi, Khetri). Also all 5 sites with whole-arc-minute coordinates (Bor, Irtysh, Onahama, Tamano, Wuhu), which look like place-name geocodes: all 5 doubtful.",
   "sampled": 30,
   "pool_sites": 71,
-  "doubtful_in_sample": 6
+  "doubtful_in_sample": 6,
+  "w1": {
+   "sites": 41,
+   "verified": 25,
+   "doubtful_or_placed": 10,
+   "duplicates_hidden": 1,
+   "unresolved": 6
+  }
+ },
+ "verified_in_place": {
+  "note": "Smelter and refinery dots looked at on satellite imagery and found on or beside a plant works (Esri World Imagery). The position is confirmed in place, not moved. Applies only while the facility still reports the point in `from`.",
+  "records": {
+   "icmm.icmm07132.process": {
+    "name": "Takehara",
+    "from": [
+     132.91326,
+     34.33584
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm07132.refine": {
+    "name": "Takehara",
+    "from": [
+     132.91326,
+     34.33584
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm08075.process": {
+    "name": "Cedynia Plant",
+    "from": [
+     16.35135,
+     51.57323
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm08321.process": {
+    "name": "ILO",
+    "from": [
+     -71.36055,
+     -17.49843
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm08321.refine": {
+    "name": "ILO",
+    "from": [
+     -71.36055,
+     -17.49843
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm08409.process": {
+    "name": "Kokkola",
+    "from": [
+     23.05151,
+     63.86166
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm08409.refine": {
+    "name": "Kokkola",
+    "from": [
+     23.05151,
+     63.86166
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm08476.process": {
+    "name": "Los Bronces",
+    "from": [
+     -70.70111,
+     -33.14583
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm08706.process": {
+    "name": "Gresik Refinery",
+    "from": [
+     112.63463,
+     -7.1454
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm08706.refine": {
+    "name": "Gresik Refinery",
+    "from": [
+     112.63463,
+     -7.1454
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm08739.process": {
+    "name": "Ronnskar Pb Refinery",
+    "from": [
+     21.27157,
+     64.66832
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm08739.refine": {
+    "name": "Ronnskar Pb Refinery",
+    "from": [
+     21.27157,
+     64.66832
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm08756.process": {
+    "name": "San Luis Potosi Complex",
+    "from": [
+     -101.03329,
+     22.16788
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm08880.process": {
+    "name": "Tomago",
+    "from": [
+     151.72256,
+     -32.82609
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13404.process": {
+    "name": "Dahej Flash",
+    "from": [
+     72.53976,
+     21.70242
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13405.process": {
+    "name": "Dahej Mitsubishi",
+    "from": [
+     72.583,
+     21.7
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13499.process": {
+    "name": "Hachinohe",
+    "from": [
+     141.49263,
+     40.54909
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13499.refine": {
+    "name": "Hachinohe",
+    "from": [
+     141.49263,
+     40.54909
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13529.process": {
+    "name": "Huichun smelter",
+    "from": [
+     130.41483,
+     42.82144
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13529.refine": {
+    "name": "Huichun smelter",
+    "from": [
+     130.41483,
+     42.82144
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13575.process": {
+    "name": "Kamoa Smelter",
+    "from": [
+     25.18985,
+     -10.88556
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13578.process": {
+    "name": "Kangxi smelter",
+    "from": [
+     117.22794,
+     28.33404
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13578.refine": {
+    "name": "Kangxi smelter",
+    "from": [
+     117.22794,
+     28.33404
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13699.process": {
+    "name": "New Zhuzhou",
+    "from": [
+     113.07687,
+     27.87497
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13701.process": {
+    "name": "Ningde smelter",
+    "from": [
+     119.62834,
+     26.73112
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13701.refine": {
+    "name": "Ningde smelter",
+    "from": [
+     119.62834,
+     26.73112
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13794.process": {
+    "name": "Samsun smelter",
+    "from": [
+     36.46043,
+     41.24246
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13794.refine": {
+    "name": "Samsun smelter",
+    "from": [
+     36.46043,
+     41.24246
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13881.process": {
+    "name": "Valleyfield",
+    "from": [
+     -74.09642,
+     45.22763
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13914.process": {
+    "name": "Yanggu Xiangguang smelter",
+    "from": [
+     115.83816,
+     36.21681
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13928.process": {
+    "name": "Yuguang smelter",
+    "from": [
+     112.55341,
+     35.08687
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm13928.refine": {
+    "name": "Yuguang smelter",
+    "from": [
+     112.55341,
+     35.08687
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm18041.refine": {
+    "name": "Budel Dorplein Refinery",
+    "from": [
+     5.602,
+     51.238
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm18204.process": {
+    "name": "Balen/Overpelt Smelter",
+    "from": [
+     5.39511,
+     51.23567
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm18789.process": {
+    "name": "Tongling Smelter",
+    "from": [
+     117.78569,
+     30.99635
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm18789.refine": {
+    "name": "Tongling Smelter",
+    "from": [
+     117.78569,
+     30.99635
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm20514.process": {
+    "name": "Yimen Smelter",
+    "from": [
+     102.1691,
+     24.70799
+    ],
+    "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm20514.refine": {
+    "name": "Yimen Smelter",
+    "from": [
+     102.1691,
+     24.70799
+    ],
+    "note": "The reported point is on or beside a plant works."
+   }
+  }
  }
 }
