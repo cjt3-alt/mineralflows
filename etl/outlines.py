@@ -406,6 +406,7 @@ def snap_positions(facilities: list[dict], outline_features: list[dict]) -> dict
         "positions": positions,
         "review": review,
         "hidden": {},
+        "doubtful": {},
     }
 
 
@@ -454,6 +455,14 @@ def merge_reviewed(snapped: dict, reviewed: dict, facilities: list[dict]) -> dic
                 "checked on imagery: the reported point is on the plant, "
                 "and the nearest outline is not it"
             )
+    snapped["doubtful"] = {}
+    for fid, entry in reviewed.get("doubtful_positions", {}).get("records", {}).items():
+        here = coords.get(fid)
+        if here is None or abs(here[0] - entry["from"][0]) > 1e-4:
+            continue
+        if abs(here[1] - entry["from"][1]) > 1e-4:
+            continue
+        snapped["doubtful"][fid] = {"reason": entry["reason"]}
     names = {f["properties"]["id"]: f["properties"].get("name") for f in facilities}
     snapped["hidden"] = {
         fid: {
@@ -506,6 +515,7 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"{len(snapped['positions'])} dots moved, "
         f"{len(snapped.get('hidden', {}))} duplicates hidden, "
+        f"{len(snapped.get('doubtful', {}))} positions flagged doubtful, "
         f"{len(snapped['review'])} left for review; {args.positions.name}"
     )
     return 0

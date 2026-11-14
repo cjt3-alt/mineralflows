@@ -275,6 +275,21 @@ def test_outline_checks() -> None:
     check("a stale check is ignored", out["positions"]["c.mine"].get("close_call") is True)
 
 
+def test_doubtful_positions() -> None:
+    facilities = [_facility("a.process", 1.0, 2.0), _facility("b.process", 3.0, 4.0)]
+    snapped = {"positions": {}, "review": {}, "hidden": {}}
+    doubtful = {
+        "a.process": {"name": "A", "from": [1.0, 2.0], "reason": "in a town"},
+        "b.process": {"name": "B", "from": [9.0, 9.0], "reason": "stale"},  # source has moved it
+    }
+    out = outlines.merge_reviewed(
+        snapped, {"doubtful_positions": {"records": doubtful}}, facilities
+    )
+    check("a doubtful position is carried", out["doubtful"]["a.process"]["reason"] == "in a town")
+    check("a stale one is dropped", "b.process" not in out["doubtful"])
+    check("the dot is not moved", out["positions"] == {})
+
+
 def main() -> int:
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):
