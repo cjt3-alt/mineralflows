@@ -174,6 +174,31 @@ def test_ambiguous_nearest_outline_is_not_trusted() -> None:
     check("and flagged", flagged["positions"].get("b.mine", {}).get("close_call") is True)
 
 
+def test_plants_snap_only_short() -> None:
+    # 0.0108 degrees east of the edge is about 0.09 km; 0.019 is about 1.0 km.
+    square = [(0.0, 0.0), (0.01, 0.0), (0.01, 0.01), (0.0, 0.01), (0.0, 0.0)]
+
+    def site(fid: str, stage: str, x: float) -> dict:
+        return {
+            "properties": {"id": fid, "stage": stage},
+            "geometry": {"type": "Point", "coordinates": [x, 0.005]},
+        }
+
+    near_plant = site("a.process", "process", 0.0108)
+    far_plant = site("b.refine", "refine", 0.019)
+    far_mine = site("c.mine", "mine", 0.019)
+    for f in (near_plant, far_plant, far_mine):
+        out = outlines.snap_positions([f], [_outline(1, square, [f["properties"]["id"]])])
+        fid = f["properties"]["id"]
+        if f is near_plant:
+            check("a plant just off an outline snaps", fid in out["positions"])
+        elif f is far_plant:
+            check("a plant 1 km off does not", fid in out["review"] and fid not in out["positions"])
+            check("and says why", out["review"][fid].startswith("plant:"))
+        else:
+            check("a mine 1 km off still snaps", fid in out["positions"])
+
+
 def test_merge_reviewed() -> None:
     facilities = [_facility("p", 10.0, 20.0), _facility("q", 30.0, 40.0)]
     snapped = {"positions": {"p": {"method": "snapped_to_outline"}}, "review": {"p": "x", "q": "y"}}

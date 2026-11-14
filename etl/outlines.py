@@ -43,6 +43,10 @@ SNAP_RATIO = 2.0
 # then probably within a mine complex even when it is not the exact pit, and the dot ends up
 # closer to the truth in 84 to 90% of calibration trials; the flag keeps it on the list to check.
 CLOSE_CALL_MAX_KM = 1.0
+# Mining outlines are pits, dumps and tailings; a smelter or refinery's buildings are often not
+# inside one. Looking at 21 plant snaps on imagery, the 7 wrong ones had moved the plant 0.87 to
+# 1.9 km onto a tailings outline and the 13 good ones 0.8 km or less, so plants snap only short.
+PLANT_SNAP_MAX_KM = 0.8
 SIMPLIFY_DEG = 0.0002  # about 20 m
 DECIMALS = 4  # about 11 m
 
@@ -346,6 +350,7 @@ def snap_positions(facilities: list[dict], outline_features: list[dict]) -> dict
     Facilities already inside an outline are not touched.
     """
     coords = {f["properties"]["id"]: tuple(f["geometry"]["coordinates"]) for f in facilities}
+    by_id = {f["properties"]["id"]: f for f in facilities}
     candidates: dict[str, list[tuple[float, dict, list[list[Ring]]]]] = {}
     for feature in outline_features:
         parts = _parts(feature["geometry"])
@@ -365,6 +370,10 @@ def snap_positions(facilities: list[dict], outline_features: list[dict]) -> dict
             continue
         if d > SNAP_MAX_KM:
             review[fid] = f"nearest outline is {d:.1f} km away"
+            continue
+        is_plant = by_id[fid]["properties"].get("stage") in ("process", "refine")
+        if is_plant and d > PLANT_SNAP_MAX_KM:
+            review[fid] = f"plant: nearest mining outline is {d:.1f} km away"
             continue
         close_call = len(options) > 1 and options[1][0] < SNAP_RATIO * d
         if close_call and d > CLOSE_CALL_MAX_KM:

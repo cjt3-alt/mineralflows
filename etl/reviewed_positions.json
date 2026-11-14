@@ -438,6 +438,258 @@
      -25.70528
     ],
     "note": "Could not tell from imagery which outline is this mine; left flagged."
+   },
+   "icmm.icmm02788.process": {
+    "decision": "confirmed",
+    "name": "Mountain Pass",
+    "from": [
+     -115.51611,
+     35.48866
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm05568.process": {
+    "decision": "confirmed",
+    "name": "Kaula Kotselvaara",
+    "from": [
+     30.23835,
+     69.41003
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm05568.refine": {
+    "decision": "confirmed",
+    "name": "Kaula Kotselvaara",
+    "from": [
+     30.23835,
+     69.41003
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm05887.process": {
+    "decision": "confirmed",
+    "name": "Alaverdi",
+    "from": [
+     44.66455,
+     41.10905
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm06083.process": {
+    "decision": "unresolved",
+    "name": "Lepanto",
+    "from": [
+     120.7772,
+     16.88554
+    ],
+    "note": "Lepanto: the snap lands on a tailings strip 0.75 km away; the reported point is a clearing by a village. Could not tell which is the plant."
+   },
+   "icmm.icmm06877.process": {
+    "decision": "confirmed",
+    "name": "Leninogorsk",
+    "from": [
+     83.53502,
+     50.36604
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm06877.refine": {
+    "decision": "confirmed",
+    "name": "Leninogorsk",
+    "from": [
+     83.53502,
+     50.36604
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm06940.process": {
+    "decision": "confirmed",
+    "name": "Dal'Polymetal Complex",
+    "from": [
+     135.56483,
+     44.5904
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm07091.refine": {
+    "decision": "confirmed",
+    "name": "Baiyin Refinery",
+    "from": [
+     104.20939,
+     36.55512
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm07112.process": {
+    "decision": "reverted",
+    "name": "Yuanqu smelter",
+    "from": [
+     111.66019,
+     35.32308
+    ],
+    "note": "Yuanqu: the reported point is inside the smelter works; the snap moved it 1.9 km to a distant outline."
+   },
+   "icmm.icmm07163.process": {
+    "decision": "confirmed",
+    "name": "Daye refinery",
+    "from": [
+     114.93909,
+     30.08123
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm07163.refine": {
+    "decision": "confirmed",
+    "name": "Daye refinery",
+    "from": [
+     114.93909,
+     30.08123
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm07196.process": {
+    "decision": "reverted",
+    "name": "Lala Copper/Polymetallic Mine",
+    "from": [
+     102.24,
+     26.6762
+    ],
+    "note": "Lala: the reported point is at the edge of town and the snap moved it 1.8 km to a small outline with no sign of a plant."
+   },
+   "icmm.icmm07246.process": {
+    "decision": "confirmed",
+    "name": "Bai Sha Po Mine",
+    "from": [
+     103.15411,
+     23.25342
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm07723.process": {
+    "decision": "confirmed",
+    "name": "Platreef",
+    "from": [
+     28.90295,
+     -23.96027
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm07972.process": {
+    "decision": "reverted",
+    "name": "Balkhash Smelter",
+    "from": [
+     74.9456,
+     46.83187
+    ],
+    "note": "Balkhash: the reported point is on the smelter complex; the snap moved it 1.3 km west to a tailings outline."
+   },
+   "icmm.icmm07972.refine": {
+    "decision": "reverted",
+    "name": "Balkhash Smelter",
+    "from": [
+     74.9456,
+     46.83187
+    ],
+    "note": "Balkhash: the reported point is on the smelter complex; the snap moved it 1.3 km west to a tailings outline."
+   },
+   "icmm.icmm08093.process": {
+    "decision": "confirmed",
+    "name": "Chifeng",
+    "from": [
+     119.01914,
+     42.28346
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm08093.refine": {
+    "decision": "confirmed",
+    "name": "Chifeng",
+    "from": [
+     119.01914,
+     42.28346
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm08164.process": {
+    "decision": "confirmed",
+    "name": "Duck Pond",
+    "from": [
+     -56.4882,
+     48.63676
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm08191.process": {
+    "decision": "reverted",
+    "name": "Caletones smelter",
+    "from": [
+     -70.45181,
+     -34.10126
+    ],
+    "note": "Caletones: the reported point is on the smelter site; the snap moved it 0.9 km north to a tailings outline."
+   },
+   "icmm.icmm08191.refine": {
+    "decision": "reverted",
+    "name": "Caletones smelter",
+    "from": [
+     -70.45181,
+     -34.10126
+    ],
+    "note": "Caletones: the reported point is on the smelter site; the snap moved it 0.9 km north to a tailings outline."
+   },
+   "icmm.icmm08550.process": {
+    "decision": "confirmed",
+    "name": "Mopani",
+    "from": [
+     28.18808,
+     -12.79459
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm13322.process": {
+    "decision": "reverted",
+    "name": "Baotou Huading refinery",
+    "from": [
+     109.746,
+     40.657
+    ],
+    "note": "Baotou Huading: the reported point is inside an industrial works; the snap moved it 0.95 km to a tailings outline."
+   },
+   "icmm.icmm13322.refine": {
+    "decision": "reverted",
+    "name": "Baotou Huading refinery",
+    "from": [
+     109.746,
+     40.657
+    ],
+    "note": "Baotou Huading: the reported point is inside an industrial works; the snap moved it 0.95 km to a tailings outline."
+   },
+   "icmm.icmm13465.process": {
+    "decision": "reverted",
+    "name": "Qinghai smelter",
+    "from": [
+     101.51211,
+     36.549
+    ],
+    "note": "Qinghai: the reported point is in an industrial park; the snap moved it 1.1 km north to a tailings outline."
+   },
+   "icmm.icmm13601.refine": {
+    "decision": "confirmed",
+    "name": "Krasnouralsk (Svyatogor) refinery",
+    "from": [
+     60.06109,
+     58.3499
+    ],
+    "note": "Plant snap looked at on imagery (14 November 2026): the snapped outline is the mining or plant area at this site and the move is short."
+   },
+   "icmm.icmm13869.process": {
+    "decision": "reverted",
+    "name": "Tschudi SxEw",
+    "from": [
+     17.693,
+     -19.246
+    ],
+    "note": "Tschudi: the snap moved the point 1.9 km to the edge of the town, with no sign of a plant."
    }
   }
  }

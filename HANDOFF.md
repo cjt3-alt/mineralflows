@@ -92,8 +92,13 @@ under reduced motion. A "Replay the intro" link brings it back.
   it off), 11 left **unresolved** and still flagged. Result: 220 snapped, 95 in review. **Lesson:**
   Maus outlines are mining land (pits, dumps, tailings); a smelter or refinery's buildings are
   often not inside one, so snapping a plant to the nearest outline can be wrong even when the ratio
-  test passes. 28 plant records (19 process, 9 refine) are snapped with no flag and have not been
-  looked at; the calibration covered mines only. Check them next.
+  test passes. The 28 unflagged plant snaps (21 sites) were then looked at too: 13 sites were
+  fine (all moved 0.83 km or less), 7 were wrong (each moved the plant 0.87 to 1.9 km onto a tailings
+  outline: Yuanqu, Lala, Balkhash, Caletones, Baotou Huading, Qinghai, Tschudi) and 1 (Lepanto) is
+  unclear. So plants now snap only short (`PLANT_SNAP_MAX_KM` = 0.8 km); a plant whose nearest outline
+  is farther goes to review with a "plant:" reason. That is tuned on 21 sites, so treat 0.8 as a
+  reasoned guess, not a calibrated number. Alaverdi's plant (0.83 km, looked right) falls just outside
+  the cap and is in review. Result: 209 snapped (189 mine, 13 process, 7 refine), 106 in review.
 - **Refinery and smelter positions, first pass (13 November 2026).** Nominatim land use under the 302
   smelter and refinery dots flagged 53 (38 distinct points) on residential streets or in a named
   place; that check is too noisy to move dots on its own (Hoboken and Hayden are real plants beside
