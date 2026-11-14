@@ -1,0 +1,40 @@
+{
+ "note": "Hand-reviewed dot positions. Each moves a smelter or refinery from the point the source reports to the plant's published coordinates, after checking the spot on satellite imagery (Esri World Imagery, 13 November 2026) shows a smelter or works complex. `from` is the reported point; a move applies only while the facility still reports it.",
+ "reviewed": {
+  "icmm.icmm13650.process": {
+   "lng": 57.57,
+   "lat": 51.44,
+   "from": [
+    57.56667,
+    51.41667
+   ],
+   "method": "published_coordinates",
+   "source": "Wikipedia (ru): Mednogorsk Copper-Sulphur Combine",
+   "source_url": "https://ru.wikipedia.org/wiki/Медногорский_медно-серный_комбинат"
+  },
+  "icmm.icmm13650.refine": {
+   "lng": 57.57,
+   "lat": 51.44,
+   "from": [
+    57.56667,
+    51.41667
+   ],
+   "method": "published_coordinates",
+   "source": "Wikipedia (ru): Mednogorsk Copper-Sulphur Combine",
+   "source_url": "https://ru.wikipedia.org/wiki/Медногорский_медно-серный_комбинат"
+  }
+ },
+ "probable_duplicates": {
+  "note": "City-centre records that look like second entries for plants the data already holds at the right spot. Not moved (it would stack two dots on one plant); left for a decision on whether to merge or hide them.",
+  "records": [
+   "icmm.icmm13475.process",
+   "icmm.icmm13475.refine",
+   "icmm.icmm13622.process",
+   "icmm.icmm13622.refine"
+  ],
+  "already_placed_as": [
+   "Glogow metallurgical complex",
+   "Legnica metallurgical complex"
+  ]
+ }
+}

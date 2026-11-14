@@ -120,6 +120,19 @@ def test_snap_positions() -> None:
     check("a shared outline is not snapped", "a" in review and "b" in review and not ({"a", "b"} & moved.keys()))
 
 
+def test_merge_reviewed() -> None:
+    facilities = [_facility("p", 10.0, 20.0), _facility("q", 30.0, 40.0)]
+    snapped = {"positions": {"p": {"method": "snapped_to_outline"}}, "review": {"p": "x", "q": "y"}}
+    entry = {"lng": 10.05, "lat": 20.0, "from": [10.0, 20.0], "method": "published_coordinates", "source": "s", "source_url": "u"}
+    stale = {**entry, "from": [31.0, 40.0]}
+    out = outlines.merge_reviewed(snapped, {"reviewed": {"p": entry, "q": stale}}, facilities)
+    check("a reviewed position replaces a snap", out["positions"]["p"]["method"] == "published_coordinates")
+    check("it records the source", out["positions"]["p"]["source"] == "s")
+    check("the move is measured", 4.0 < out["positions"]["p"]["moved_km"] < 6.0, str(out["positions"]["p"]["moved_km"]))
+    check("it leaves the review list", "p" not in out["review"])
+    check("a stale review is ignored", "q" not in out["positions"] and "q" in out["review"])
+
+
 def main() -> int:
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

@@ -31,6 +31,7 @@ FACILITIES = ROOT / "public" / "data" / "facilities.geojson"
 OUT = ROOT / "public" / "data" / "outlines.geojson"
 
 POSITIONS = ROOT / "public" / "data" / "site_positions.json"
+REVIEWED = ROOT / "etl" / "reviewed_positions.json"
 
 MATCH_KM = 3.0
 SNAP_MAX_KM = 1.0  # a dot is only moved onto an outline this close; further out is a doubtful match
@@ -373,6 +374,31 @@ def snap_positions(facilities: list[dict], outline_features: list[dict]) -> dict
     }
 
 
+def merge_reviewed(snapped: dict, reviewed: dict, facilities: list[dict]) -> dict:
+    """Overlay hand-reviewed positions (`etl/reviewed_positions.json`) on the outline snaps.
+
+    A reviewed position wins over a snap, and takes the site off the review list. It applies only
+    while the facility still reports the point it was reviewed at, so a refreshed source cannot
+    leave a stale correction behind.
+    """
+    coords = {f["properties"]["id"]: f["geometry"]["coordinates"] for f in facilities}
+    for fid, entry in reviewed.get("reviewed", {}).items():
+        here = coords.get(fid)
+        if here is None or abs(here[0] - entry["from"][0]) > 1e-4 or abs(here[1] - entry["from"][1]) > 1e-4:
+            continue
+        snapped["positions"][fid] = {
+            "lng": entry["lng"],
+            "lat": entry["lat"],
+            "from": entry["from"],
+            "moved_km": round(distance_km(tuple(here), (entry["lng"], entry["lat"])), 2),
+            "method": entry["method"],
+            "source": entry["source"],
+            "source_url": entry["source_url"],
+        }
+        snapped["review"].pop(fid, None)
+    return snapped
+
+
 def distance_km(a: tuple[float, float], b: tuple[float, float]) -> float:
     kx, ky = km_per_degree((a[1] + b[1]) / 2)
     return math.hypot((a[0] - b[0]) * kx, (a[1] - b[1]) * ky)
@@ -399,9 +425,11 @@ def main(argv: list[str] | None = None) -> int:
         result = json.loads(args.out.read_text(encoding="utf-8"))
 
     snapped = snap_positions(facilities, result["features"])
+    if REVIEWED.exists():
+        snapped = merge_reviewed(snapped, json.loads(REVIEWED.read_text(encoding="utf-8")), facilities)
     args.positions.write_text(json.dumps(snapped, separators=(",", ":")), encoding="utf-8")
     print(
-        f"{len(snapped['positions'])} dots snapped onto their outline, "
+        f"{len(snapped['positions'])} dots moved, "
         f"{len(snapped['review'])} left for review; {args.positions.name}"
     )
     return 0

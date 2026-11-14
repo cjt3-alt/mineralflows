@@ -307,8 +307,16 @@ function FacilityDetail({
           site's marker, from Maus et al. 2022. It is matched by location, not by name
           {footprint.shared ? ', and it is shared with neighbouring sites in the same complex' : ''}, so treat it as the
           ground a mine covers, not a measure of its output.
-          {moved !== undefined &&
-            ` The marker has been moved ${moved.km < 0.1 ? 'a few tens of metres' : moved.km.toFixed(1) + ' km'} from the position the source reports so that it sits on this outline.`}
+        </p>
+      )}
+
+      {moved !== undefined && (
+        <p className="mt-3 text-xs leading-relaxed text-muted">
+          The marker has been moved {moved.km < 0.1 ? 'a few tens of metres' : moved.km.toFixed(1) + ' km'} from the
+          position the source reports
+          {moved.method === 'published_coordinates'
+            ? `, to the plant's published location (${moved.source ?? 'a published source'}), checked against satellite imagery.`
+            : ' so that it sits on the outline above.'}
         </p>
       )}
 

@@ -67,6 +67,19 @@ under reduced motion. A "Replay the intro" link brings it back.
   mine. The browser applies a move only while the facility still reports the point it was computed
   from (`applySitePositions` in `load.ts`), so a refreshed ICMM file cannot leave a stale correction.
   The site card says when a marker was moved. Sites already inside an outline are untouched.
+- **Refinery and smelter positions, first pass (13 November 2026).** Nominatim land use under the 302
+  smelter and refinery dots flagged 53 (38 distinct points) on residential streets or in a named
+  place; that check is too noisy to move dots on its own (Hoboken and Hayden are real plants beside
+  towns). Reviewing all 38 on Esri imagery: about 23 sit on or beside a plant, about 15 are off
+  (city centres, empty hills). Wider views could re-place only a few; the rest need outside
+  coordinates. Hand-reviewed moves live in `etl/reviewed_positions.json` (source cited, applied only
+  while ICMM still reports the original point). Applied so far: Mednogorsk (2 records, 2.6 km, from
+  the combine's Wikipedia coordinates). Looked up and **rejected**: Glogow and Legnica "refinery"
+  records are duplicates of the existing "metallurgical complex" records, so moving them would stack
+  dots (listed under `probable_duplicates`, needs a merge-or-hide decision); Chelyabinsk's Wikipedia
+  match is the zinc plant, not our copper record. Still unplaced: Carteret, Hoboken (about 300 m off,
+  left), Leninogorsk and Alaverdi (candidate points found by eye, not applied), Monywa, Liaoning,
+  Lala, Miaogou, Zlatna, Rudnany. The other 249 smelter and refinery dots were not reviewed.
 - **Not done from the list:** CEPII BACI needs a registration form, so trade history waits on that.
 
 **Removed** (git history has them): `ChokepointView`, `MapCanvas`, `FlowsOverlay`, `FilterRail`,

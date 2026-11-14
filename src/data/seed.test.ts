@@ -220,7 +220,7 @@ describe('applySitePositions', () => {
   it('moves a facility that still reports the point the move was computed from', () => {
     const out = applySitePositions([facility('a', 10, 20)], table)
     expect(out.facilities[0]!.geometry.coordinates).toEqual([10.01, 20.01])
-    expect(out.repositioned.get('a')).toEqual({ fromLng: 10, fromLat: 20, km: 1.5 })
+    expect(out.repositioned.get('a')).toEqual({ fromLng: 10, fromLat: 20, km: 1.5, method: 'snapped_to_outline' })
   })
 
   it('ignores a move once the source reports a different point', () => {
@@ -239,6 +239,9 @@ describe('applySitePositions', () => {
   it('moves only dots that sit on a real outline in the shipped data', () => {
     const real = parseDataset({ ...raw, sitePositions: read('site_positions.json') })
     expect(real.repositioned.size).toBeGreaterThan(100)
-    for (const r of real.repositioned.values()) expect(r.km).toBeLessThan(2)
+    for (const r of real.repositioned.values()) {
+      if (r.method === 'snapped_to_outline') expect(r.km).toBeLessThan(2)
+      else expect(r.source).toBeTruthy()
+    }
   })
 })
