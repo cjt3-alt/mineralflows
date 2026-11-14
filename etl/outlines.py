@@ -34,7 +34,19 @@ POSITIONS = ROOT / "public" / "data" / "site_positions.json"
 REVIEWED = ROOT / "etl" / "reviewed_positions.json"
 
 MATCH_KM = 3.0
-SNAP_MAX_KM = 1.0  # a dot is only moved onto an outline this close; further out is a doubtful match
+SNAP_MAX_KM = 2.0  # a dot is only moved onto an outline this close; further out is a doubtful match
+# The nearest outline must be this many times closer than the runner-up, or it may be the wrong
+# mine. Calibrated in etl/snap_calibration.py: at 2 the snap lands on the right outline in 99% of
+# trials; below 1.5 it is closer to a coin flip.
+SNAP_RATIO = 2.0
+# A close call is still snapped when the outline is this near, and flagged. The nearest outline is
+# then probably within a mine complex even when it is not the exact pit, and the dot ends up
+# closer to the truth in 84 to 90% of calibration trials; the flag keeps it on the list to check.
+CLOSE_CALL_MAX_KM = 1.0
+# Mining outlines are pits, dumps and tailings; a smelter or refinery's buildings are often not
+# inside one. Looking at 21 plant snaps on imagery, the 7 wrong ones had moved the plant 0.87 to
+# 1.9 km onto a tailings outline and the 13 good ones 0.8 km or less, so plants snap only short.
+PLANT_SNAP_MAX_KM = 0.8
 SIMPLIFY_DEG = 0.0002  # about 20 m
 DECIMALS = 4  # about 11 m
 
@@ -322,16 +334,23 @@ def _parts(geometry: dict) -> list[list[Ring]]:
     return [geometry["coordinates"]] if geometry["type"] == "Polygon" else geometry["coordinates"]
 
 
+def site_of(facility_id: str) -> str:
+    """The physical site behind a facility id: ids end in the stage (`icmm.icmm00056.mine`), and
+    the records for one site's stages share everything before it."""
+    return facility_id.rsplit(".", 1)[0]
+
+
 def snap_positions(facilities: list[dict], outline_features: list[dict]) -> dict:
     """Where each facility's dot should sit so it is on the outline it was matched to.
 
     Only facilities whose reported point is outside every outline matched to them are moved, to
     an interior point of the nearest outline, and only when that is a clean match: the outline is
-    within `SNAP_MAX_KM` and no other facility claims it (two dots snapped to one outline would
+    within `SNAP_MAX_KM` and no other site claims it (two dots snapped to one outline would
     stack). Everything else is listed under `review` with the reason, and left where it was.
     Facilities already inside an outline are not touched.
     """
     coords = {f["properties"]["id"]: tuple(f["geometry"]["coordinates"]) for f in facilities}
+    by_id = {f["properties"]["id"]: f for f in facilities}
     candidates: dict[str, list[tuple[float, dict, list[list[Ring]]]]] = {}
     for feature in outline_features:
         parts = _parts(feature["geometry"])
@@ -352,8 +371,18 @@ def snap_positions(facilities: list[dict], outline_features: list[dict]) -> dict
         if d > SNAP_MAX_KM:
             review[fid] = f"nearest outline is {d:.1f} km away"
             continue
-        if len(feature["properties"]["facility_ids"]) > 1:
-            review[fid] = "nearest outline is shared with another facility"
+        is_plant = by_id[fid]["properties"].get("stage") in ("process", "refine")
+        if is_plant and d > PLANT_SNAP_MAX_KM:
+            review[fid] = f"plant: nearest mining outline is {d:.1f} km away"
+            continue
+        close_call = len(options) > 1 and options[1][0] < SNAP_RATIO * d
+        if close_call and d > CLOSE_CALL_MAX_KM:
+            review[fid] = (
+                f"another outline is nearly as close ({d:.1f} km and {options[1][0]:.1f} km)"
+            )
+            continue
+        if len({site_of(x) for x in feature["properties"]["facility_ids"]}) > 1:
+            review[fid] = "nearest outline is shared with another site"
             continue
         # Of the polygon's parts, the one the dot is nearest to.
         near = min(parts, key=lambda rings: distance_to_polygon_km(*coords[fid], rings))
@@ -365,6 +394,7 @@ def snap_positions(facilities: list[dict], outline_features: list[dict]) -> dict
             "moved_km": round(distance_km(coords[fid], (x, y)), 2),
             "outline_id": feature["properties"]["id"],
             "method": "snapped_to_outline",
+            **({"close_call": True, "runner_up_km": round(options[1][0], 2)} if close_call else {}),
         }
     return {
         "note": (
@@ -405,6 +435,25 @@ def merge_reviewed(snapped: dict, reviewed: dict, facilities: list[dict]) -> dic
             "source_url": entry["source_url"],
         }
         snapped["review"].pop(fid, None)
+    for fid, check in reviewed.get("outline_checks", {}).get("records", {}).items():
+        here = coords.get(fid)
+        if here is None or abs(here[0] - check["from"][0]) > 1e-4:
+            continue
+        if abs(here[1] - check["from"][1]) > 1e-4:
+            continue
+        moved = snapped["positions"].get(fid)
+        if moved is None or moved["method"] != "snapped_to_outline":
+            continue
+        if check["decision"] == "confirmed" and moved.get("close_call"):
+            moved.pop("close_call")
+            moved.pop("runner_up_km", None)
+            moved["checked"] = True
+        elif check["decision"] == "reverted":
+            del snapped["positions"][fid]
+            snapped["review"][fid] = (
+                "checked on imagery: the reported point is on the plant, "
+                "and the nearest outline is not it"
+            )
     names = {f["properties"]["id"]: f["properties"].get("name") for f in facilities}
     snapped["hidden"] = {
         fid: {

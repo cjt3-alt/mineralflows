@@ -126,6 +126,79 @@ def test_snap_positions() -> None:
     )
 
 
+def test_sibling_stages_are_one_site() -> None:
+    check("site_of drops the stage", outlines.site_of("icmm.icmm00056.mine") == "icmm.icmm00056")
+    square = [(0.0, 0.0), (0.1, 0.0), (0.1, 0.1), (0.0, 0.1), (0.0, 0.0)]
+    facilities = [
+        _facility("icmm.icmm1.mine", 0.101, 0.05),
+        _facility("icmm.icmm1.process", 0.101, 0.05),
+    ]
+    out = outlines.snap_positions(
+        facilities, [_outline(1, square, [f["properties"]["id"] for f in facilities])]
+    )
+    check(
+        "a mine and its plant record both snap",
+        set(out["positions"]) == {f["properties"]["id"] for f in facilities},
+    )
+    check("to the same spot", len({(v["lng"], v["lat"]) for v in out["positions"].values()}) == 1)
+    other = [_facility("icmm.icmm1.mine", 0.101, 0.05), _facility("icmm.icmm2.mine", 0.102, 0.05)]
+    out = outlines.snap_positions(
+        other, [_outline(2, square, [f["properties"]["id"] for f in other])]
+    )
+    check("two different sites still conflict", out["positions"] == {} and len(out["review"]) == 2)
+
+
+def test_ambiguous_nearest_outline_is_not_trusted() -> None:
+    # A dot between two outlines: about 1.07 km from the first, 1.11 km from the second (a close
+    # call), or from the first and a distant third (a clear winner).
+    first = [(0.0, 0.0), (0.01, 0.0), (0.01, 0.01), (0.0, 0.01), (0.0, 0.0)]
+    second = [(0.0296, 0.0), (0.0396, 0.0), (0.0396, 0.01), (0.0296, 0.01), (0.0296, 0.0)]
+    third = [(0.06, 0.0), (0.07, 0.0), (0.07, 0.01), (0.06, 0.01), (0.06, 0.0)]
+    facility = [_facility("a.mine", 0.0196, 0.005)]
+    close_call = outlines.snap_positions(
+        facility, [_outline(1, first, ["a.mine"]), _outline(2, second, ["a.mine"])]
+    )
+    check("a close second outline sends it to review", "a.mine" in close_call["review"])
+    clear = outlines.snap_positions(
+        facility, [_outline(1, first, ["a.mine"]), _outline(3, third, ["a.mine"])]
+    )
+    check("a clear winner is snapped", "a.mine" in clear["positions"])
+    check("and is not flagged", "close_call" not in clear["positions"]["a.mine"])
+    # Nearer an outline (0.3 km) with a second one 0.4 km away: snapped, but flagged.
+    tight = [_facility("b.mine", 0.0125, 0.005)]
+    other = [(0.0165, 0.0), (0.0265, 0.0), (0.0265, 0.01), (0.0165, 0.01), (0.0165, 0.0)]
+    flagged = outlines.snap_positions(
+        tight, [_outline(1, first, ["b.mine"]), _outline(2, other, ["b.mine"])]
+    )
+    check("a near close call is snapped", "b.mine" in flagged["positions"])
+    check("and flagged", flagged["positions"].get("b.mine", {}).get("close_call") is True)
+
+
+def test_plants_snap_only_short() -> None:
+    # 0.0108 degrees east of the edge is about 0.09 km; 0.019 is about 1.0 km.
+    square = [(0.0, 0.0), (0.01, 0.0), (0.01, 0.01), (0.0, 0.01), (0.0, 0.0)]
+
+    def site(fid: str, stage: str, x: float) -> dict:
+        return {
+            "properties": {"id": fid, "stage": stage},
+            "geometry": {"type": "Point", "coordinates": [x, 0.005]},
+        }
+
+    near_plant = site("a.process", "process", 0.0108)
+    far_plant = site("b.refine", "refine", 0.019)
+    far_mine = site("c.mine", "mine", 0.019)
+    for f in (near_plant, far_plant, far_mine):
+        out = outlines.snap_positions([f], [_outline(1, square, [f["properties"]["id"]])])
+        fid = f["properties"]["id"]
+        if f is near_plant:
+            check("a plant just off an outline snaps", fid in out["positions"])
+        elif f is far_plant:
+            check("a plant 1 km off does not", fid in out["review"] and fid not in out["positions"])
+            check("and says why", out["review"][fid].startswith("plant:"))
+        else:
+            check("a mine 1 km off still snaps", fid in out["positions"])
+
+
 def test_merge_reviewed() -> None:
     facilities = [_facility("p", 10.0, 20.0), _facility("q", 30.0, 40.0)]
     snapped = {"positions": {"p": {"method": "snapped_to_outline"}}, "review": {"p": "x", "q": "y"}}
@@ -173,6 +246,33 @@ def test_merge_reviewed() -> None:
     }
     out = outlines.merge_reviewed({"positions": {}, "review": {}, "hidden": {}}, renamed, named)
     check("a renamed record is not hidden", out["hidden"] == {})
+
+
+def test_outline_checks() -> None:
+    facilities = [
+        _facility("a.mine", 1.0, 2.0),
+        _facility("b.process", 3.0, 4.0),
+        _facility("c.mine", 5.0, 6.0),
+    ]
+    close = {"method": "snapped_to_outline", "close_call": True, "runner_up_km": 0.5}
+    snapped = {
+        "positions": {"a.mine": dict(close), "b.process": dict(close), "c.mine": dict(close)},
+        "review": {},
+        "hidden": {},
+    }
+    checks = {
+        "a.mine": {"decision": "confirmed", "from": [1.0, 2.0]},
+        "b.process": {"decision": "reverted", "from": [3.0, 4.0]},
+        "c.mine": {"decision": "confirmed", "from": [9.0, 9.0]},  # the source has since moved it
+    }
+    out = outlines.merge_reviewed(snapped, {"outline_checks": {"records": checks}}, facilities)
+    check("a confirmed snap loses its flag", "close_call" not in out["positions"]["a.mine"])
+    check("and is marked checked", out["positions"]["a.mine"].get("checked") is True)
+    check(
+        "a reverted snap goes back to review",
+        "b.process" not in out["positions"] and "b.process" in out["review"],
+    )
+    check("a stale check is ignored", out["positions"]["c.mine"].get("close_call") is True)
 
 
 def main() -> int:

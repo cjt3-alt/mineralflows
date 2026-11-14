@@ -67,6 +67,38 @@ under reduced motion. A "Replay the intro" link brings it back.
   mine. The browser applies a move only while the facility still reports the point it was computed
   from (`applySitePositions` in `load.ts`), so a refreshed ICMM file cannot leave a stale correction.
   The site card says when a marker was moved. Sites already inside an outline are untouched.
+- **Review list, round 2: calibrated snap rule (14 November 2026).** `etl/snap_calibration.py` takes the
+  477 mines whose reported point already sits inside an outline, moves each away by 0.5 to 3 km in four
+  directions (11,448 trials, against the full 44,929-polygon file) and asks what the snap would do.
+  Findings: where the nearest outline is 1 to 3 km away, snapping brings the dot closer to the true
+  position 95% of the time and wrongly farther 3.7%. The deciding signal is the runner-up: if the
+  nearest outline is at least twice as close as the next one, the snap lands on the right outline 99%
+  of the time (0.5% worse); when two outlines are about equally close it is closer to a coin flip
+  (45 to 52% on the right outline, 8 to 14% worse). `snap_positions` now requires that ratio
+  (`SNAP_RATIO`), allows outlines out to 2 km (`SNAP_MAX_KM`, was 1), and no longer treats one site's
+  mine and plant records as a conflict (`site_of`). Close calls within 1 km are **still snapped but
+  flagged** (`close_call`, with `runner_up_km`; 43 of them, including all 39 that were already live);
+  the site card says the marker may sit on the wrong outline and has not been checked. Result: 223
+  snapped (was 165), 92 in review (was 150): 31 close calls beyond 1 km, 24 real conflicts between
+  sites and 37 with no outline within 2 km. **Limit:** the simulation always keeps the true mine
+  within 3 km, so it cannot measure a dot that is wrong by more than that; the "only one outline"
+  results are optimistic.
+- **The 41 close-call sites, looked at (14 November 2026).** Each was drawn on Esri imagery with the
+  snapped outline (cyan) and the runner-up (orange) over it. Decisions live in `outline_checks` in
+  `etl/reviewed_positions.json`: 29 records **confirmed** (mining land of the right kind in the same
+  complex; the flag is cleared and the card says it was checked, which is a judgement, not proof it is
+  that named mine), 3 records **reverted** (Zapolyarny plant, Zhezkazgan smelter: the reported point
+  was already on the plant and the nearest mining outline was a different place, so the snap moved
+  it off), 11 left **unresolved** and still flagged. Result: 220 snapped, 95 in review. **Lesson:**
+  Maus outlines are mining land (pits, dumps, tailings); a smelter or refinery's buildings are
+  often not inside one, so snapping a plant to the nearest outline can be wrong even when the ratio
+  test passes. The 28 unflagged plant snaps (21 sites) were then looked at too: 13 sites were
+  fine (all moved 0.83 km or less), 7 were wrong (each moved the plant 0.87 to 1.9 km onto a tailings
+  outline: Yuanqu, Lala, Balkhash, Caletones, Baotou Huading, Qinghai, Tschudi) and 1 (Lepanto) is
+  unclear. So plants now snap only short (`PLANT_SNAP_MAX_KM` = 0.8 km); a plant whose nearest outline
+  is farther goes to review with a "plant:" reason. That is tuned on 21 sites, so treat 0.8 as a
+  reasoned guess, not a calibrated number. Alaverdi's plant (0.83 km, looked right) falls just outside
+  the cap and is in review. Result: 209 snapped (189 mine, 13 process, 7 refine), 106 in review.
 - **Refinery and smelter positions, first pass (13 November 2026).** Nominatim land use under the 302
   smelter and refinery dots flagged 53 (38 distinct points) on residential streets or in a named
   place; that check is too noisy to move dots on its own (Hoboken and Hayden are real plants beside

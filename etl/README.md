@@ -34,6 +34,7 @@ hand when you want to update.
 | `python etl/history.py` | `production_history.json`: mine and refinery output for the years before the current USGS release, stitched from the 2022 to 2024 per-commodity releases on ScienceBase | network |
 | `python etl/price_history.py` | `price_history.json`: World Bank annual average prices, 2000 onward | the cached or downloaded Pink Sheet |
 | `python etl/outlines.py --gpkg <file>` | `outlines.geojson`: satellite-mapped mine footprints near our sites, and `site_positions.json`: dots moved onto their outline (run without `--gpkg` to redo only the snap) | the 24 MB GeoPackage from <https://doi.org/10.1594/PANGAEA.942325> (not committed); output is CC BY-SA 4.0 |
+| `python etl/snap_calibration.py --gpkg <file>` | prints how reliable the dot snap is by distance and ambiguity (writes nothing to `public/data/`) | the same GeoPackage; takes a few minutes |
 
 ## What each source contributes
 
