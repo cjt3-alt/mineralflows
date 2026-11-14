@@ -113,30 +113,64 @@ def test_snap_positions() -> None:
     moved, review = out["positions"], out["review"]
     check("a dot already inside is left alone", "inside" not in moved and "inside" not in review)
     check("a near miss is snapped", "near" in moved)
-    check("snapped dot is inside the outline", outlines.point_in_polygon(moved["near"]["lng"], moved["near"]["lat"], [square]))
+    check(
+        "snapped dot is inside the outline",
+        outlines.point_in_polygon(moved["near"]["lng"], moved["near"]["lat"], [square]),
+    )
     check("the reported position is kept", moved["near"]["from"] == [0.101, 0.05])
     check("the move is small", moved["near"]["moved_km"] < 1.0, str(moved["near"]["moved_km"]))
     check("a distant outline is not trusted", "far" in review and "far" not in moved)
-    check("a shared outline is not snapped", "a" in review and "b" in review and not ({"a", "b"} & moved.keys()))
+    check(
+        "a shared outline is not snapped",
+        "a" in review and "b" in review and not ({"a", "b"} & moved.keys()),
+    )
 
 
 def test_merge_reviewed() -> None:
     facilities = [_facility("p", 10.0, 20.0), _facility("q", 30.0, 40.0)]
     snapped = {"positions": {"p": {"method": "snapped_to_outline"}}, "review": {"p": "x", "q": "y"}}
-    entry = {"lng": 10.05, "lat": 20.0, "from": [10.0, 20.0], "method": "published_coordinates", "source": "s", "source_url": "u"}
+    entry = {
+        "lng": 10.05,
+        "lat": 20.0,
+        "from": [10.0, 20.0],
+        "method": "published_coordinates",
+        "source": "s",
+        "source_url": "u",
+    }
     stale = {**entry, "from": [31.0, 40.0]}
     out = outlines.merge_reviewed(snapped, {"reviewed": {"p": entry, "q": stale}}, facilities)
-    check("a reviewed position replaces a snap", out["positions"]["p"]["method"] == "published_coordinates")
+    check(
+        "a reviewed position replaces a snap",
+        out["positions"]["p"]["method"] == "published_coordinates",
+    )
     check("it records the source", out["positions"]["p"]["source"] == "s")
-    check("the move is measured", 4.0 < out["positions"]["p"]["moved_km"] < 6.0, str(out["positions"]["p"]["moved_km"]))
+    check(
+        "the move is measured",
+        4.0 < out["positions"]["p"]["moved_km"] < 6.0,
+        str(out["positions"]["p"]["moved_km"]),
+    )
     check("it leaves the review list", "p" not in out["review"])
     check("a stale review is ignored", "q" not in out["positions"] and "q" in out["review"])
-    named = [{"properties": {"id": "d", "name": "Dup"}, "geometry": {"type": "Point", "coordinates": [1.0, 2.0]}}]
+    named = [
+        {
+            "properties": {"id": "d", "name": "Dup"},
+            "geometry": {"type": "Point", "coordinates": [1.0, 2.0]},
+        }
+    ]
     dup = {"duplicates": {"records": {"d": {"name": "Dup", "duplicate_of": "x", "reason": "r"}}}}
-    out = outlines.merge_reviewed({"positions": {"d": {}}, "review": {"d": "z"}, "hidden": {}}, dup, named)
-    check("a duplicate is hidden", "d" in out["hidden"] and out["hidden"]["d"]["duplicate_of"] == "x")
-    check("a hidden record is not also moved or reviewed", "d" not in out["positions"] and "d" not in out["review"])
-    renamed = {"duplicates": {"records": {"d": {"name": "Other", "duplicate_of": "x", "reason": "r"}}}}
+    out = outlines.merge_reviewed(
+        {"positions": {"d": {}}, "review": {"d": "z"}, "hidden": {}}, dup, named
+    )
+    check(
+        "a duplicate is hidden", "d" in out["hidden"] and out["hidden"]["d"]["duplicate_of"] == "x"
+    )
+    check(
+        "a hidden record is not also moved or reviewed",
+        "d" not in out["positions"] and "d" not in out["review"],
+    )
+    renamed = {
+        "duplicates": {"records": {"d": {"name": "Other", "duplicate_of": "x", "reason": "r"}}}
+    }
     out = outlines.merge_reviewed({"positions": {}, "review": {}, "hidden": {}}, renamed, named)
     check("a renamed record is not hidden", out["hidden"] == {})
 
