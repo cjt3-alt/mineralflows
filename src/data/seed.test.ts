@@ -218,6 +218,8 @@ describe('applySitePositions', () => {
       a: { lng: 10.01, lat: 20.01, from: [10, 20], moved_km: 1.5 },
       b: { lng: 11.01, lat: 21.01, from: [11, 21], moved_km: 0.4, close_call: true },
       c: { lng: 12.01, lat: 22.01, from: [12, 22], moved_km: 0.4, checked: true },
+      e: { lng: 13.01, lat: 23.01, from: [13, 23], moved_km: 2.6, far_snap: true },
+      g: { lng: 14.01, lat: 24.01, from: [14, 24], moved_km: 1.2, method: 'placed_on_imagery', source: 'the works' },
     },
   }
 
@@ -231,6 +233,18 @@ describe('applySitePositions', () => {
     const out = applySitePositions([facility('b', 11, 21)], table)
     expect(out.repositioned.get('b')?.closeCall).toBe(true)
     expect(applySitePositions([facility('a', 10, 20)], table).repositioned.get('a')?.closeCall).toBeUndefined()
+  })
+
+  it('carries the far-snap flag and the hand-placed method through', () => {
+    expect(applySitePositions([facility('e', 13, 23)], table).repositioned.get('e')?.farSnap).toBe(true)
+    const placed = applySitePositions([facility('g', 14, 24)], table).repositioned.get('g')
+    expect(placed?.method).toBe('placed_on_imagery')
+    expect(placed?.source).toBe('the works')
+  })
+
+  it('carries a verified note', () => {
+    const out = applySitePositions([facility('a', 10, 20)], { verified: { a: { note: 'on the plant' } } })
+    expect(out.notes.get('a')).toEqual({ kind: 'verified', text: 'on the plant' })
   })
 
   it('carries the checked flag through', () => {
@@ -266,16 +280,24 @@ describe('applySitePositions', () => {
   })
 
   it('moves only dots that sit on a real outline in the shipped data', () => {
-    const real = parseDataset({ ...raw, sitePositions: read('site_positions.json') })
+    const positions = read('site_positions.json') as {
+      hidden: Record<string, unknown>
+      doubtful: Record<string, unknown>
+      verified: Record<string, unknown>
+    }
+    const real = parseDataset({ ...raw, sitePositions: positions })
     expect(real.repositioned.size).toBeGreaterThan(100)
     expect([...real.repositioned.values()].filter((r) => r.closeCall).length).toBeGreaterThan(0)
-    expect(real.hiddenDuplicates.size).toBe(4)
-    expect(real.positionNotes.size).toBe(20)
+    expect(real.hiddenDuplicates.size).toBe(Object.keys(positions.hidden).length)
+    expect(real.hiddenDuplicates.size).toBeGreaterThanOrEqual(4)
+    expect(real.positionNotes.size).toBe(
+      Object.keys(positions.doubtful).length + Object.keys(positions.verified).length,
+    )
     expect(real.facilities.some((f) => f.properties.name === 'Glogow refinery')).toBe(false)
     expect(real.facilities.some((f) => f.properties.name === 'Glogow metallurgical complex')).toBe(true)
     for (const r of real.repositioned.values()) {
-      // SNAP_MAX_KM is 2 in etl/outlines.py, plus the few metres the dot steps inside the edge.
-      if (r.method === 'snapped_to_outline') expect(r.km).toBeLessThanOrEqual(2.1)
+      // SNAP_MAX_KM is 3 in etl/outlines.py, plus the few metres the dot steps inside the edge.
+      if (r.method === 'snapped_to_outline') expect(r.km).toBeLessThanOrEqual(3.1)
       else expect(r.source).toBeTruthy()
     }
   })

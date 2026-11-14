@@ -92,6 +92,15 @@ def test_nearest_inside_point() -> None:
     check("not left in the hole", outlines.point_in_polygon(x, y, [SQUARE, HOLE]))
 
 
+def test_snap_never_overshoots() -> None:
+    # A thin sliver: a step inward from its edge may not land inside it. The dot must still end
+    # within about the outline's distance of where it started, not at a far interior point.
+    sliver = [(0.0, 0.0), (0.2, 0.0), (0.2, 0.00001), (0.0, 0.00001), (0.0, 0.0)]
+    x, y = 0.1, 0.01  # about 1.1 km north of the sliver
+    nx, ny = outlines.nearest_inside_point(x, y, [sliver])
+    check("a sliver does not send the dot far away", outlines.distance_km((x, y), (nx, ny)) < 1.5)
+
+
 def test_snap_positions() -> None:
     # 0.001 degrees is about 110 m: a dot just outside a one-degree outline.
     square = [(0.0, 0.0), (0.1, 0.0), (0.1, 0.1), (0.0, 0.1), (0.0, 0.0)]
@@ -149,21 +158,22 @@ def test_sibling_stages_are_one_site() -> None:
 
 
 def test_ambiguous_nearest_outline_is_not_trusted() -> None:
-    # A dot between two outlines: about 1.07 km from the first, 1.11 km from the second (a close
-    # call), or from the first and a distant third (a clear winner).
+    # A dot between two outlines: about 2.1 km from the first, 2.2 km from the second (a close
+    # call beyond the 2 km limit), or from the first and a distant third (a clear winner).
     first = [(0.0, 0.0), (0.01, 0.0), (0.01, 0.01), (0.0, 0.01), (0.0, 0.0)]
-    second = [(0.0296, 0.0), (0.0396, 0.0), (0.0396, 0.01), (0.0296, 0.01), (0.0296, 0.0)]
-    third = [(0.06, 0.0), (0.07, 0.0), (0.07, 0.01), (0.06, 0.01), (0.06, 0.0)]
-    facility = [_facility("a.mine", 0.0196, 0.005)]
+    second = [(0.0487, 0.0), (0.0587, 0.0), (0.0587, 0.01), (0.0487, 0.01), (0.0487, 0.0)]
+    third = [(0.12, 0.0), (0.13, 0.0), (0.13, 0.01), (0.12, 0.01), (0.12, 0.0)]
+    facility = [_facility("a.mine", 0.0289, 0.005)]
     close_call = outlines.snap_positions(
         facility, [_outline(1, first, ["a.mine"]), _outline(2, second, ["a.mine"])]
     )
-    check("a close second outline sends it to review", "a.mine" in close_call["review"])
+    check("a close second outline beyond 2 km sends it to review", "a.mine" in close_call["review"])
     clear = outlines.snap_positions(
         facility, [_outline(1, first, ["a.mine"]), _outline(3, third, ["a.mine"])]
     )
     check("a clear winner is snapped", "a.mine" in clear["positions"])
-    check("and is not flagged", "close_call" not in clear["positions"]["a.mine"])
+    check("and flagged far, beyond 2 km", clear["positions"]["a.mine"].get("far_snap") is True)
+    check("and not a close call", "close_call" not in clear["positions"]["a.mine"])
     # Nearer an outline (0.3 km) with a second one 0.4 km away: snapped, but flagged.
     tight = [_facility("b.mine", 0.0125, 0.005)]
     other = [(0.0165, 0.0), (0.0265, 0.0), (0.0265, 0.01), (0.0165, 0.01), (0.0165, 0.0)]
@@ -172,6 +182,7 @@ def test_ambiguous_nearest_outline_is_not_trusted() -> None:
     )
     check("a near close call is snapped", "b.mine" in flagged["positions"])
     check("and flagged", flagged["positions"].get("b.mine", {}).get("close_call") is True)
+    check("and not far", "far_snap" not in flagged["positions"]["b.mine"])
 
 
 def test_plants_snap_only_short() -> None:
@@ -288,6 +299,55 @@ def test_doubtful_positions() -> None:
     check("a doubtful position is carried", out["doubtful"]["a.process"]["reason"] == "in a town")
     check("a stale one is dropped", "b.process" not in out["doubtful"])
     check("the dot is not moved", out["positions"] == {})
+
+
+def test_placed_verified_and_unresolved() -> None:
+    facilities = [_facility(f"{i}.process", float(i), float(i) + 1.0) for i in (1, 2, 3, 4)]
+    snapped = {
+        "positions": {},
+        "review": {"1.process": "x", "2.process": "y", "3.process": "z", "4.process": "w"},
+        "hidden": {},
+    }
+    reviewed = {
+        "reviewed": {
+            "1.process": {
+                "lng": 1.01,
+                "lat": 2.0,
+                "from": [1.0, 2.0],
+                "method": "placed_on_imagery",
+                "source": "the works",
+            }
+        },
+        "verified_in_place": {
+            "records": {"2.process": {"from": [2.0, 3.0], "note": "on the plant"}}
+        },
+        "outline_checks": {
+            "records": {
+                "3.process": {"decision": "unresolved", "from": [3.0, 4.0], "note": "unclear"}
+            }
+        },
+        "doubtful_positions": {
+            "records": {"2.process": {"name": "n", "from": [2.0, 3.0], "reason": "stale flag"}}
+        },
+    }
+    out = outlines.merge_reviewed(snapped, reviewed, facilities)
+    placed = out["positions"]["1.process"]
+    check("a hand-placed dot has its method and source", placed["method"] == "placed_on_imagery")
+    check("without a source url", "source_url" not in placed)
+    check("and its original point", placed["from"] == [1.0, 2.0])
+    check("a verified site is recorded", out["verified"]["2.process"]["note"] == "on the plant")
+    check("and is no longer doubtful", "2.process" not in out["doubtful"])
+    check(
+        "an unresolved site keeps its place in review with the reason",
+        out["review"]["3.process"].startswith("unresolved after review"),
+    )
+    check(
+        "a placed or verified site leaves review",
+        "1.process" not in out["review"] and "2.process" not in out["review"],
+    )
+    check("an untouched site stays in review", "4.process" in out["review"])
+    final = set(out["positions"]) | set(out["verified"])
+    check("no site is both in review and in a final state", not (final & set(out["review"])))
 
 
 def main() -> int:

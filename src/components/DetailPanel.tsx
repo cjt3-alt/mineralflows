@@ -337,6 +337,8 @@ function FacilityDetail({
               : ' so that it sits on the outline above.'}
           {moved.checked === true &&
             ' Another outline was nearly as close, so this was checked against satellite imagery and looks right, though that is a judgement, not a certainty.'}
+          {moved.farSnap === true &&
+            ' The nearest mining outline was 2 to 3 km from the reported position and was chosen as the likely match; that has not been checked.'}
           {moved.closeCall === true &&
             ' Another mining outline is nearly as close, so this marker may sit on the wrong one; that has not been checked yet.'}
         </p>

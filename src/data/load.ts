@@ -128,6 +128,8 @@ export interface RepositionedSite {
   source?: string
   /** Another mining outline was nearly as close, so the dot may be on the wrong one. Not yet checked. */
   closeCall?: boolean
+  /** The nearest mining outline was 2 to 3 km from the reported point and was chosen as the likely match, unchecked. */
+  farSnap?: boolean
   /** A close call that was looked at on satellite imagery and judged plausible. */
   checked?: boolean
 }
@@ -181,7 +183,7 @@ export function applySitePositions(
   const near = (a: number, b: number) => Math.abs(a - b) < 1e-4
   const moved = facilities.map((facility) => {
     const entry = table[facility.properties.id] as
-      | { lng?: unknown; lat?: unknown; from?: unknown; moved_km?: unknown; method?: unknown; source?: unknown; close_call?: unknown; checked?: unknown }
+      | { lng?: unknown; lat?: unknown; from?: unknown; moved_km?: unknown; method?: unknown; source?: unknown; close_call?: unknown; far_snap?: unknown; checked?: unknown }
       | undefined
     if (!entry || !Array.isArray(entry.from)) return facility
     const [lng, lat] = facility.geometry.coordinates
@@ -206,6 +208,7 @@ export function applySitePositions(
           : 'snapped_to_outline',
       ...(typeof entry.source === 'string' ? { source: entry.source } : {}),
       ...(entry.close_call === true ? { closeCall: true } : {}),
+      ...(entry.far_snap === true ? { farSnap: true } : {}),
       ...(entry.checked === true ? { checked: true } : {}),
     })
     return { ...facility, geometry: { ...facility.geometry, coordinates: [entry.lng, entry.lat] as [number, number] } }

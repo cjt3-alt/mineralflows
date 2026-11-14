@@ -34,7 +34,11 @@ POSITIONS = ROOT / "public" / "data" / "site_positions.json"
 REVIEWED = ROOT / "etl" / "reviewed_positions.json"
 
 MATCH_KM = 3.0
-SNAP_MAX_KM = 2.0  # a dot is only moved onto an outline this close; further out is a doubtful match
+SNAP_MAX_KM = 3.0  # a dot is only moved onto an outline this close; further out is a doubtful match
+# Between SNAP_CLEAR_KM and SNAP_MAX_KM a snap is allowed only when the outline is clearly the
+# nearest (the runner-up at least SNAP_RATIO times farther, or none within reach) and it is flagged
+# `far_snap`: the calibration only covers offsets up to 3 km and is optimistic for a lone outline.
+SNAP_CLEAR_KM = 2.0
 # The nearest outline must be this many times closer than the runner-up, or it may be the wrong
 # mine. Calibrated in etl/snap_calibration.py: at 2 the snap lands on the right outline in 99% of
 # trials; below 1.5 it is closer to a coin flip.
@@ -42,7 +46,7 @@ SNAP_RATIO = 2.0
 # A close call is still snapped when the outline is this near, and flagged. The nearest outline is
 # then probably within a mine complex even when it is not the exact pit, and the dot ends up
 # closer to the truth in 84 to 90% of calibration trials; the flag keeps it on the list to check.
-CLOSE_CALL_MAX_KM = 1.0
+CLOSE_CALL_MAX_KM = 2.0
 # Mining outlines are pits, dumps and tailings; a smelter or refinery's buildings are often not
 # inside one. Looking at 21 plant snaps on imagery, the 7 wrong ones had moved the plant 0.87 to
 # 1.9 km onto a tailings outline and the 13 good ones 0.8 km or less, so plants snap only short.
@@ -323,11 +327,20 @@ def nearest_inside_point(x: float, y: float, rings: list[Ring]) -> tuple[float, 
                 best = (d, qx, qy)
     _, qx, qy = best
     cx, cy = interior_point(rings)
-    for t in (0.02, 0.05, 0.1, 0.2, 0.4, 0.7, 1.0):
-        px, py = qx + (cx - qx) * t, qy + (cy - qy) * t
-        if point_in_polygon(px, py, rings):
-            return px, py
-    return cx, cy
+    # Step inward from the edge point toward the polygon's interior by a few tens of metres, then
+    # a little more if that is still on the line. The step is an absolute distance: a fraction of
+    # the way to the middle of a large outline would be kilometres.
+    dx, dy = (cx - qx) * kx, (cy - qy) * ky
+    length = math.hypot(dx, dy)
+    if length > 0:
+        for step_km in (0.02, 0.05, 0.1, 0.2, 0.4):
+            t = min(1.0, step_km / length)
+            px, py = qx + (cx - qx) * t, qy + (cy - qy) * t
+            if point_in_polygon(px, py, rings):
+                return px, py
+    # No small step inward lands inside (a thin or ragged outline): stay on the nearest edge rather
+    # than jump to a distant interior point, so a snap never moves farther than the outline is.
+    return qx, qy
 
 
 def _parts(geometry: dict) -> list[list[Ring]]:
@@ -395,6 +408,7 @@ def snap_positions(facilities: list[dict], outline_features: list[dict]) -> dict
             "outline_id": feature["properties"]["id"],
             "method": "snapped_to_outline",
             **({"close_call": True, "runner_up_km": round(options[1][0], 2)} if close_call else {}),
+            **({"far_snap": True} if d > SNAP_CLEAR_KM else {}),
         }
     return {
         "note": (
@@ -415,7 +429,6 @@ def merge_reviewed(
     snapped: dict,
     reviewed: dict,
     facilities: list[dict],
-    outline_features: list[dict] | None = None,
 ) -> dict:
     """Overlay hand-reviewed positions (`etl/reviewed_positions.json`) on the outline snaps.
 
@@ -442,31 +455,11 @@ def merge_reviewed(
             **({"source_url": entry["source_url"]} if entry.get("source_url") else {}),
         }
         snapped["review"].pop(fid, None)
-    outlines_by_id = {f["properties"]["id"]: f for f in outline_features or []}
     for fid, check in reviewed.get("outline_checks", {}).get("records", {}).items():
         here = coords.get(fid)
         if here is None or abs(here[0] - check["from"][0]) > 1e-4:
             continue
         if abs(here[1] - check["from"][1]) > 1e-4:
-            continue
-        if check["decision"] in ("accepted", "switched"):
-            # Put the dot onto the named outline, whatever the automatic rule said.
-            feature = outlines_by_id.get(check["outline_id"])
-            if feature is None:
-                continue
-            parts = _parts(feature["geometry"])
-            near = min(parts, key=lambda rings: distance_to_polygon_km(here[0], here[1], rings))
-            x, y = nearest_inside_point(here[0], here[1], near)
-            snapped["positions"][fid] = {
-                "lng": round(x, 5),
-                "lat": round(y, 5),
-                "from": [round(here[0], 5), round(here[1], 5)],
-                "moved_km": round(distance_km(tuple(here), (x, y)), 2),
-                "outline_id": check["outline_id"],
-                "method": "snapped_to_outline",
-                "checked": True,
-            }
-            snapped["review"].pop(fid, None)
             continue
         if check["decision"] == "unresolved" and fid in snapped["review"]:
             snapped["review"][fid] = f"unresolved after review: {check['note']}"
