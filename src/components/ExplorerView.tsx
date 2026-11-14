@@ -569,15 +569,6 @@ export function ExplorerView(props: ExplorerViewProps) {
     return out
   }, [outlines])
 
-  const labelCountries = useMemo(() => {
-    const seen = new Map<string, string>()
-    for (const m of models) {
-      for (const r of m.rows) {
-        if (r.mine >= 0.015 || r.refine >= 0.015) seen.set(r.iso3, r.name)
-      }
-    }
-    return [...seen].map(([iso3, name]) => ({ iso3, name }))
-  }, [models])
   const roomForBoth = useRoomForBoth()
   // On a narrower screen the detail panel takes the summary's place rather than crowding the map.
   const showSummary = summaryOpen && !introOn && !compact && (selection === null || roomForBoth)
@@ -699,7 +690,6 @@ export function ExplorerView(props: ExplorerViewProps) {
           ref={mapRef}
           lens={lens}
           model={model}
-          labelCountries={labelCountries}
           outlines={outlines}
           points={points}
           arcs={arcs}
