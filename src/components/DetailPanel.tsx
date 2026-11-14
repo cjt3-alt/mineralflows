@@ -317,6 +317,8 @@ function FacilityDetail({
           {moved.method === 'published_coordinates'
             ? `, to the plant's published location (${moved.source ?? 'a published source'}), checked against satellite imagery.`
             : ' so that it sits on the outline above.'}
+          {moved.closeCall === true &&
+            ' Another mining outline is nearly as close, so this marker may sit on the wrong one; that has not been checked yet.'}
         </p>
       )}
 

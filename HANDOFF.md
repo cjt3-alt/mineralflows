@@ -76,11 +76,13 @@ under reduced motion. A "Replay the intro" link brings it back.
   of the time (0.5% worse); when two outlines are about equally close it is closer to a coin flip
   (45 to 52% on the right outline, 8 to 14% worse). `snap_positions` now requires that ratio
   (`SNAP_RATIO`), allows outlines out to 2 km (`SNAP_MAX_KM`, was 1), and no longer treats one site's
-  mine and plant records as a conflict (`site_of`). Result: 180 snapped (was 165), 135 in review (was
-  150), of which 77 are close calls, 37 have no outline within 2 km and 21 are real conflicts between
-  sites. 39 of the snaps that were live are now withheld as close calls; they need a look at both
-  candidate outlines. **Limit:** the simulation always keeps the true mine within 3 km, so it cannot
-  measure a dot that is wrong by more than that; the "only one outline" results are optimistic.
+  mine and plant records as a conflict (`site_of`). Close calls within 1 km are **still snapped but
+  flagged** (`close_call`, with `runner_up_km`; 43 of them, including all 39 that were already live);
+  the site card says the marker may sit on the wrong outline and has not been checked. Result: 223
+  snapped (was 165), 92 in review (was 150): 31 close calls beyond 1 km, 24 real conflicts between
+  sites and 37 with no outline within 2 km. **Limit:** the simulation always keeps the true mine
+  within 3 km, so it cannot measure a dot that is wrong by more than that; the "only one outline"
+  results are optimistic.
 - **Refinery and smelter positions, first pass (13 November 2026).** Nominatim land use under the 302
   smelter and refinery dots flagged 53 (38 distinct points) on residential streets or in a named
   place; that check is too noisy to move dots on its own (Hoboken and Hayden are real plants beside

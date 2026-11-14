@@ -214,13 +214,22 @@ describe('applySitePositions', () => {
       properties: { id },
     }) as unknown as Parameters<typeof applySitePositions>[0][number]
   const table = {
-    positions: { a: { lng: 10.01, lat: 20.01, from: [10, 20], moved_km: 1.5 } },
+    positions: {
+      a: { lng: 10.01, lat: 20.01, from: [10, 20], moved_km: 1.5 },
+      b: { lng: 11.01, lat: 21.01, from: [11, 21], moved_km: 0.4, close_call: true },
+    },
   }
 
   it('moves a facility that still reports the point the move was computed from', () => {
     const out = applySitePositions([facility('a', 10, 20)], table)
     expect(out.facilities[0]!.geometry.coordinates).toEqual([10.01, 20.01])
     expect(out.repositioned.get('a')).toEqual({ fromLng: 10, fromLat: 20, km: 1.5, method: 'snapped_to_outline' })
+  })
+
+  it('carries the close-call flag through', () => {
+    const out = applySitePositions([facility('b', 11, 21)], table)
+    expect(out.repositioned.get('b')?.closeCall).toBe(true)
+    expect(applySitePositions([facility('a', 10, 20)], table).repositioned.get('a')?.closeCall).toBeUndefined()
   })
 
   it('ignores a move once the source reports a different point', () => {
@@ -246,6 +255,7 @@ describe('applySitePositions', () => {
   it('moves only dots that sit on a real outline in the shipped data', () => {
     const real = parseDataset({ ...raw, sitePositions: read('site_positions.json') })
     expect(real.repositioned.size).toBeGreaterThan(100)
+    expect([...real.repositioned.values()].filter((r) => r.closeCall).length).toBeGreaterThan(0)
     expect(real.hiddenDuplicates.size).toBe(4)
     expect(real.facilities.some((f) => f.properties.name === 'Glogow refinery')).toBe(false)
     expect(real.facilities.some((f) => f.properties.name === 'Glogow metallurgical complex')).toBe(true)

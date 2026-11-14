@@ -39,6 +39,10 @@ SNAP_MAX_KM = 2.0  # a dot is only moved onto an outline this close; further out
 # mine. Calibrated in etl/snap_calibration.py: at 2 the snap lands on the right outline in 99% of
 # trials; below 1.5 it is closer to a coin flip.
 SNAP_RATIO = 2.0
+# A close call is still snapped when the outline is this near, and flagged. The nearest outline is
+# then probably within a mine complex even when it is not the exact pit, and the dot ends up
+# closer to the truth in 84 to 90% of calibration trials; the flag keeps it on the list to check.
+CLOSE_CALL_MAX_KM = 1.0
 SIMPLIFY_DEG = 0.0002  # about 20 m
 DECIMALS = 4  # about 11 m
 
@@ -362,7 +366,8 @@ def snap_positions(facilities: list[dict], outline_features: list[dict]) -> dict
         if d > SNAP_MAX_KM:
             review[fid] = f"nearest outline is {d:.1f} km away"
             continue
-        if len(options) > 1 and options[1][0] < SNAP_RATIO * d:
+        close_call = len(options) > 1 and options[1][0] < SNAP_RATIO * d
+        if close_call and d > CLOSE_CALL_MAX_KM:
             review[fid] = (
                 f"another outline is nearly as close ({d:.1f} km and {options[1][0]:.1f} km)"
             )
@@ -380,6 +385,7 @@ def snap_positions(facilities: list[dict], outline_features: list[dict]) -> dict
             "moved_km": round(distance_km(coords[fid], (x, y)), 2),
             "outline_id": feature["properties"]["id"],
             "method": "snapped_to_outline",
+            **({"close_call": True, "runner_up_km": round(options[1][0], 2)} if close_call else {}),
         }
     return {
         "note": (

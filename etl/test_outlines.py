@@ -163,6 +163,15 @@ def test_ambiguous_nearest_outline_is_not_trusted() -> None:
         facility, [_outline(1, first, ["a.mine"]), _outline(3, third, ["a.mine"])]
     )
     check("a clear winner is snapped", "a.mine" in clear["positions"])
+    check("and is not flagged", "close_call" not in clear["positions"]["a.mine"])
+    # Nearer an outline (0.3 km) with a second one 0.4 km away: snapped, but flagged.
+    tight = [_facility("b.mine", 0.0125, 0.005)]
+    other = [(0.0165, 0.0), (0.0265, 0.0), (0.0265, 0.01), (0.0165, 0.01), (0.0165, 0.0)]
+    flagged = outlines.snap_positions(
+        tight, [_outline(1, first, ["b.mine"]), _outline(2, other, ["b.mine"])]
+    )
+    check("a near close call is snapped", "b.mine" in flagged["positions"])
+    check("and flagged", flagged["positions"].get("b.mine", {}).get("close_call") is True)
 
 
 def test_merge_reviewed() -> None:
