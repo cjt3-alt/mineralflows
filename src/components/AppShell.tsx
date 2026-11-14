@@ -317,7 +317,7 @@ export function AppShell() {
           priceHistory={data.priceHistory}
           points={v.points}
           repositioned={data.repositioned}
-          doubtfulPositions={data.doubtfulPositions}
+          positionNotes={data.positionNotes}
           arcs={v.arcs}
           countries={data.countries}
           mineralsById={data.mineralsById}

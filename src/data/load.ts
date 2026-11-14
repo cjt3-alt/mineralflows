@@ -96,8 +96,8 @@ export interface Dataset {
   hiddenDuplicates: Set<string>
   /** Sites whose dot was moved onto their mining outline, with where the source reported them. */
   repositioned: Map<string, RepositionedSite>
-  /** Sites whose reported position looks wrong on satellite imagery but could not be corrected, with why. */
-  doubtfulPositions: Map<string, string>
+  /** Sites whose reported position was checked on satellite imagery: flagged doubtful, or confirmed. */
+  positionNotes: Map<string, PositionNote>
   flows: Flow[]
   prices: Price[]
   /** Annual average prices over a longer span than `prices`, for the timeline. */
@@ -110,6 +110,12 @@ export interface Dataset {
   priceFor: (mineralId: string, year: number) => Price | undefined
 }
 
+/** A note about a site's position from the imagery review. */
+export interface PositionNote {
+  kind: 'doubtful' | 'verified'
+  text: string
+}
+
 export interface RepositionedSite {
   /** Where the source reported the site. */
   fromLng: number
@@ -117,11 +123,13 @@ export interface RepositionedSite {
   /** How far the dot moved, in kilometres. */
   km: number
   /** Onto a mining outline, or to a plant's published coordinates checked on imagery. */
-  method: 'snapped_to_outline' | 'published_coordinates'
+  method: 'snapped_to_outline' | 'published_coordinates' | 'placed_on_imagery'
   /** Where a published position came from; absent for outline snaps. */
   source?: string
   /** Another mining outline was nearly as close, so the dot may be on the wrong one. Not yet checked. */
   closeCall?: boolean
+  /** The nearest mining outline was 2 to 3 km from the reported point and was chosen as the likely match, unchecked. */
+  farSnap?: boolean
   /** A close call that was looked at on satellite imagery and judged plausible. */
   checked?: boolean
 }
@@ -138,15 +146,16 @@ export function applySitePositions(
   facilities: FacilityFeature[]
   repositioned: Map<string, RepositionedSite>
   hidden: Set<string>
-  doubtful: Map<string, string>
+  notes: Map<string, PositionNote>
 } {
   const repositioned = new Map<string, RepositionedSite>()
-  const doubtful = new Map<string, string>()
+  const notes = new Map<string, PositionNote>()
   const hidden = new Set<string>()
   const file = raw as {
     positions?: Record<string, unknown>
     hidden?: Record<string, { name?: unknown }>
     doubtful?: Record<string, { reason?: unknown }>
+    verified?: Record<string, { note?: unknown }>
   } | null
   // Records that repeat a plant already in the data at its real location are left out. The monthly
   // refresh does not re-run the outline script, so a record is hidden only while it still carries
@@ -159,17 +168,22 @@ export function applySitePositions(
   }
   if (file?.doubtful && typeof file.doubtful === 'object') {
     for (const [id, entry] of Object.entries(file.doubtful)) {
-      if (typeof entry?.reason === 'string') doubtful.set(id, entry.reason)
+      if (typeof entry?.reason === 'string') notes.set(id, { kind: 'doubtful', text: entry.reason })
+    }
+  }
+  if (file?.verified && typeof file.verified === 'object') {
+    for (const [id, entry] of Object.entries(file.verified)) {
+      if (typeof entry?.note === 'string' && !notes.has(id)) notes.set(id, { kind: 'verified', text: entry.note })
     }
   }
   const table = file?.positions
   if (!table || typeof table !== 'object') {
-    return { facilities: facilities.filter((f) => !hidden.has(f.properties.id)), repositioned, hidden, doubtful }
+    return { facilities: facilities.filter((f) => !hidden.has(f.properties.id)), repositioned, hidden, notes }
   }
   const near = (a: number, b: number) => Math.abs(a - b) < 1e-4
   const moved = facilities.map((facility) => {
     const entry = table[facility.properties.id] as
-      | { lng?: unknown; lat?: unknown; from?: unknown; moved_km?: unknown; method?: unknown; source?: unknown; close_call?: unknown; checked?: unknown }
+      | { lng?: unknown; lat?: unknown; from?: unknown; moved_km?: unknown; method?: unknown; source?: unknown; close_call?: unknown; far_snap?: unknown; checked?: unknown }
       | undefined
     if (!entry || !Array.isArray(entry.from)) return facility
     const [lng, lat] = facility.geometry.coordinates
@@ -188,14 +202,18 @@ export function applySitePositions(
       fromLng: lng,
       fromLat: lat,
       km: typeof entry.moved_km === 'number' ? entry.moved_km : 0,
-      method: entry.method === 'published_coordinates' ? 'published_coordinates' : 'snapped_to_outline',
+      method:
+        entry.method === 'published_coordinates' || entry.method === 'placed_on_imagery'
+          ? entry.method
+          : 'snapped_to_outline',
       ...(typeof entry.source === 'string' ? { source: entry.source } : {}),
       ...(entry.close_call === true ? { closeCall: true } : {}),
+      ...(entry.far_snap === true ? { farSnap: true } : {}),
       ...(entry.checked === true ? { checked: true } : {}),
     })
     return { ...facility, geometry: { ...facility.geometry, coordinates: [entry.lng, entry.lat] as [number, number] } }
   })
-  return { facilities: moved.filter((f) => !hidden.has(f.properties.id)), repositioned, hidden, doubtful }
+  return { facilities: moved.filter((f) => !hidden.has(f.properties.id)), repositioned, hidden, notes }
 }
 
 export class ReferentialError extends Error {
@@ -247,7 +265,7 @@ export function parseDataset(raw: RawFiles): Dataset {
   const countries = parseFile(DATA_FILES.countries, CountriesFileSchema, raw.countries)
   const meta = parseFile(DATA_FILES.meta, MetaSchema, raw.meta)
 
-  const { facilities, repositioned, hidden, doubtful } = applySitePositions(facilityCollection.features, raw.sitePositions)
+  const { facilities, repositioned, hidden, notes } = applySitePositions(facilityCollection.features, raw.sitePositions)
   const mineralsById = new Map(minerals.map((m) => [m.id, m]))
   const problems: string[] = []
 
@@ -327,7 +345,7 @@ export function parseDataset(raw: RawFiles): Dataset {
     facilities,
     hiddenDuplicates: hidden,
     repositioned,
-    doubtfulPositions: doubtful,
+    positionNotes: notes,
     flows,
     prices,
     priceHistory,

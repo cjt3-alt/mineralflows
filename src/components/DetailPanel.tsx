@@ -16,7 +16,7 @@ import {
   type PointDatum,
 } from '../data/derive.ts'
 import { STAGES, type Country, type Mineral } from '../data/schema.ts'
-import type { RepositionedSite } from '../data/load.ts'
+import type { PositionNote, RepositionedSite } from '../data/load.ts'
 
 /**
  * The dossier for whatever is selected: a facility, a flow, or a focused
@@ -47,8 +47,8 @@ export interface DetailPanelProps {
   footprints?: ReadonlyMap<string, { km2: number; shared: boolean }>
   /** Sites whose dot was moved onto their outline, by facility id. */
   repositioned?: ReadonlyMap<string, RepositionedSite>
-  /** Sites whose reported position looks wrong on imagery but could not be corrected, with why. */
-  doubtfulPositions?: ReadonlyMap<string, string>
+  /** What the imagery review found about a site's position. */
+  positionNotes?: ReadonlyMap<string, PositionNote>
   /**
    * `sheet` is the narrow-viewport layout: the same content, over the map
    * from the bottom edge rather than floating beside it.
@@ -185,7 +185,7 @@ function FacilityDetail({
   onSelectSite,
   footprint,
   moved,
-  doubtful,
+  note,
 }: {
   point: PointDatum
   mineralsById: ReadonlyMap<string, Mineral>
@@ -195,7 +195,7 @@ function FacilityDetail({
   onSelectSite?: ((point: PointDatum) => void) | undefined
   footprint?: { km2: number; shared: boolean } | undefined
   moved?: RepositionedSite | undefined
-  doubtful?: string | undefined
+  note?: PositionNote | undefined
 }) {
   const p = point.facility.properties
   const [lng, lat] = point.facility.geometry.coordinates
@@ -244,9 +244,9 @@ function FacilityDetail({
         </span>
       </div>
 
-      {doubtful !== undefined && (
+      {note?.kind === 'doubtful' && (
         <Warning>
-          The position may be wrong. {doubtful} The marker is shown where the source reports it.
+          The position may be wrong. {note.text} The marker is shown where the source reports it.
         </Warning>
       )}
 
@@ -320,15 +320,25 @@ function FacilityDetail({
         </p>
       )}
 
+      {note?.kind === 'verified' && (
+        <p className="mt-3 text-xs leading-relaxed text-muted">
+          The position was checked against satellite imagery. {note.text}
+        </p>
+      )}
+
       {moved !== undefined && (
         <p className="mt-3 text-xs leading-relaxed text-muted">
           The marker has been moved {moved.km < 0.1 ? 'a few tens of metres' : moved.km.toFixed(1) + ' km'} from the
           position the source reports
           {moved.method === 'published_coordinates'
             ? `, to the plant's published location (${moved.source ?? 'a published source'}), checked against satellite imagery.`
-            : ' so that it sits on the outline above.'}
+            : moved.method === 'placed_on_imagery'
+              ? `, to the works visible on satellite imagery (${moved.source ?? 'judged by eye'}); that is a judgement, not a surveyed position.`
+              : ' so that it sits on the outline above.'}
           {moved.checked === true &&
             ' Another outline was nearly as close, so this was checked against satellite imagery and looks right, though that is a judgement, not a certainty.'}
+          {moved.farSnap === true &&
+            ' The nearest mining outline was 2 to 3 km from the reported position and was chosen as the likely match; that has not been checked.'}
           {moved.closeCall === true &&
             ' Another mining outline is nearly as close, so this marker may sit on the wrong one; that has not been checked yet.'}
         </p>
@@ -567,7 +577,7 @@ export function DetailPanel({
   onSelectSite,
   footprints,
   repositioned,
-  doubtfulPositions,
+  positionNotes,
   variant = 'panel',
 }: DetailPanelProps) {
   const panelRef = useRef<HTMLElement>(null)
@@ -641,7 +651,7 @@ export function DetailPanel({
           onSelectSite={onSelectSite}
           footprint={footprints?.get(selection.point.id)}
           moved={repositioned?.get(selection.point.id)}
-          doubtful={doubtfulPositions?.get(selection.point.id)}
+          note={positionNotes?.get(selection.point.id)}
         />
       ) : selection.kind === 'flow' ? (
         <FlowDetail arc={selection.arc} mineralsById={mineralsById} countries={countries} onFocusCountry={onFocusCountry} />

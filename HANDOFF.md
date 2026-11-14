@@ -99,6 +99,29 @@ under reduced motion. A "Replay the intro" link brings it back.
   is farther goes to review with a "plant:" reason. That is tuned on 21 sites, so treat 0.8 as a
   reasoned guess, not a calibrated number. Alaverdi's plant (0.83 km, looked right) falls just outside
   the cap and is in review. Result: 209 snapped (189 mine, 13 process, 7 refine), 106 in review.
+- **Close-out pass (14 November 2026).** Goal: give every remaining site a recorded outcome. Decisions
+  live in `etl/reviewed_positions.json` (sections `reviewed`, `verified_in_place`, `outline_checks`,
+  `doubtful_positions`, `duplicates`) and reach the browser through `site_positions.json`.
+  - **41 unsampled plant sites** looked at on imagery: 25 on a plant (`verified`, card says so), 7
+    doubtful, 1 duplicate (Hamburg refinery, hidden; Altonorte refinery hidden too), 6 left as
+    reported. Plant locations found by web search plus imagery: Cox Creek (published coordinates),
+    Tsumeb and Bor (`placed_on_imagery`). Onahama, Tamano, Guixi, Khetri and others could not be placed.
+  - **The 106 review sites** could not be settled by eye at this zoom (outlines 1 to 3 km away, no
+    decisive evidence), so they were settled by the calibration instead: a close call within 2 km
+    (`CLOSE_CALL_MAX_KM`) snaps and is flagged; a lone, clearly nearest outline 2 to 3 km away
+    (`SNAP_MAX_KM` = 3, `SNAP_CLEAR_KM` = 2) snaps flagged `far_snap`. The card says each is unchecked.
+    A spot check of the close ones showed plausible but unprovable matches. Conflicts between sites and
+    plants more than 0.8 km from an outline stay as reported.
+  - **Bug found on the way:** `nearest_inside_point` stepped a fraction of the way to a large outline's
+    interior point, so a snap onto a 10 km2 outline could move 7 km. It now steps a few tens of metres
+    and never farther than the outline is (max move now 2.9 km; test added).
+  - **Final tally (1,051 sites):** 238 snapped (155 plain, 29 checked on imagery, 36 close calls, 18
+    far), 4 hand-placed, 25 verified in place, 16 doubtful, 4 sites' duplicate records hidden, 52 left in
+    review (24 conflicts between sites, 16 plants too far from an outline, 9 close calls beyond 2 km, 3
+    reverted plants). The rest are as the source reports, unchecked.
+  - **What is guesswork:** the `far_snap` and wider close-call snaps rest on the calibration (which keeps
+    the true mine within 3 km and is optimistic for a lone outline), not on imagery. Spot-check a few
+    in the field (or against company coordinates) before leaning on them.
 - **Plant audit (14 November 2026).** Of the 249 plant dots the land-use check did not flag: 94 sit
   inside a mining outline, 15 are snapped, 23 are in the review list and 117 have no outline within
   3 km (the real unknown). Two checks: (1) the 5 sites whose coordinates are whole arc-minutes (Bor,

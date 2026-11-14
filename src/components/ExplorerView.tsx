@@ -4,7 +4,7 @@ import type { ChokepointModel } from '../data/chokepoint.ts'
 import { formatShare, shockOf, toCsv } from '../data/chokepoint.ts'
 import { formatUsd, type ArcDatum, type PointDatum } from '../data/derive.ts'
 import type { Country } from '../data/schema.ts'
-import type { RepositionedSite } from '../data/load.ts'
+import type { PositionNote, RepositionedSite } from '../data/load.ts'
 import { DetailPanel, type Selection } from './DetailPanel.tsx'
 import type { Mineral, Price } from '../data/schema.ts'
 
@@ -27,8 +27,8 @@ export interface ExplorerViewProps {
   points: PointDatum[]
   /** Sites whose dot was moved onto their mining outline. */
   repositioned: ReadonlyMap<string, RepositionedSite>
-  /** Sites whose position looks wrong on imagery but could not be corrected, with why. */
-  doubtfulPositions: ReadonlyMap<string, string>
+  /** What the imagery review found about a site's position. */
+  positionNotes: ReadonlyMap<string, PositionNote>
   arcs: ArcDatum[]
   countries: Record<string, Country>
   mineralsById: ReadonlyMap<string, Mineral>
@@ -477,7 +477,7 @@ export function ExplorerView(props: ExplorerViewProps) {
     priceHistory,
     points,
     repositioned,
-    doubtfulPositions,
+    positionNotes,
     arcs,
     countries,
     mineralsById,
@@ -862,7 +862,7 @@ export function ExplorerView(props: ExplorerViewProps) {
         sites={points}
         footprints={footprints}
         repositioned={repositioned}
-        doubtfulPositions={doubtfulPositions}
+        positionNotes={positionNotes}
         onSelectSite={(p) => goToPoint(p, 11.5)}
       />
     </div>
