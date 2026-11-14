@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { parseDataset, type RawFiles } from './load.ts'
+import { applySitePositions, parseDataset, type RawFiles } from './load.ts'
 import { resolveValue } from './derive.ts'
 import { FacilityCollectionSchema, FlowsFileSchema, parseFile } from './schema.ts'
 
@@ -203,5 +203,42 @@ describe('seed fallback dataset', () => {
       expect(flow.value_usd, flow.id + ' has a stored value the pipeline should derive').toBeNull()
       expect(flow.volume_tonnes, flow.id + ' has no volume to derive a value from').not.toBeNull()
     }
+  })
+})
+
+describe('applySitePositions', () => {
+  const facility = (id: string, lng: number, lat: number) =>
+    ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [lng, lat] },
+      properties: { id },
+    }) as unknown as Parameters<typeof applySitePositions>[0][number]
+  const table = {
+    positions: { a: { lng: 10.01, lat: 20.01, from: [10, 20], moved_km: 1.5 } },
+  }
+
+  it('moves a facility that still reports the point the move was computed from', () => {
+    const out = applySitePositions([facility('a', 10, 20)], table)
+    expect(out.facilities[0]!.geometry.coordinates).toEqual([10.01, 20.01])
+    expect(out.repositioned.get('a')).toEqual({ fromLng: 10, fromLat: 20, km: 1.5 })
+  })
+
+  it('ignores a move once the source reports a different point', () => {
+    const out = applySitePositions([facility('a', 11, 21)], table)
+    expect(out.facilities[0]!.geometry.coordinates).toEqual([11, 21])
+    expect(out.repositioned.size).toBe(0)
+  })
+
+  it('survives a missing or malformed file', () => {
+    for (const bad of [[], null, {}, { positions: 5 }, { positions: { a: { lng: 'x', from: [10, 20] } } }]) {
+      const out = applySitePositions([facility('a', 10, 20)], bad)
+      expect(out.facilities[0]!.geometry.coordinates).toEqual([10, 20])
+    }
+  })
+
+  it('moves only dots that sit on a real outline in the shipped data', () => {
+    const real = parseDataset({ ...raw, sitePositions: read('site_positions.json') })
+    expect(real.repositioned.size).toBeGreaterThan(100)
+    for (const r of real.repositioned.values()) expect(r.km).toBeLessThan(2)
   })
 })

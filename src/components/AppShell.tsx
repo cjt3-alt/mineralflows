@@ -316,6 +316,7 @@ export function AppShell() {
           models={chokepoints}
           priceHistory={data.priceHistory}
           points={v.points}
+          repositioned={data.repositioned}
           arcs={v.arcs}
           countries={data.countries}
           mineralsById={data.mineralsById}

@@ -59,6 +59,14 @@ under reduced motion. A "Replay the intro" link brings it back.
   2025); the plate shows the year's copper price.
 - The three scripts are side scripts: the monthly refresh does not touch their files, so it cannot drop
   them. Tests: `etl/test_outlines.py`, `etl/test_history.py` (both run in CI).
+- **Dots snapped to outlines (13 November 2026).** 265 matched mines (and 52 smelters and refineries)
+  had their reported point outside the outline they were matched to. `etl/outlines.py` now also
+  writes `site_positions.json`: a dot is moved the shortest distance onto the outline when the
+  outline is within 1 km and no other site claims it (165 moved, median 0.3 km, max 1.5 km); the other
+  152 are listed under `review` and left alone, because a far or shared outline may be the wrong
+  mine. The browser applies a move only while the facility still reports the point it was computed
+  from (`applySitePositions` in `load.ts`), so a refreshed ICMM file cannot leave a stale correction.
+  The site card says when a marker was moved. Sites already inside an outline are untouched.
 - **Not done from the list:** CEPII BACI needs a registration form, so trade history waits on that.
 
 **Removed** (git history has them): `ChokepointView`, `MapCanvas`, `FlowsOverlay`, `FilterRail`,

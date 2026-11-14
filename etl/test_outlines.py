@@ -72,6 +72,54 @@ def test_read_polygons() -> None:
     check("coordinates read back", polys[0][0][2] == (1.0, 1.0))
 
 
+def _facility(fid: str, x: float, y: float) -> dict:
+    return {"properties": {"id": fid}, "geometry": {"type": "Point", "coordinates": [x, y]}}
+
+
+def _outline(oid: int, ring: list, ids: list[str]) -> dict:
+    return {
+        "geometry": {"type": "Polygon", "coordinates": [ring]},
+        "properties": {"id": oid, "facility_ids": ids},
+    }
+
+
+def test_nearest_inside_point() -> None:
+    x, y = outlines.nearest_inside_point(1.01, 0.5, [SQUARE])
+    check("lands inside", outlines.point_in_polygon(x, y, [SQUARE]))
+    check("a small miss is a small move", outlines.distance_km((1.01, 0.5), (x, y)) < 5.0)
+    # With a hole in the way the point still ends up on solid ground.
+    x, y = outlines.nearest_inside_point(0.5, 0.45, [SQUARE, HOLE])
+    check("not left in the hole", outlines.point_in_polygon(x, y, [SQUARE, HOLE]))
+
+
+def test_snap_positions() -> None:
+    # 0.001 degrees is about 110 m: a dot just outside a one-degree outline.
+    square = [(0.0, 0.0), (0.1, 0.0), (0.1, 0.1), (0.0, 0.1), (0.0, 0.0)]
+    facilities = [
+        _facility("inside", 0.05, 0.05),
+        _facility("near", 0.101, 0.05),
+        _facility("far", 0.2, 0.05),
+        _facility("a", 0.2995, 0.305),
+        _facility("b", 0.3105, 0.305),
+    ]
+    shared = [(0.3, 0.3), (0.31, 0.3), (0.31, 0.31), (0.3, 0.31), (0.3, 0.3)]
+    features = [
+        _outline(1, square, ["inside"]),
+        _outline(3, square, ["near"]),
+        _outline(4, square, ["far"]),
+        _outline(2, shared, ["a", "b"]),
+    ]
+    out = outlines.snap_positions(facilities, features)
+    moved, review = out["positions"], out["review"]
+    check("a dot already inside is left alone", "inside" not in moved and "inside" not in review)
+    check("a near miss is snapped", "near" in moved)
+    check("snapped dot is inside the outline", outlines.point_in_polygon(moved["near"]["lng"], moved["near"]["lat"], [square]))
+    check("the reported position is kept", moved["near"]["from"] == [0.101, 0.05])
+    check("the move is small", moved["near"]["moved_km"] < 1.0, str(moved["near"]["moved_km"]))
+    check("a distant outline is not trusted", "far" in review and "far" not in moved)
+    check("a shared outline is not snapped", "a" in review and "b" in review and not ({"a", "b"} & moved.keys()))
+
+
 def main() -> int:
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

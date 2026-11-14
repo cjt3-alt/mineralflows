@@ -16,6 +16,7 @@ import {
   type PointDatum,
 } from '../data/derive.ts'
 import { STAGES, type Country, type Mineral } from '../data/schema.ts'
+import type { RepositionedSite } from '../data/load.ts'
 
 /**
  * The dossier for whatever is selected: a facility, a flow, or a focused
@@ -44,6 +45,8 @@ export interface DetailPanelProps {
   onSelectSite?: (point: PointDatum) => void
   /** Ground each site covers, from satellite-mapped mine outlines, by facility id. */
   footprints?: ReadonlyMap<string, { km2: number; shared: boolean }>
+  /** Sites whose dot was moved onto their outline, by facility id. */
+  repositioned?: ReadonlyMap<string, RepositionedSite>
   /**
    * `sheet` is the narrow-viewport layout: the same content, over the map
    * from the bottom edge rather than floating beside it.
@@ -179,6 +182,7 @@ function FacilityDetail({
   sites,
   onSelectSite,
   footprint,
+  moved,
 }: {
   point: PointDatum
   mineralsById: ReadonlyMap<string, Mineral>
@@ -187,6 +191,7 @@ function FacilityDetail({
   sites?: readonly PointDatum[] | undefined
   onSelectSite?: ((point: PointDatum) => void) | undefined
   footprint?: { km2: number; shared: boolean } | undefined
+  moved?: RepositionedSite | undefined
 }) {
   const p = point.facility.properties
   const [lng, lat] = point.facility.geometry.coordinates
@@ -302,6 +307,8 @@ function FacilityDetail({
           site's marker, from Maus et al. 2022. It is matched by location, not by name
           {footprint.shared ? ', and it is shared with neighbouring sites in the same complex' : ''}, so treat it as the
           ground a mine covers, not a measure of its output.
+          {moved !== undefined &&
+            ` The marker has been moved ${moved.km < 0.1 ? 'a few tens of metres' : moved.km.toFixed(1) + ' km'} from the position the source reports so that it sits on this outline.`}
         </p>
       )}
 
@@ -537,6 +544,7 @@ export function DetailPanel({
   sites,
   onSelectSite,
   footprints,
+  repositioned,
   variant = 'panel',
 }: DetailPanelProps) {
   const panelRef = useRef<HTMLElement>(null)
@@ -609,6 +617,7 @@ export function DetailPanel({
           sites={sites}
           onSelectSite={onSelectSite}
           footprint={footprints?.get(selection.point.id)}
+          moved={repositioned?.get(selection.point.id)}
         />
       ) : selection.kind === 'flow' ? (
         <FlowDetail arc={selection.arc} mineralsById={mineralsById} countries={countries} onFocusCountry={onFocusCountry} />
