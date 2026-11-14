@@ -7,6 +7,70 @@ zoom, click or scrub belongs here. See `HANDOFF.md` section 0e for what exists t
 Ground rules that still apply: source and cite every figure (never hard-code from memory), label
 estimates as estimates, and keep to `DESIGN.md`.
 
+## Notes for CJ, written the night of 10 November 2026
+
+**Where things stand.** Live on the site: the explorable map (three lenses, guided opening, satellite
+imagery, search, "Take me somewhere"), mine footprints on 902 sites, a 2020 to 2025 year slider, and
+copper price history. Nothing is half-built or uncommitted. The monthly data refresh is working again.
+
+**Small things I know about and did not fix**
+- No year slider or lens summary on phones (they get a one-line summary only). A bottom sheet with the
+  slider would fix it.
+- Not checked: real-device touch, tablet width, axe accessibility pass, performance on a slow phone,
+  and the intro's pacing at real frame rates (my test browser pauses animation, so I judged flights from
+  state, not by watching).
+- The selected site's outline highlight (champagne) is subtle against satellite imagery. Worth a look.
+- Esri's tile servers are a third party. Fine for now, credited on the map; if they ever block us the
+  swap is one source in `ExploreMap.tsx`.
+- 551 sites are low confidence and none has a capacity figure. This is the biggest gap and it is the
+  next thing to do (see "Where to go deeper").
+- `outlines.geojson` is 952 kB and loads after the map appears. If it ever feels slow, split it by
+  region and load only what is on screen.
+
+**Where I think we can go deeper (my picks, most interesting first)**
+
+1. **The "how well do we know this?" layer plus honest estimates (section A).** Your instinct about the
+   uncertainty is the most distinctive idea here: almost every map in this space hides what it does not
+   know. A lens that colours sites reported, estimated or unknown, with a method page, is something
+   specialists would find credible and nobody else has. Mine footprints are now the size proxy to
+   estimate output from. Start with a clean method write-up and one country (Chile, where the data is
+   best) before doing all of them, and always let a company-reported figure override the model.
+2. **A "this mine, over time" view.** Esri's Wayback archive has older imagery, and we have a footprint
+   for each mine. A before/after slider on a pit (2014 against now) is exactly the Street View feeling:
+   you watch a hole in the desert grow. Footprint area measured on old imagery would be new data we
+   could publish. Check the Wayback terms first.
+3. **Tell the story of a single mine or route end to end.** Pick Escondida and Chuquicamata: show the
+   pit, the concentrator, the port it ships from, the smelter it reaches, with a sourced caption at each
+   stop and the map flying between them. Curated tours (section C) are cheap once ports (B5) are in
+   and make good shareable moments for your portfolio.
+4. **Ports and real routes.** Draw trade routes port to port instead of capital to capital, then add
+   shipping distance. It makes the trade lens feel physical, and Chile to China becomes a visible
+   Pacific crossing.
+5. **Another dimension of concentration.** The company layer: how much of the world's copper sits
+   under a handful of operators (Codelco, BHP, Freeport and so on), and which countries own the
+   operators. We have operator names for 1,000 of the 1,229 sites. Ownership is a different chokepoint
+   from geography and a very "critical minerals" question.
+6. **A second mineral, probably cobalt.** DR Congo at roughly three quarters of mine output and China
+   refining most of it is the other famous chokepoint, and the lenses already work for it. It needs a
+   refinery table that is not USGS (IEA is the likely source).
+7. **Risk lens.** Export restrictions, governance scores and conflict near sites, as a fourth button.
+   Interesting, but check data licences first (ACLED needs one).
+
+**Smaller ideas worth trying**
+- A "compare two countries" mode (Chile against China across mined, refined and trade).
+- Sound-free polish: a subtle intro for first-time visitors on how to use the map ("drag, scroll,
+  click") that stays out of the way, and keyboard shortcuts for the three lenses (1, 2, 3).
+- Shareable views: the URL already holds the lens and country; add year and map position so a link can
+  open on a specific mine in satellite.
+- A social card image for link previews (needs Pillow, ask first), and a light method page.
+
+**Questions that are yours to decide**
+- Is the audience hiring managers and specialists (then lean on rigour: the uncertainty layer, sourced
+  captions) or the curious public (then lean on wander-ability: tours, before and after imagery)?
+  Both work, but they pull the next month in different directions.
+- Whether to keep going on copper alone until it is excellent, or add cobalt soon to show the pattern
+  generalises.
+
 ## A. Make uncertainty part of the product
 
 Most mines have no public capacity or output figure, and 551 of our 1,229 sites are low confidence.

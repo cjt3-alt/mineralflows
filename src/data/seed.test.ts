@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { parseDataset, type RawFiles } from './load.ts'
+import { applySitePositions, parseDataset, type RawFiles } from './load.ts'
 import { resolveValue } from './derive.ts'
 import { FacilityCollectionSchema, FlowsFileSchema, parseFile } from './schema.ts'
 
@@ -202,6 +202,56 @@ describe('seed fallback dataset', () => {
     for (const flow of flows.filter((f) => f.source === 'estimated')) {
       expect(flow.value_usd, flow.id + ' has a stored value the pipeline should derive').toBeNull()
       expect(flow.volume_tonnes, flow.id + ' has no volume to derive a value from').not.toBeNull()
+    }
+  })
+})
+
+describe('applySitePositions', () => {
+  const facility = (id: string, lng: number, lat: number) =>
+    ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [lng, lat] },
+      properties: { id },
+    }) as unknown as Parameters<typeof applySitePositions>[0][number]
+  const table = {
+    positions: { a: { lng: 10.01, lat: 20.01, from: [10, 20], moved_km: 1.5 } },
+  }
+
+  it('moves a facility that still reports the point the move was computed from', () => {
+    const out = applySitePositions([facility('a', 10, 20)], table)
+    expect(out.facilities[0]!.geometry.coordinates).toEqual([10.01, 20.01])
+    expect(out.repositioned.get('a')).toEqual({ fromLng: 10, fromLat: 20, km: 1.5, method: 'snapped_to_outline' })
+  })
+
+  it('ignores a move once the source reports a different point', () => {
+    const out = applySitePositions([facility('a', 11, 21)], table)
+    expect(out.facilities[0]!.geometry.coordinates).toEqual([11, 21])
+    expect(out.repositioned.size).toBe(0)
+  })
+
+  it('hides a duplicate only while it still has the reviewed name', () => {
+    const named = (id: string, name: string) => ({ ...facility(id, 1, 2), properties: { id, name } }) as unknown as Parameters<typeof applySitePositions>[0][number]
+    const file = { hidden: { d: { name: 'Dup refinery', duplicate_of: 'x', reason: 'r' } } }
+    expect(applySitePositions([named('d', 'Dup refinery'), named('e', 'Keep')], file).facilities.map((f) => f.properties.id)).toEqual(['e'])
+    expect(applySitePositions([named('d', 'Renamed')], file).facilities).toHaveLength(1)
+  })
+
+  it('survives a missing or malformed file', () => {
+    for (const bad of [[], null, {}, { positions: 5 }, { positions: { a: { lng: 'x', from: [10, 20] } } }]) {
+      const out = applySitePositions([facility('a', 10, 20)], bad)
+      expect(out.facilities[0]!.geometry.coordinates).toEqual([10, 20])
+    }
+  })
+
+  it('moves only dots that sit on a real outline in the shipped data', () => {
+    const real = parseDataset({ ...raw, sitePositions: read('site_positions.json') })
+    expect(real.repositioned.size).toBeGreaterThan(100)
+    expect(real.hiddenDuplicates.size).toBe(4)
+    expect(real.facilities.some((f) => f.properties.name === 'Glogow refinery')).toBe(false)
+    expect(real.facilities.some((f) => f.properties.name === 'Glogow metallurgical complex')).toBe(true)
+    for (const r of real.repositioned.values()) {
+      if (r.method === 'snapped_to_outline') expect(r.km).toBeLessThan(2)
+      else expect(r.source).toBeTruthy()
     }
   })
 })

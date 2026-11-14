@@ -63,6 +63,7 @@ export const DATA_FILES = {
   production: 'production.json',
   productionHistory: 'production_history.json',
   priceHistory: 'price_history.json',
+  sitePositions: 'site_positions.json',
   countries: 'countries.json',
   meta: 'meta.json',
 } as const
@@ -78,6 +79,8 @@ export interface RawFiles {
   productionHistory?: unknown
   /** Optional: annual average prices back to 2000. */
   priceHistory?: unknown
+  /** Optional: dots moved onto the mining outline each site was matched to (`etl/outlines.py`). */
+  sitePositions?: unknown
   countries: unknown
   meta: unknown
 }
@@ -89,6 +92,10 @@ export interface Dataset {
   activeMinerals: Mineral[]
   mineralsById: Map<string, Mineral>
   facilities: FacilityFeature[]
+  /** Record ids left out of `facilities` because they repeat a plant held elsewhere in the data. */
+  hiddenDuplicates: Set<string>
+  /** Sites whose dot was moved onto their mining outline, with where the source reported them. */
+  repositioned: Map<string, RepositionedSite>
   flows: Flow[]
   prices: Price[]
   /** Annual average prices over a longer span than `prices`, for the timeline. */
@@ -99,6 +106,73 @@ export interface Dataset {
   meta: Meta
   /** Price lookup keyed by `${mineral_id}:${year}`. */
   priceFor: (mineralId: string, year: number) => Price | undefined
+}
+
+export interface RepositionedSite {
+  /** Where the source reported the site. */
+  fromLng: number
+  fromLat: number
+  /** How far the dot moved, in kilometres. */
+  km: number
+  /** Onto a mining outline, or to a plant's published coordinates checked on imagery. */
+  method: 'snapped_to_outline' | 'published_coordinates'
+  /** Where a published position came from; absent for outline snaps. */
+  source?: string
+}
+
+/**
+ * Move dots onto the mining outline each site was matched to. A move is only applied while the
+ * facility still reports the point it was computed from, so a refreshed source can never leave a
+ * stale correction behind. Anything malformed is ignored: the reported position is always safe.
+ */
+export function applySitePositions(
+  facilities: FacilityFeature[],
+  raw: unknown,
+): { facilities: FacilityFeature[]; repositioned: Map<string, RepositionedSite>; hidden: Set<string> } {
+  const repositioned = new Map<string, RepositionedSite>()
+  const hidden = new Set<string>()
+  const file = raw as { positions?: Record<string, unknown>; hidden?: Record<string, { name?: unknown }> } | null
+  // Records that repeat a plant already in the data at its real location are left out. The monthly
+  // refresh does not re-run the outline script, so a record is hidden only while it still carries
+  // the name it had when it was reviewed.
+  if (file?.hidden && typeof file.hidden === 'object') {
+    const byId = new Map(facilities.map((f) => [f.properties.id, f.properties.name]))
+    for (const [id, entry] of Object.entries(file.hidden)) {
+      if (typeof entry?.name === 'string' && byId.get(id) === entry.name) hidden.add(id)
+    }
+  }
+  const table = file?.positions
+  if (!table || typeof table !== 'object') {
+    return { facilities: facilities.filter((f) => !hidden.has(f.properties.id)), repositioned, hidden }
+  }
+  const near = (a: number, b: number) => Math.abs(a - b) < 1e-4
+  const moved = facilities.map((facility) => {
+    const entry = table[facility.properties.id] as
+      | { lng?: unknown; lat?: unknown; from?: unknown; moved_km?: unknown; method?: unknown; source?: unknown }
+      | undefined
+    if (!entry || !Array.isArray(entry.from)) return facility
+    const [lng, lat] = facility.geometry.coordinates
+    const [fromLng, fromLat] = entry.from as unknown[]
+    if (
+      typeof entry.lng !== 'number' ||
+      typeof entry.lat !== 'number' ||
+      typeof fromLng !== 'number' ||
+      typeof fromLat !== 'number' ||
+      !near(lng, fromLng) ||
+      !near(lat, fromLat)
+    ) {
+      return facility
+    }
+    repositioned.set(facility.properties.id, {
+      fromLng: lng,
+      fromLat: lat,
+      km: typeof entry.moved_km === 'number' ? entry.moved_km : 0,
+      method: entry.method === 'published_coordinates' ? 'published_coordinates' : 'snapped_to_outline',
+      ...(typeof entry.source === 'string' ? { source: entry.source } : {}),
+    })
+    return { ...facility, geometry: { ...facility.geometry, coordinates: [entry.lng, entry.lat] as [number, number] } }
+  })
+  return { facilities: moved.filter((f) => !hidden.has(f.properties.id)), repositioned, hidden }
 }
 
 export class ReferentialError extends Error {
@@ -150,7 +224,7 @@ export function parseDataset(raw: RawFiles): Dataset {
   const countries = parseFile(DATA_FILES.countries, CountriesFileSchema, raw.countries)
   const meta = parseFile(DATA_FILES.meta, MetaSchema, raw.meta)
 
-  const facilities = facilityCollection.features
+  const { facilities, repositioned, hidden } = applySitePositions(facilityCollection.features, raw.sitePositions)
   const mineralsById = new Map(minerals.map((m) => [m.id, m]))
   const problems: string[] = []
 
@@ -228,6 +302,8 @@ export function parseDataset(raw: RawFiles): Dataset {
     activeMinerals: minerals.filter((m) => m.active).sort((a, b) => a.sort_order - b.sort_order),
     mineralsById,
     facilities,
+    hiddenDuplicates: hidden,
+    repositioned,
     flows,
     prices,
     priceHistory,
@@ -278,7 +354,7 @@ async function fetchOptionalJson(file: string): Promise<unknown> {
 export async function loadDataset(): Promise<Dataset> {
   const [
     [minerals, facilities, flows, prices, production, countries, meta],
-    [productionHistory, priceHistory],
+    [productionHistory, priceHistory, sitePositions],
   ] = await Promise.all([
     Promise.all([
       fetchJson(DATA_FILES.minerals),
@@ -292,6 +368,7 @@ export async function loadDataset(): Promise<Dataset> {
     Promise.all([
       fetchOptionalJson(DATA_FILES.productionHistory),
       fetchOptionalJson(DATA_FILES.priceHistory),
+      fetchOptionalJson(DATA_FILES.sitePositions),
     ]),
   ])
   return parseDataset({
@@ -302,6 +379,7 @@ export async function loadDataset(): Promise<Dataset> {
     production,
     productionHistory,
     priceHistory,
+    sitePositions,
     countries,
     meta,
   })

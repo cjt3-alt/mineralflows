@@ -30,7 +30,11 @@ ROOT = Path(__file__).resolve().parent.parent
 FACILITIES = ROOT / "public" / "data" / "facilities.geojson"
 OUT = ROOT / "public" / "data" / "outlines.geojson"
 
+POSITIONS = ROOT / "public" / "data" / "site_positions.json"
+REVIEWED = ROOT / "etl" / "reviewed_positions.json"
+
 MATCH_KM = 3.0
+SNAP_MAX_KM = 1.0  # a dot is only moved onto an outline this close; further out is a doubtful match
 SIMPLIFY_DEG = 0.0002  # about 20 m
 DECIMALS = 4  # about 11 m
 
@@ -253,20 +257,190 @@ def match(gpkg: Path, facilities: list[dict]) -> dict:
     }
 
 
+# ------------------------------------------------------------------ snapping
+
+
+def interior_point(rings: list[Ring]) -> tuple[float, float]:
+    """A point well inside a polygon: the spot furthest from every edge, found by a coarse grid
+    search that is refined twice. Always inside the polygon (a centroid can fall outside a
+    crescent), and the same answer on every run."""
+    xs = [p[0] for p in rings[0]]
+    ys = [p[1] for p in rings[0]]
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    best: tuple[float, float, float] | None = None  # clearance, x, y
+    steps = 24
+    for _ in range(3):
+        for i in range(steps + 1):
+            for j in range(steps + 1):
+                x = x0 + (x1 - x0) * i / steps
+                y = y0 + (y1 - y0) * j / steps
+                if not point_in_polygon(x, y, rings):
+                    continue
+                clearance = min(distance_to_ring_km(x, y, r) for r in rings)
+                if best is None or clearance > best[0]:
+                    best = (clearance, x, y)
+        if best is None:
+            break
+        # Search again in a window around the best cell.
+        wx, wy = (x1 - x0) / steps * 1.5, (y1 - y0) / steps * 1.5
+        x0, x1, y0, y1 = best[1] - wx, best[1] + wx, best[2] - wy, best[2] + wy
+    if best is None:  # a sliver too thin for the grid: fall back to a ring vertex
+        return rings[0][0]
+    return best[1], best[2]
+
+
+def nearest_inside_point(x: float, y: float, rings: list[Ring]) -> tuple[float, float]:
+    """The smallest move that puts (x, y) inside the polygon: the nearest point on its edge,
+    stepped inward just far enough that it is not sitting on the line."""
+    kx, ky = km_per_degree(y)
+    best = (math.inf, x, y)
+    for ring in rings:
+        for i in range(len(ring) - 1):
+            ax, ay = ring[i]
+            bx, by = ring[i + 1]
+            dx, dy = (bx - ax) * kx, (by - ay) * ky
+            length2 = dx * dx + dy * dy
+            t = 0.0 if length2 == 0 else max(0.0, min(1.0, (((x - ax) * kx) * dx + ((y - ay) * ky) * dy) / length2))
+            qx, qy = ax + t * (bx - ax), ay + t * (by - ay)
+            d = math.hypot((x - qx) * kx, (y - qy) * ky)
+            if d < best[0]:
+                best = (d, qx, qy)
+    _, qx, qy = best
+    cx, cy = interior_point(rings)
+    for t in (0.02, 0.05, 0.1, 0.2, 0.4, 0.7, 1.0):
+        px, py = qx + (cx - qx) * t, qy + (cy - qy) * t
+        if point_in_polygon(px, py, rings):
+            return px, py
+    return cx, cy
+
+
+def _parts(geometry: dict) -> list[list[Ring]]:
+    return [geometry["coordinates"]] if geometry["type"] == "Polygon" else geometry["coordinates"]
+
+
+def snap_positions(facilities: list[dict], outline_features: list[dict]) -> dict:
+    """Where each facility's dot should sit so it is on the outline it was matched to.
+
+    Only facilities whose reported point is outside every outline matched to them are moved, to
+    an interior point of the nearest outline, and only when that is a clean match: the outline is
+    within `SNAP_MAX_KM` and no other facility claims it (two dots snapped to one outline would
+    stack). Everything else is listed under `review` with the reason, and left where it was.
+    Facilities already inside an outline are not touched.
+    """
+    coords = {f["properties"]["id"]: tuple(f["geometry"]["coordinates"]) for f in facilities}
+    candidates: dict[str, list[tuple[float, dict, list[list[Ring]]]]] = {}
+    for feature in outline_features:
+        parts = _parts(feature["geometry"])
+        for fid in feature["properties"]["facility_ids"]:
+            if fid not in coords:
+                continue
+            x, y = coords[fid]
+            d = min(distance_to_polygon_km(x, y, rings) for rings in parts)
+            candidates.setdefault(fid, []).append((d, feature, parts))
+
+    positions: dict[str, dict] = {}
+    review: dict[str, str] = {}
+    for fid, options in sorted(candidates.items()):
+        options.sort(key=lambda o: o[0])
+        d, feature, parts = options[0]
+        if d == 0.0:
+            continue
+        if d > SNAP_MAX_KM:
+            review[fid] = f"nearest outline is {d:.1f} km away"
+            continue
+        if len(feature["properties"]["facility_ids"]) > 1:
+            review[fid] = "nearest outline is shared with another facility"
+            continue
+        # Of the polygon's parts, the one the dot is nearest to.
+        near = min(parts, key=lambda rings: distance_to_polygon_km(*coords[fid], rings))
+        x, y = nearest_inside_point(*coords[fid], near)
+        positions[fid] = {
+            "lng": round(x, 5),
+            "lat": round(y, 5),
+            "from": [round(coords[fid][0], 5), round(coords[fid][1], 5)],
+            "moved_km": round(distance_km(coords[fid], (x, y)), 2),
+            "outline_id": feature["properties"]["id"],
+            "method": "snapped_to_outline",
+        }
+    return {
+        "note": (
+            "Dot positions moved onto the mining outline each site was matched to. "
+            "`from` is the position the source reported; a position is only applied while the "
+            "facility still reports that point. Sites listed in `review` were left where they were."
+        ),
+        "max_snap_km": SNAP_MAX_KM,
+        "positions": positions,
+        "review": review,
+        "hidden": {},
+    }
+
+
+def merge_reviewed(snapped: dict, reviewed: dict, facilities: list[dict]) -> dict:
+    """Overlay hand-reviewed positions (`etl/reviewed_positions.json`) on the outline snaps.
+
+    A reviewed position wins over a snap, and takes the site off the review list. It applies only
+    while the facility still reports the point it was reviewed at, so a refreshed source cannot
+    leave a stale correction behind.
+    """
+    coords = {f["properties"]["id"]: f["geometry"]["coordinates"] for f in facilities}
+    for fid, entry in reviewed.get("reviewed", {}).items():
+        here = coords.get(fid)
+        if here is None or abs(here[0] - entry["from"][0]) > 1e-4 or abs(here[1] - entry["from"][1]) > 1e-4:
+            continue
+        snapped["positions"][fid] = {
+            "lng": entry["lng"],
+            "lat": entry["lat"],
+            "from": entry["from"],
+            "moved_km": round(distance_km(tuple(here), (entry["lng"], entry["lat"])), 2),
+            "method": entry["method"],
+            "source": entry["source"],
+            "source_url": entry["source_url"],
+        }
+        snapped["review"].pop(fid, None)
+    names = {f["properties"]["id"]: f["properties"].get("name") for f in facilities}
+    snapped["hidden"] = {
+        fid: {"name": entry["name"], "duplicate_of": entry["duplicate_of"], "reason": entry["reason"]}
+        for fid, entry in reviewed.get("duplicates", {}).get("records", {}).items()
+        if names.get(fid) == entry["name"]
+    }
+    for fid in snapped["hidden"]:
+        snapped["positions"].pop(fid, None)
+        snapped["review"].pop(fid, None)
+    return snapped
+
+
+def distance_km(a: tuple[float, float], b: tuple[float, float]) -> float:
+    kx, ky = km_per_degree((a[1] + b[1]) / 2)
+    return math.hypot((a[0] - b[0]) * kx, (a[1] - b[1]) * ky)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--gpkg", required=True, type=Path, help="global_mining_polygons_v2.gpkg")
+    ap.add_argument("--gpkg", type=Path, help="global_mining_polygons_v2.gpkg (omit to only re-snap)")
     ap.add_argument("--out", type=Path, default=OUT)
+    ap.add_argument("--positions", type=Path, default=POSITIONS)
     args = ap.parse_args(argv)
 
     facilities = json.loads(FACILITIES.read_text(encoding="utf-8"))["features"]
-    result = match(args.gpkg, facilities)
-    args.out.write_text(json.dumps(result, separators=(",", ":")), encoding="utf-8")
-    matched = {fid for f in result["features"] for fid in f["properties"]["facility_ids"]}
-    size = args.out.stat().st_size
+    if args.gpkg:
+        result = match(args.gpkg, facilities)
+        args.out.write_text(json.dumps(result, separators=(",", ":")), encoding="utf-8")
+        matched = {fid for f in result["features"] for fid in f["properties"]["facility_ids"]}
+        size = args.out.stat().st_size
+        print(
+            f"{len(result['features'])} outlines for {len(matched)} of {len(facilities)} facilities; "
+            f"{args.out.name} is {size / 1000:.0f} kB"
+        )
+    else:
+        result = json.loads(args.out.read_text(encoding="utf-8"))
+
+    snapped = snap_positions(facilities, result["features"])
+    if REVIEWED.exists():
+        snapped = merge_reviewed(snapped, json.loads(REVIEWED.read_text(encoding="utf-8")), facilities)
+    args.positions.write_text(json.dumps(snapped, separators=(",", ":")), encoding="utf-8")
     print(
-        f"{len(result['features'])} outlines for {len(matched)} of {len(facilities)} facilities; "
-        f"{args.out.name} is {size / 1000:.0f} kB"
+        f"{len(snapped['positions'])} dots moved, {len(snapped.get('hidden', {}))} duplicates hidden, "
+        f"{len(snapped['review'])} left for review; {args.positions.name}"
     )
     return 0
 
