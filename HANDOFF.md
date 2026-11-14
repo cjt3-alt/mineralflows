@@ -67,6 +67,20 @@ under reduced motion. A "Replay the intro" link brings it back.
   mine. The browser applies a move only while the facility still reports the point it was computed
   from (`applySitePositions` in `load.ts`), so a refreshed ICMM file cannot leave a stale correction.
   The site card says when a marker was moved. Sites already inside an outline are untouched.
+- **Review list, round 2: calibrated snap rule (14 November 2026).** `etl/snap_calibration.py` takes the
+  477 mines whose reported point already sits inside an outline, moves each away by 0.5 to 3 km in four
+  directions (11,448 trials, against the full 44,929-polygon file) and asks what the snap would do.
+  Findings: where the nearest outline is 1 to 3 km away, snapping brings the dot closer to the true
+  position 95% of the time and wrongly farther 3.7%. The deciding signal is the runner-up: if the
+  nearest outline is at least twice as close as the next one, the snap lands on the right outline 99%
+  of the time (0.5% worse); when two outlines are about equally close it is closer to a coin flip
+  (45 to 52% on the right outline, 8 to 14% worse). `snap_positions` now requires that ratio
+  (`SNAP_RATIO`), allows outlines out to 2 km (`SNAP_MAX_KM`, was 1), and no longer treats one site's
+  mine and plant records as a conflict (`site_of`). Result: 180 snapped (was 165), 135 in review (was
+  150), of which 77 are close calls, 37 have no outline within 2 km and 21 are real conflicts between
+  sites. 39 of the snaps that were live are now withheld as close calls; they need a look at both
+  candidate outlines. **Limit:** the simulation always keeps the true mine within 3 km, so it cannot
+  measure a dot that is wrong by more than that; the "only one outline" results are optimistic.
 - **Refinery and smelter positions, first pass (13 November 2026).** Nominatim land use under the 302
   smelter and refinery dots flagged 53 (38 distinct points) on residential streets or in a named
   place; that check is too noisy to move dots on its own (Hoboken and Hayden are real plants beside

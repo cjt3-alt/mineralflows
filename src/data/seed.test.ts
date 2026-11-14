@@ -250,7 +250,8 @@ describe('applySitePositions', () => {
     expect(real.facilities.some((f) => f.properties.name === 'Glogow refinery')).toBe(false)
     expect(real.facilities.some((f) => f.properties.name === 'Glogow metallurgical complex')).toBe(true)
     for (const r of real.repositioned.values()) {
-      if (r.method === 'snapped_to_outline') expect(r.km).toBeLessThan(2)
+      // SNAP_MAX_KM is 2 in etl/outlines.py, plus the few metres the dot steps inside the edge.
+      if (r.method === 'snapped_to_outline') expect(r.km).toBeLessThanOrEqual(2.1)
       else expect(r.source).toBeTruthy()
     }
   })

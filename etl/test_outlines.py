@@ -126,6 +126,45 @@ def test_snap_positions() -> None:
     )
 
 
+def test_sibling_stages_are_one_site() -> None:
+    check("site_of drops the stage", outlines.site_of("icmm.icmm00056.mine") == "icmm.icmm00056")
+    square = [(0.0, 0.0), (0.1, 0.0), (0.1, 0.1), (0.0, 0.1), (0.0, 0.0)]
+    facilities = [
+        _facility("icmm.icmm1.mine", 0.101, 0.05),
+        _facility("icmm.icmm1.process", 0.101, 0.05),
+    ]
+    out = outlines.snap_positions(
+        facilities, [_outline(1, square, [f["properties"]["id"] for f in facilities])]
+    )
+    check(
+        "a mine and its plant record both snap",
+        set(out["positions"]) == {f["properties"]["id"] for f in facilities},
+    )
+    check("to the same spot", len({(v["lng"], v["lat"]) for v in out["positions"].values()}) == 1)
+    other = [_facility("icmm.icmm1.mine", 0.101, 0.05), _facility("icmm.icmm2.mine", 0.102, 0.05)]
+    out = outlines.snap_positions(
+        other, [_outline(2, square, [f["properties"]["id"] for f in other])]
+    )
+    check("two different sites still conflict", out["positions"] == {} and len(out["review"]) == 2)
+
+
+def test_ambiguous_nearest_outline_is_not_trusted() -> None:
+    # A dot between two outlines: about 1.07 km from the first, 1.11 km from the second (a close
+    # call), or from the first and a distant third (a clear winner).
+    first = [(0.0, 0.0), (0.01, 0.0), (0.01, 0.01), (0.0, 0.01), (0.0, 0.0)]
+    second = [(0.0296, 0.0), (0.0396, 0.0), (0.0396, 0.01), (0.0296, 0.01), (0.0296, 0.0)]
+    third = [(0.06, 0.0), (0.07, 0.0), (0.07, 0.01), (0.06, 0.01), (0.06, 0.0)]
+    facility = [_facility("a.mine", 0.0196, 0.005)]
+    close_call = outlines.snap_positions(
+        facility, [_outline(1, first, ["a.mine"]), _outline(2, second, ["a.mine"])]
+    )
+    check("a close second outline sends it to review", "a.mine" in close_call["review"])
+    clear = outlines.snap_positions(
+        facility, [_outline(1, first, ["a.mine"]), _outline(3, third, ["a.mine"])]
+    )
+    check("a clear winner is snapped", "a.mine" in clear["positions"])
+
+
 def test_merge_reviewed() -> None:
     facilities = [_facility("p", 10.0, 20.0), _facility("q", 30.0, 40.0)]
     snapped = {"positions": {"p": {"method": "snapped_to_outline"}}, "review": {"p": "x", "q": "y"}}
