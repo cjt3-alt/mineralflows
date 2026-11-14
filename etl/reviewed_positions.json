@@ -83,6 +83,61 @@
    ],
    "method": "placed_on_imagery",
    "source": "Bor smelter complex on the east side of the town of Bor, found on imagery"
+  },
+  "icmm.icmm02741.mine": {
+   "lng": -114.192,
+   "lat": 35.362,
+   "from": [
+    -114.1965,
+    35.36515
+   ],
+   "method": "published_coordinates",
+   "source": "USGS MRDS, TopoQuest, Western Mining History and a university site study agree on 35.362 N, 114.192 W; the point lies inside a mapped mining outline",
+   "source_url": "https://westernmininghistory.com/mine-detail/10234888"
+  },
+  "icmm.icmm02281.mine": {
+   "lng": -111.9007,
+   "lat": 32.5168,
+   "from": [
+    -111.9041,
+    32.52615
+   ],
+   "method": "published_coordinates",
+   "source": "USGS MRDS record for the Cyprus Tohono copper mine; the point is 0.1 km from a mapped mining outline",
+   "source_url": "https://mineralresourcemap.com/detail/10162257"
+  },
+  "icmm.icmm08879.mine": {
+   "lng": -111.9007,
+   "lat": 32.5168,
+   "from": [
+    -110.98844,
+    32.00564
+   ],
+   "method": "published_coordinates",
+   "source": "USGS MRDS record for the Cyprus Tohono copper mine; the point is 0.1 km from a mapped mining outline",
+   "source_url": "https://mineralresourcemap.com/detail/10162257"
+  },
+  "icmm.icmm06336.mine": {
+   "lng": 135.1175,
+   "lat": -29.2975,
+   "from": [
+    135.1558,
+    -29.2945
+   ],
+   "method": "published_coordinates",
+   "source": "Wikipedia (29 17 51 S, 135 07 03 E) and Global Energy Monitor give points 0.7 km apart, both inside one mapped mining outline",
+   "source_url": "https://en.wikipedia.org/wiki/Cairn_Hill_mine"
+  },
+  "icmm.icmm07712.mine": {
+   "lng": 30.04348,
+   "lat": -22.32983,
+   "from": [
+    30.0847,
+    -22.3301
+   ],
+   "method": "published_coordinates",
+   "source": "Mindat (Messina Mine, citing Cairncross and Dixon 1995: 22.3298 S, 30.0435 E) and the USGS MRDS Harper record (22.3268 S, 30.0514 E) are under 1 km apart, both inside one mapped mining outline",
+   "source_url": "https://zh.mindat.org/loc-54250.html"
   }
  },
  "duplicates": {
@@ -984,6 +1039,38 @@
      37.53339
     ],
     "reason": "Yantai Guoxing: the reported point is in the middle of a dense city."
+   },
+   "icmm.icmm13745.process": {
+    "name": "Pirdop refinery",
+    "from": [
+     24.183,
+     42.7
+    ],
+    "reason": "Pirdop: the reported point is in the middle of the town; the smelter lies outside it."
+   },
+   "icmm.icmm13745.refine": {
+    "name": "Pirdop refinery",
+    "from": [
+     24.183,
+     42.7
+    ],
+    "reason": "Pirdop: the reported point is in the middle of the town; the smelter lies outside it."
+   },
+   "icmm.icmm13832.process": {
+    "name": "Sredneuralsk (Revda) refinery",
+    "from": [
+     60.13553,
+     56.6832
+    ],
+    "reason": "Sredneuralsk: the reported point is in a forest village, with no works in sight."
+   },
+   "icmm.icmm13832.refine": {
+    "name": "Sredneuralsk (Revda) refinery",
+    "from": [
+     60.13553,
+     56.6832
+    ],
+    "reason": "Sredneuralsk: the reported point is in a forest village, with no works in sight."
    }
   }
  },
@@ -1306,6 +1393,158 @@
      24.70799
     ],
     "note": "The reported point is on or beside a plant works."
+   },
+   "icmm.icmm07112.process": {
+    "name": "Yuanqu smelter",
+    "from": [
+     111.66019,
+     35.32308
+    ],
+    "note": "The reported point is inside the smelter works."
+   },
+   "icmm.icmm07972.process": {
+    "name": "Balkhash Smelter",
+    "from": [
+     74.9456,
+     46.83187
+    ],
+    "note": "The reported point is on the smelter complex."
+   },
+   "icmm.icmm07972.refine": {
+    "name": "Balkhash Smelter",
+    "from": [
+     74.9456,
+     46.83187
+    ],
+    "note": "The reported point is on the smelter complex."
+   },
+   "icmm.icmm08191.process": {
+    "name": "Caletones smelter",
+    "from": [
+     -70.45181,
+     -34.10126
+    ],
+    "note": "The reported point is on the smelter site."
+   },
+   "icmm.icmm08191.refine": {
+    "name": "Caletones smelter",
+    "from": [
+     -70.45181,
+     -34.10126
+    ],
+    "note": "The reported point is on the smelter site."
+   },
+   "icmm.icmm13322.process": {
+    "name": "Baotou Huading refinery",
+    "from": [
+     109.746,
+     40.657
+    ],
+    "note": "The reported point is inside an industrial works."
+   },
+   "icmm.icmm13322.refine": {
+    "name": "Baotou Huading refinery",
+    "from": [
+     109.746,
+     40.657
+    ],
+    "note": "The reported point is inside an industrial works."
+   },
+   "icmm.icmm05567.process": {
+    "name": "Zapoiyarnij Plant",
+    "from": [
+     30.78704,
+     69.40722
+    ],
+    "note": "The reported point is on the plant's own buildings."
+   },
+   "icmm.icmm08971.process": {
+    "name": "Zhezkazgan Smelter",
+    "from": [
+     67.7276,
+     47.77967
+    ],
+    "note": "The reported point is in the industrial zone beside the smelter."
+   },
+   "icmm.icmm08971.refine": {
+    "name": "Zhezkazgan Smelter",
+    "from": [
+     67.7276,
+     47.77967
+    ],
+    "note": "The reported point is in the industrial zone beside the smelter."
+   },
+   "icmm.icmm13559.process": {
+    "name": "Jinchang smelter",
+    "from": [
+     102.19967,
+     38.50388
+    ],
+    "note": "The reported point is in the smelter works."
+   },
+   "icmm.icmm13559.refine": {
+    "name": "Jinchang smelter",
+    "from": [
+     102.19967,
+     38.50388
+    ],
+    "note": "The reported point is in the smelter works."
+   },
+   "icmm.icmm06079.process": {
+    "name": "Mahd Adh Dhahab",
+    "from": [
+     40.8345,
+     23.4828
+    ],
+    "note": "The reported point is in the mine and plant area."
+   },
+   "icmm.icmm07959.process": {
+    "name": "Atlantic Copper",
+    "from": [
+     -6.94966,
+     37.22745
+    ],
+    "note": "The reported point is on the smelter complex in the port of Huelva."
+   },
+   "icmm.icmm07959.refine": {
+    "name": "Atlantic Copper",
+    "from": [
+     -6.94966,
+     37.22745
+    ],
+    "note": "The reported point is on the smelter complex in the port of Huelva."
+   },
+   "icmm.icmm08596.process": {
+    "name": "Nornickel Taimyr Peninsula",
+    "from": [
+     88.34932,
+     69.51554
+    ],
+    "note": "The reported point is on the smelter works."
+   },
+   "icmm.icmm08731.refine": {
+    "name": "Garfield refinery",
+    "from": [
+     -112.19038,
+     40.72398
+    ],
+    "note": "The reported point is at the smelter and refinery complex."
+   },
+   "icmm.icmm02201.mine": {
+    "name": "Arizona No. 3 Mine",
+    "from": [
+     -111.08936,
+     31.97146
+    ],
+    "note": "Wikidata (Q137858608) puts this mine 0.1 km from the reported point, beside a mapped mining outline."
+   },
+   "icmm.icmm01139.mine": {
+    "name": "San Jose De Oruro Mine",
+    "from": [
+     -67.12645,
+     -17.95866
+    ],
+    "note": "Published coordinates (showcaves.com listing, USGS MRDS) put the mine within 0.3 to 1.3 km of the reported point."
    }
   }
  }
