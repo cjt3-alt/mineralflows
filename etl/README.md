@@ -36,6 +36,17 @@ hand when you want to update.
 | `python etl/outlines.py --gpkg <file>` | `outlines.geojson`: satellite-mapped mine footprints near our sites, and `site_positions.json`: dots moved onto their outline (run without `--gpkg` to redo only the snap) | the 24 MB GeoPackage from <https://doi.org/10.1594/PANGAEA.942325> (not committed); output is CC BY-SA 4.0 |
 | `python etl/snap_calibration.py --gpkg <file>` | prints how reliable the dot snap is by distance and ambiguity (writes nothing to `public/data/`) | the same GeoPackage; takes a few minutes |
 
+## Dot positions: the review files
+
+`site_positions.json` (written by `outlines.py`) and `etl/reviewed_positions.json` (hand-kept, committed)
+carry corrections and notes about where a site's dot sits. `facilities.geojson` is never edited. The
+reviewed file has `reviewed` (placed by hand or from published coordinates, with the source),
+`verified_in_place`, `outline_checks`, `doubtful_positions`, `duplicates` and `plant_audit`. Every
+entry records the reported point (`from`) and applies only while the facility still reports it. To add
+a decision, add it to the reviewed file and run `python etl/outlines.py` (no `--gpkg` needed), then
+the tests. The rules and numbers are in `HANDOFF.md` section 0f. Run `ruff` before pushing: CI runs
+`ruff check` and `ruff format --check` on `etl/`.
+
 ## What each source contributes
 
 | Source | Kind | Writes | Notes |
