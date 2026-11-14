@@ -229,6 +229,13 @@ describe('applySitePositions', () => {
     expect(out.repositioned.size).toBe(0)
   })
 
+  it('hides a duplicate only while it still has the reviewed name', () => {
+    const named = (id: string, name: string) => ({ ...facility(id, 1, 2), properties: { id, name } }) as unknown as Parameters<typeof applySitePositions>[0][number]
+    const file = { hidden: { d: { name: 'Dup refinery', duplicate_of: 'x', reason: 'r' } } }
+    expect(applySitePositions([named('d', 'Dup refinery'), named('e', 'Keep')], file).facilities.map((f) => f.properties.id)).toEqual(['e'])
+    expect(applySitePositions([named('d', 'Renamed')], file).facilities).toHaveLength(1)
+  })
+
   it('survives a missing or malformed file', () => {
     for (const bad of [[], null, {}, { positions: 5 }, { positions: { a: { lng: 'x', from: [10, 20] } } }]) {
       const out = applySitePositions([facility('a', 10, 20)], bad)
@@ -239,6 +246,9 @@ describe('applySitePositions', () => {
   it('moves only dots that sit on a real outline in the shipped data', () => {
     const real = parseDataset({ ...raw, sitePositions: read('site_positions.json') })
     expect(real.repositioned.size).toBeGreaterThan(100)
+    expect(real.hiddenDuplicates.size).toBe(4)
+    expect(real.facilities.some((f) => f.properties.name === 'Glogow refinery')).toBe(false)
+    expect(real.facilities.some((f) => f.properties.name === 'Glogow metallurgical complex')).toBe(true)
     for (const r of real.repositioned.values()) {
       if (r.method === 'snapped_to_outline') expect(r.km).toBeLessThan(2)
       else expect(r.source).toBeTruthy()

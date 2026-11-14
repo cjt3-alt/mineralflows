@@ -92,6 +92,8 @@ export interface Dataset {
   activeMinerals: Mineral[]
   mineralsById: Map<string, Mineral>
   facilities: FacilityFeature[]
+  /** Record ids left out of `facilities` because they repeat a plant held elsewhere in the data. */
+  hiddenDuplicates: Set<string>
   /** Sites whose dot was moved onto their mining outline, with where the source reported them. */
   repositioned: Map<string, RepositionedSite>
   flows: Flow[]
@@ -126,10 +128,23 @@ export interface RepositionedSite {
 export function applySitePositions(
   facilities: FacilityFeature[],
   raw: unknown,
-): { facilities: FacilityFeature[]; repositioned: Map<string, RepositionedSite> } {
+): { facilities: FacilityFeature[]; repositioned: Map<string, RepositionedSite>; hidden: Set<string> } {
   const repositioned = new Map<string, RepositionedSite>()
-  const table = (raw as { positions?: Record<string, unknown> } | null)?.positions
-  if (!table || typeof table !== 'object') return { facilities, repositioned }
+  const hidden = new Set<string>()
+  const file = raw as { positions?: Record<string, unknown>; hidden?: Record<string, { name?: unknown }> } | null
+  // Records that repeat a plant already in the data at its real location are left out. The monthly
+  // refresh does not re-run the outline script, so a record is hidden only while it still carries
+  // the name it had when it was reviewed.
+  if (file?.hidden && typeof file.hidden === 'object') {
+    const byId = new Map(facilities.map((f) => [f.properties.id, f.properties.name]))
+    for (const [id, entry] of Object.entries(file.hidden)) {
+      if (typeof entry?.name === 'string' && byId.get(id) === entry.name) hidden.add(id)
+    }
+  }
+  const table = file?.positions
+  if (!table || typeof table !== 'object') {
+    return { facilities: facilities.filter((f) => !hidden.has(f.properties.id)), repositioned, hidden }
+  }
   const near = (a: number, b: number) => Math.abs(a - b) < 1e-4
   const moved = facilities.map((facility) => {
     const entry = table[facility.properties.id] as
@@ -157,7 +172,7 @@ export function applySitePositions(
     })
     return { ...facility, geometry: { ...facility.geometry, coordinates: [entry.lng, entry.lat] as [number, number] } }
   })
-  return { facilities: moved, repositioned }
+  return { facilities: moved.filter((f) => !hidden.has(f.properties.id)), repositioned, hidden }
 }
 
 export class ReferentialError extends Error {
@@ -209,7 +224,7 @@ export function parseDataset(raw: RawFiles): Dataset {
   const countries = parseFile(DATA_FILES.countries, CountriesFileSchema, raw.countries)
   const meta = parseFile(DATA_FILES.meta, MetaSchema, raw.meta)
 
-  const { facilities, repositioned } = applySitePositions(facilityCollection.features, raw.sitePositions)
+  const { facilities, repositioned, hidden } = applySitePositions(facilityCollection.features, raw.sitePositions)
   const mineralsById = new Map(minerals.map((m) => [m.id, m]))
   const problems: string[] = []
 
@@ -287,6 +302,7 @@ export function parseDataset(raw: RawFiles): Dataset {
     activeMinerals: minerals.filter((m) => m.active).sort((a, b) => a.sort_order - b.sort_order),
     mineralsById,
     facilities,
+    hiddenDuplicates: hidden,
     repositioned,
     flows,
     prices,

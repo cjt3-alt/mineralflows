@@ -131,6 +131,14 @@ def test_merge_reviewed() -> None:
     check("the move is measured", 4.0 < out["positions"]["p"]["moved_km"] < 6.0, str(out["positions"]["p"]["moved_km"]))
     check("it leaves the review list", "p" not in out["review"])
     check("a stale review is ignored", "q" not in out["positions"] and "q" in out["review"])
+    named = [{"properties": {"id": "d", "name": "Dup"}, "geometry": {"type": "Point", "coordinates": [1.0, 2.0]}}]
+    dup = {"duplicates": {"records": {"d": {"name": "Dup", "duplicate_of": "x", "reason": "r"}}}}
+    out = outlines.merge_reviewed({"positions": {"d": {}}, "review": {"d": "z"}, "hidden": {}}, dup, named)
+    check("a duplicate is hidden", "d" in out["hidden"] and out["hidden"]["d"]["duplicate_of"] == "x")
+    check("a hidden record is not also moved or reviewed", "d" not in out["positions"] and "d" not in out["review"])
+    renamed = {"duplicates": {"records": {"d": {"name": "Other", "duplicate_of": "x", "reason": "r"}}}}
+    out = outlines.merge_reviewed({"positions": {}, "review": {}, "hidden": {}}, renamed, named)
+    check("a renamed record is not hidden", out["hidden"] == {})
 
 
 def main() -> int:

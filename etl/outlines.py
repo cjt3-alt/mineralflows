@@ -371,6 +371,7 @@ def snap_positions(facilities: list[dict], outline_features: list[dict]) -> dict
         "max_snap_km": SNAP_MAX_KM,
         "positions": positions,
         "review": review,
+        "hidden": {},
     }
 
 
@@ -395,6 +396,15 @@ def merge_reviewed(snapped: dict, reviewed: dict, facilities: list[dict]) -> dic
             "source": entry["source"],
             "source_url": entry["source_url"],
         }
+        snapped["review"].pop(fid, None)
+    names = {f["properties"]["id"]: f["properties"].get("name") for f in facilities}
+    snapped["hidden"] = {
+        fid: {"name": entry["name"], "duplicate_of": entry["duplicate_of"], "reason": entry["reason"]}
+        for fid, entry in reviewed.get("duplicates", {}).get("records", {}).items()
+        if names.get(fid) == entry["name"]
+    }
+    for fid in snapped["hidden"]:
+        snapped["positions"].pop(fid, None)
         snapped["review"].pop(fid, None)
     return snapped
 
@@ -429,7 +439,7 @@ def main(argv: list[str] | None = None) -> int:
         snapped = merge_reviewed(snapped, json.loads(REVIEWED.read_text(encoding="utf-8")), facilities)
     args.positions.write_text(json.dumps(snapped, separators=(",", ":")), encoding="utf-8")
     print(
-        f"{len(snapped['positions'])} dots moved, "
+        f"{len(snapped['positions'])} dots moved, {len(snapped.get('hidden', {}))} duplicates hidden, "
         f"{len(snapped['review'])} left for review; {args.positions.name}"
     )
     return 0

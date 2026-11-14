@@ -76,7 +76,10 @@ under reduced motion. A "Replay the intro" link brings it back.
   while ICMM still reports the original point). Applied so far: Mednogorsk (2 records, 2.6 km, from
   the combine's Wikipedia coordinates). Looked up and **rejected**: Glogow and Legnica "refinery"
   records are duplicates of the existing "metallurgical complex" records, so moving them would stack
-  dots (listed under `probable_duplicates`, needs a merge-or-hide decision); Chelyabinsk's Wikipedia
+  dots. They are now **hidden** (4 records, `duplicates` in `etl/reviewed_positions.json`, passed on
+  through `hidden` in `site_positions.json`; the loader drops one only while it still has the
+  reviewed name; `facilities.geojson` is untouched and `meta.json` still counts the source's 1,229);
+  Chelyabinsk's Wikipedia
   match is the zinc plant, not our copper record. Still unplaced: Carteret, Hoboken (about 300 m off,
   left), Leninogorsk and Alaverdi (candidate points found by eye, not applied), Monywa, Liaoning,
   Lala, Miaogou, Zlatna, Rudnany. The other 249 smelter and refinery dots were not reviewed.
