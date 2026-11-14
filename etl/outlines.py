@@ -300,7 +300,11 @@ def nearest_inside_point(x: float, y: float, rings: list[Ring]) -> tuple[float, 
             bx, by = ring[i + 1]
             dx, dy = (bx - ax) * kx, (by - ay) * ky
             length2 = dx * dx + dy * dy
-            t = 0.0 if length2 == 0 else max(0.0, min(1.0, (((x - ax) * kx) * dx + ((y - ay) * ky) * dy) / length2))
+            t = (
+                0.0
+                if length2 == 0
+                else max(0.0, min(1.0, (((x - ax) * kx) * dx + ((y - ay) * ky) * dy) / length2))
+            )
             qx, qy = ax + t * (bx - ax), ay + t * (by - ay)
             d = math.hypot((x - qx) * kx, (y - qy) * ky)
             if d < best[0]:
@@ -385,7 +389,11 @@ def merge_reviewed(snapped: dict, reviewed: dict, facilities: list[dict]) -> dic
     coords = {f["properties"]["id"]: f["geometry"]["coordinates"] for f in facilities}
     for fid, entry in reviewed.get("reviewed", {}).items():
         here = coords.get(fid)
-        if here is None or abs(here[0] - entry["from"][0]) > 1e-4 or abs(here[1] - entry["from"][1]) > 1e-4:
+        if (
+            here is None
+            or abs(here[0] - entry["from"][0]) > 1e-4
+            or abs(here[1] - entry["from"][1]) > 1e-4
+        ):
             continue
         snapped["positions"][fid] = {
             "lng": entry["lng"],
@@ -399,7 +407,11 @@ def merge_reviewed(snapped: dict, reviewed: dict, facilities: list[dict]) -> dic
         snapped["review"].pop(fid, None)
     names = {f["properties"]["id"]: f["properties"].get("name") for f in facilities}
     snapped["hidden"] = {
-        fid: {"name": entry["name"], "duplicate_of": entry["duplicate_of"], "reason": entry["reason"]}
+        fid: {
+            "name": entry["name"],
+            "duplicate_of": entry["duplicate_of"],
+            "reason": entry["reason"],
+        }
         for fid, entry in reviewed.get("duplicates", {}).get("records", {}).items()
         if names.get(fid) == entry["name"]
     }
@@ -416,7 +428,9 @@ def distance_km(a: tuple[float, float], b: tuple[float, float]) -> float:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--gpkg", type=Path, help="global_mining_polygons_v2.gpkg (omit to only re-snap)")
+    ap.add_argument(
+        "--gpkg", type=Path, help="global_mining_polygons_v2.gpkg (omit to only re-snap)"
+    )
     ap.add_argument("--out", type=Path, default=OUT)
     ap.add_argument("--positions", type=Path, default=POSITIONS)
     args = ap.parse_args(argv)
@@ -428,18 +442,21 @@ def main(argv: list[str] | None = None) -> int:
         matched = {fid for f in result["features"] for fid in f["properties"]["facility_ids"]}
         size = args.out.stat().st_size
         print(
-            f"{len(result['features'])} outlines for {len(matched)} of {len(facilities)} facilities; "
-            f"{args.out.name} is {size / 1000:.0f} kB"
+            f"{len(result['features'])} outlines for {len(matched)} of "
+            f"{len(facilities)} facilities; {args.out.name} is {size / 1000:.0f} kB"
         )
     else:
         result = json.loads(args.out.read_text(encoding="utf-8"))
 
     snapped = snap_positions(facilities, result["features"])
     if REVIEWED.exists():
-        snapped = merge_reviewed(snapped, json.loads(REVIEWED.read_text(encoding="utf-8")), facilities)
+        snapped = merge_reviewed(
+            snapped, json.loads(REVIEWED.read_text(encoding="utf-8")), facilities
+        )
     args.positions.write_text(json.dumps(snapped, separators=(",", ":")), encoding="utf-8")
     print(
-        f"{len(snapped['positions'])} dots moved, {len(snapped.get('hidden', {}))} duplicates hidden, "
+        f"{len(snapped['positions'])} dots moved, "
+        f"{len(snapped.get('hidden', {}))} duplicates hidden, "
         f"{len(snapped['review'])} left for review; {args.positions.name}"
     )
     return 0
