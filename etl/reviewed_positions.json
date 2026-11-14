@@ -692,5 +692,176 @@
     "note": "Tschudi: the snap moved the point 1.9 km to the edge of the town, with no sign of a plant."
    }
   }
+ },
+ "doubtful_positions": {
+  "note": "Smelter and refinery dots that look wrong on satellite imagery (14 November 2026) where no better position could be found. They are not moved: the dot stays where the source reports it, flagged. Applies only while the facility still reports the point in `from`.",
+  "records": {
+   "icmm.icmm13345.process": {
+    "name": "Bor refinery",
+    "from": [
+     22.16667,
+     44.08333
+    ],
+    "reason": "Bor: the reported point is in hills about 5 km from the town. The smelter complex is in Bor itself."
+   },
+   "icmm.icmm13345.refine": {
+    "name": "Bor refinery",
+    "from": [
+     22.16667,
+     44.08333
+    ],
+    "reason": "Bor: the reported point is in hills about 5 km from the town. The smelter complex is in Bor itself."
+   },
+   "icmm.icmm13547.process": {
+    "name": "Irtysh refinery",
+    "from": [
+     82.31667,
+     50.1
+    ],
+    "reason": "Irtysh: the reported point is in a river floodplain, not at a plant."
+   },
+   "icmm.icmm13547.refine": {
+    "name": "Irtysh refinery",
+    "from": [
+     82.31667,
+     50.1
+    ],
+    "reason": "Irtysh: the reported point is in a river floodplain, not at a plant."
+   },
+   "icmm.icmm13716.process": {
+    "name": "Onahama refinery",
+    "from": [
+     140.88333,
+     36.96667
+    ],
+    "reason": "Onahama: the reported point is inland in the town, away from the port and the smelter."
+   },
+   "icmm.icmm13716.refine": {
+    "name": "Onahama refinery",
+    "from": [
+     140.88333,
+     36.96667
+    ],
+    "reason": "Onahama: the reported point is inland in the town, away from the port and the smelter."
+   },
+   "icmm.icmm13846.process": {
+    "name": "Tamano refinery",
+    "from": [
+     133.25,
+     34.48333
+    ],
+    "reason": "Tamano: the reported point is in forested hills above a reservoir, not at a plant."
+   },
+   "icmm.icmm13846.refine": {
+    "name": "Tamano refinery",
+    "from": [
+     133.25,
+     34.48333
+    ],
+    "reason": "Tamano: the reported point is in forested hills above a reservoir, not at a plant."
+   },
+   "icmm.icmm13900.process": {
+    "name": "Wuhu refinery",
+    "from": [
+     118.41668,
+     31.35
+    ],
+    "reason": "Wuhu: the reported point is in an apartment district."
+   },
+   "icmm.icmm13900.refine": {
+    "name": "Wuhu refinery",
+    "from": [
+     118.41668,
+     31.35
+    ],
+    "reason": "Wuhu: the reported point is in an apartment district."
+   },
+   "icmm.icmm13291.process": {
+    "name": "Altonorte refinery",
+    "from": [
+     -70.333,
+     -23.8
+    ],
+    "reason": "Altonorte refinery: the reported point is in open desert, away from the smelter complex."
+   },
+   "icmm.icmm13291.refine": {
+    "name": "Altonorte refinery",
+    "from": [
+     -70.333,
+     -23.8
+    ],
+    "reason": "Altonorte refinery: the reported point is in open desert, away from the smelter complex."
+   },
+   "icmm.icmm13386.process": {
+    "name": "Chizhou Guan Hua refinery",
+    "from": [
+     117.47072,
+     30.66088
+    ],
+    "reason": "Chizhou Guan Hua: the reported point is in the middle of a dense town."
+   },
+   "icmm.icmm13386.refine": {
+    "name": "Chizhou Guan Hua refinery",
+    "from": [
+     117.47072,
+     30.66088
+    ],
+    "reason": "Chizhou Guan Hua: the reported point is in the middle of a dense town."
+   },
+   "icmm.icmm13605.process": {
+    "name": "Kunming refinery",
+    "from": [
+     102.72,
+     25.04
+    ],
+    "reason": "Kunming: the reported point is in the middle of a dense city."
+   },
+   "icmm.icmm13605.refine": {
+    "name": "Kunming refinery",
+    "from": [
+     102.72,
+     25.04
+    ],
+    "reason": "Kunming: the reported point is in the middle of a dense city."
+   },
+   "icmm.icmm05967.refine": {
+    "name": "Barreiro",
+    "from": [
+     -9.07577,
+     38.66512
+    ],
+    "reason": "Barreiro: the reported point is in the town centre by the waterfront, not at an industrial site. Low confidence."
+   },
+   "icmm.icmm13493.refine": {
+    "name": "Guixi refinery",
+    "from": [
+     117.2,
+     28.295
+    ],
+    "reason": "Guixi: the reported point is in a built-up area beside a village, not at the smelter works."
+   },
+   "icmm.icmm13591.process": {
+    "name": "Khetri refinery",
+    "from": [
+     75.77467,
+     28.00979
+    ],
+    "reason": "Khetri: the reported point is in barren hills about 5 km from the town and the copper complex."
+   },
+   "icmm.icmm13591.refine": {
+    "name": "Khetri refinery",
+    "from": [
+     75.77467,
+     28.00979
+    ],
+    "reason": "Khetri: the reported point is in barren hills about 5 km from the town and the copper complex."
+   }
+  }
+ },
+ "plant_audit": {
+  "note": "Random sample of 30 of the 71 plant sites with no mining outline within 3 km, looked at on imagery. 24 on or beside a plant, 6 doubtful (Altonorte refinery, Chizhou Guan Hua, Kunming, Barreiro, Guixi, Khetri). Also all 5 sites with whole-arc-minute coordinates (Bor, Irtysh, Onahama, Tamano, Wuhu), which look like place-name geocodes: all 5 doubtful.",
+  "sampled": 30,
+  "pool_sites": 71,
+  "doubtful_in_sample": 6
  }
 }

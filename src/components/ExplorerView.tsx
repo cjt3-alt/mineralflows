@@ -27,6 +27,8 @@ export interface ExplorerViewProps {
   points: PointDatum[]
   /** Sites whose dot was moved onto their mining outline. */
   repositioned: ReadonlyMap<string, RepositionedSite>
+  /** Sites whose position looks wrong on imagery but could not be corrected, with why. */
+  doubtfulPositions: ReadonlyMap<string, string>
   arcs: ArcDatum[]
   countries: Record<string, Country>
   mineralsById: ReadonlyMap<string, Mineral>
@@ -475,6 +477,7 @@ export function ExplorerView(props: ExplorerViewProps) {
     priceHistory,
     points,
     repositioned,
+    doubtfulPositions,
     arcs,
     countries,
     mineralsById,
@@ -859,6 +862,7 @@ export function ExplorerView(props: ExplorerViewProps) {
         sites={points}
         footprints={footprints}
         repositioned={repositioned}
+        doubtfulPositions={doubtfulPositions}
         onSelectSite={(p) => goToPoint(p, 11.5)}
       />
     </div>

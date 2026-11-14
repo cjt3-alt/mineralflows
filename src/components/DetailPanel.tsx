@@ -47,6 +47,8 @@ export interface DetailPanelProps {
   footprints?: ReadonlyMap<string, { km2: number; shared: boolean }>
   /** Sites whose dot was moved onto their outline, by facility id. */
   repositioned?: ReadonlyMap<string, RepositionedSite>
+  /** Sites whose reported position looks wrong on imagery but could not be corrected, with why. */
+  doubtfulPositions?: ReadonlyMap<string, string>
   /**
    * `sheet` is the narrow-viewport layout: the same content, over the map
    * from the bottom edge rather than floating beside it.
@@ -183,6 +185,7 @@ function FacilityDetail({
   onSelectSite,
   footprint,
   moved,
+  doubtful,
 }: {
   point: PointDatum
   mineralsById: ReadonlyMap<string, Mineral>
@@ -192,6 +195,7 @@ function FacilityDetail({
   onSelectSite?: ((point: PointDatum) => void) | undefined
   footprint?: { km2: number; shared: boolean } | undefined
   moved?: RepositionedSite | undefined
+  doubtful?: string | undefined
 }) {
   const p = point.facility.properties
   const [lng, lat] = point.facility.geometry.coordinates
@@ -239,6 +243,12 @@ function FacilityDetail({
           <FocusButton iso3={p.country_iso3} name={country?.name ?? p.country_iso3} onFocus={onFocusCountry} />
         </span>
       </div>
+
+      {doubtful !== undefined && (
+        <Warning>
+          The position may be wrong. {doubtful} The marker is shown where the source reports it.
+        </Warning>
+      )}
 
       {p.confidence === 'low' && (
         <Warning>
@@ -557,6 +567,7 @@ export function DetailPanel({
   onSelectSite,
   footprints,
   repositioned,
+  doubtfulPositions,
   variant = 'panel',
 }: DetailPanelProps) {
   const panelRef = useRef<HTMLElement>(null)
@@ -630,6 +641,7 @@ export function DetailPanel({
           onSelectSite={onSelectSite}
           footprint={footprints?.get(selection.point.id)}
           moved={repositioned?.get(selection.point.id)}
+          doubtful={doubtfulPositions?.get(selection.point.id)}
         />
       ) : selection.kind === 'flow' ? (
         <FlowDetail arc={selection.arc} mineralsById={mineralsById} countries={countries} onFocusCountry={onFocusCountry} />

@@ -96,6 +96,8 @@ export interface Dataset {
   hiddenDuplicates: Set<string>
   /** Sites whose dot was moved onto their mining outline, with where the source reported them. */
   repositioned: Map<string, RepositionedSite>
+  /** Sites whose reported position looks wrong on satellite imagery but could not be corrected, with why. */
+  doubtfulPositions: Map<string, string>
   flows: Flow[]
   prices: Price[]
   /** Annual average prices over a longer span than `prices`, for the timeline. */
@@ -132,10 +134,20 @@ export interface RepositionedSite {
 export function applySitePositions(
   facilities: FacilityFeature[],
   raw: unknown,
-): { facilities: FacilityFeature[]; repositioned: Map<string, RepositionedSite>; hidden: Set<string> } {
+): {
+  facilities: FacilityFeature[]
+  repositioned: Map<string, RepositionedSite>
+  hidden: Set<string>
+  doubtful: Map<string, string>
+} {
   const repositioned = new Map<string, RepositionedSite>()
+  const doubtful = new Map<string, string>()
   const hidden = new Set<string>()
-  const file = raw as { positions?: Record<string, unknown>; hidden?: Record<string, { name?: unknown }> } | null
+  const file = raw as {
+    positions?: Record<string, unknown>
+    hidden?: Record<string, { name?: unknown }>
+    doubtful?: Record<string, { reason?: unknown }>
+  } | null
   // Records that repeat a plant already in the data at its real location are left out. The monthly
   // refresh does not re-run the outline script, so a record is hidden only while it still carries
   // the name it had when it was reviewed.
@@ -145,9 +157,14 @@ export function applySitePositions(
       if (typeof entry?.name === 'string' && byId.get(id) === entry.name) hidden.add(id)
     }
   }
+  if (file?.doubtful && typeof file.doubtful === 'object') {
+    for (const [id, entry] of Object.entries(file.doubtful)) {
+      if (typeof entry?.reason === 'string') doubtful.set(id, entry.reason)
+    }
+  }
   const table = file?.positions
   if (!table || typeof table !== 'object') {
-    return { facilities: facilities.filter((f) => !hidden.has(f.properties.id)), repositioned, hidden }
+    return { facilities: facilities.filter((f) => !hidden.has(f.properties.id)), repositioned, hidden, doubtful }
   }
   const near = (a: number, b: number) => Math.abs(a - b) < 1e-4
   const moved = facilities.map((facility) => {
@@ -178,7 +195,7 @@ export function applySitePositions(
     })
     return { ...facility, geometry: { ...facility.geometry, coordinates: [entry.lng, entry.lat] as [number, number] } }
   })
-  return { facilities: moved.filter((f) => !hidden.has(f.properties.id)), repositioned, hidden }
+  return { facilities: moved.filter((f) => !hidden.has(f.properties.id)), repositioned, hidden, doubtful }
 }
 
 export class ReferentialError extends Error {
@@ -230,7 +247,7 @@ export function parseDataset(raw: RawFiles): Dataset {
   const countries = parseFile(DATA_FILES.countries, CountriesFileSchema, raw.countries)
   const meta = parseFile(DATA_FILES.meta, MetaSchema, raw.meta)
 
-  const { facilities, repositioned, hidden } = applySitePositions(facilityCollection.features, raw.sitePositions)
+  const { facilities, repositioned, hidden, doubtful } = applySitePositions(facilityCollection.features, raw.sitePositions)
   const mineralsById = new Map(minerals.map((m) => [m.id, m]))
   const problems: string[] = []
 
@@ -310,6 +327,7 @@ export function parseDataset(raw: RawFiles): Dataset {
     facilities,
     hiddenDuplicates: hidden,
     repositioned,
+    doubtfulPositions: doubtful,
     flows,
     prices,
     priceHistory,

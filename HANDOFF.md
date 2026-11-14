@@ -99,6 +99,18 @@ under reduced motion. A "Replay the intro" link brings it back.
   is farther goes to review with a "plant:" reason. That is tuned on 21 sites, so treat 0.8 as a
   reasoned guess, not a calibrated number. Alaverdi's plant (0.83 km, looked right) falls just outside
   the cap and is in review. Result: 209 snapped (189 mine, 13 process, 7 refine), 106 in review.
+- **Plant audit (14 November 2026).** Of the 249 plant dots the land-use check did not flag: 94 sit
+  inside a mining outline, 15 are snapped, 23 are in the review list and 117 have no outline within
+  3 km (the real unknown). Two checks: (1) the 5 sites whose coordinates are whole arc-minutes (Bor,
+  Irtysh, Onahama, Tamano, Wuhu) look like place-name geocodes and **all 5 are wrong** (hills,
+  floodplain, apartment blocks); (2) a random 30 of the 71 sites with no outline within 3 km: 24 on or
+  beside a plant, **6 doubtful (20%)**. With n = 30 that is roughly 8 to 35% at 95% confidence, so
+  perhaps 6 to 25 of those 71 sites are off. These 11 sites (20 records) are flagged `doubtful` in
+  `etl/reviewed_positions.json` and `site_positions.json`, and the card says the position may be
+  wrong. **They are not moved**: Wikipedia has town coordinates but not plant coordinates, and I could
+  not pick the plant out on imagery with enough confidence (Bor is probably the complex east of town).
+  The other 41 unsampled sites in that pool are unreviewed. Round coordinates are a cheap detector
+  worth reusing on any refreshed data.
 - **Refinery and smelter positions, first pass (13 November 2026).** Nominatim land use under the 302
   smelter and refinery dots flagged 53 (38 distinct points) on residential streets or in a named
   place; that check is too noisy to move dots on its own (Hoboken and Hayden are real plants beside
