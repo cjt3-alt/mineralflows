@@ -99,6 +99,27 @@ under reduced motion. A "Replay the intro" link brings it back.
   is farther goes to review with a "plant:" reason. That is tuned on 21 sites, so treat 0.8 as a
   reasoned guess, not a calibrated number. Alaverdi's plant (0.83 km, looked right) falls just outside
   the cap and is in review. Result: 209 snapped (189 mine, 13 process, 7 refine), 106 in review.
+- **Internet search for the review and doubtful sites (14 November 2026).** What was tried and what
+  came back, so it is not repeated:
+  - **Wikidata** (name search with coordinates): run on 18 of the 68 sites, then stopped (slow, and it
+    mostly confirmed the reported point or found nothing; these sites are not there). Useful once:
+    Arizona No. 3 Mine sits 0.1 km from our point.
+  - **Web search** for plant and mine locations: good for US mines (USGS MRDS, TopoQuest, Mindat,
+    Western Mining History list coordinates), patchy elsewhere, and often only a town or "N km from"
+    description. Sources typically disagree by 0.5 to 5 km, so a result only helps where our point is
+    off by several km.
+  - **Applied** (published coordinates whose point lies in or beside a mapped mining outline, from two
+    or more sources where possible): Emerald Isle, Tohono, Cairn Hill, Messina. **Verified in place**
+    from published coordinates: Arizona No. 3, San Jose de Oruro.
+  - **Plants already looked at on imagery** but never recorded are now verified in place: Yuanqu,
+    Balkhash, Caletones, Baotou Huading, Zapolyarny, Zhezkazgan, Jinchang, Mahd adh Dhahab; and three
+    looked at today: Atlantic Copper, Nornickel Taimyr, Garfield. Pirdop and Sredneuralsk are doubtful.
+  - **No usable result:** Milpo (two databases 5 km apart), Konkola and Mineral Park (area only),
+    Twin Buttes (the published point is the mine, the record is the oxide plant), Doyon, Degtyar,
+    Duobaoshan, Jiama, Girilambone, Kiwana, Candelaria (concession group, not the mine), Las Tortolas,
+    and the doubtful plants (Onahama, Tamano, Guixi, Khetri and others: addresses only).
+  - **Left in review: 37 records** (18 conflicts between sites, 10 plants, 9 close calls beyond 2 km).
+    Further progress needs company coordinates or national registers (GESTIM for Quebec, SIGEOM, etc.).
 - **Close-out pass (14 November 2026).** Goal: give every remaining site a recorded outcome. Decisions
   live in `etl/reviewed_positions.json` (sections `reviewed`, `verified_in_place`, `outline_checks`,
   `doubtful_positions`, `duplicates`) and reach the browser through `site_positions.json`.
