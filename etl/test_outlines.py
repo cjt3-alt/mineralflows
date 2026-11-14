@@ -223,6 +223,33 @@ def test_merge_reviewed() -> None:
     check("a renamed record is not hidden", out["hidden"] == {})
 
 
+def test_outline_checks() -> None:
+    facilities = [
+        _facility("a.mine", 1.0, 2.0),
+        _facility("b.process", 3.0, 4.0),
+        _facility("c.mine", 5.0, 6.0),
+    ]
+    close = {"method": "snapped_to_outline", "close_call": True, "runner_up_km": 0.5}
+    snapped = {
+        "positions": {"a.mine": dict(close), "b.process": dict(close), "c.mine": dict(close)},
+        "review": {},
+        "hidden": {},
+    }
+    checks = {
+        "a.mine": {"decision": "confirmed", "from": [1.0, 2.0]},
+        "b.process": {"decision": "reverted", "from": [3.0, 4.0]},
+        "c.mine": {"decision": "confirmed", "from": [9.0, 9.0]},  # the source has since moved it
+    }
+    out = outlines.merge_reviewed(snapped, {"outline_checks": {"records": checks}}, facilities)
+    check("a confirmed snap loses its flag", "close_call" not in out["positions"]["a.mine"])
+    check("and is marked checked", out["positions"]["a.mine"].get("checked") is True)
+    check(
+        "a reverted snap goes back to review",
+        "b.process" not in out["positions"] and "b.process" in out["review"],
+    )
+    check("a stale check is ignored", out["positions"]["c.mine"].get("close_call") is True)
+
+
 def main() -> int:
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

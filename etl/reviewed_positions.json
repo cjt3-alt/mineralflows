@@ -48,5 +48,397 @@
     "reason": "Second entry for the Legnica copper smelter and refinery, geocoded to the town centre. The data already holds the plant at its real location as \"Legnica metallurgical complex\"."
    }
   }
+ },
+ "outline_checks": {
+  "note": "Close-call outline snaps looked at on satellite imagery with the candidate outlines drawn over it. `confirmed` clears the close-call flag; `reverted` puts the dot back where the source reports it; `unresolved` leaves the flag. Applies only while the facility still reports the point in `from`.",
+  "records": {
+   "icmm.icmm00557.mine": {
+    "decision": "unresolved",
+    "name": "Huancapeti",
+    "from": [
+     -77.53753,
+     -9.76498
+    ],
+    "note": "Could not tell from imagery which outline is this mine; left flagged."
+   },
+   "icmm.icmm01091.mine": {
+    "decision": "unresolved",
+    "name": "Colquiri Mine",
+    "from": [
+     -67.1232,
+     -17.39056
+    ],
+    "note": "Could not tell from imagery which outline is this mine; left flagged."
+   },
+   "icmm.icmm01408.mine": {
+    "decision": "unresolved",
+    "name": "La Oriental Mine",
+    "from": [
+     -65.70193,
+     -23.19165
+    ],
+    "note": "Could not tell from imagery which outline is this mine; left flagged."
+   },
+   "icmm.icmm01652.mine": {
+    "decision": "unresolved",
+    "name": "Santa Isabel",
+    "from": [
+     -71.0887,
+     -30.19415
+    ],
+    "note": "Could not tell from imagery which outline is this mine; left flagged."
+   },
+   "icmm.icmm01688.mine": {
+    "decision": "confirmed",
+    "name": "El Bronce Mine",
+    "from": [
+     -70.94028,
+     -32.185
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm01768.mine": {
+    "decision": "confirmed",
+    "name": "Contonga",
+    "from": [
+     -77.07562,
+     -9.49941
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm01881.mine": {
+    "decision": "confirmed",
+    "name": "Grande I Mine",
+    "from": [
+     -75.95401,
+     20.05142
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm01884.mine": {
+    "decision": "confirmed",
+    "name": "Cuale",
+    "from": [
+     -105.113,
+     20.37425
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm02256.mine": {
+    "decision": "confirmed",
+    "name": "Bonney Misers Chest and 85 Mine and Plt",
+    "from": [
+     -108.7545,
+     32.31347
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm02307.mine": {
+    "decision": "unresolved",
+    "name": "Mammoth Butte Mine",
+    "from": [
+     -110.48268,
+     32.73957
+    ],
+    "note": "Could not tell from imagery which outline is this mine; left flagged."
+   },
+   "icmm.icmm04222.mine": {
+    "decision": "confirmed",
+    "name": "Mc Coy/Cove Mine",
+    "from": [
+     -117.2128,
+     40.327
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm05172.mine": {
+    "decision": "confirmed",
+    "name": "King Cole",
+    "from": [
+     -112.17223,
+     46.30555
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm05352.mine": {
+    "decision": "confirmed",
+    "name": "Lucky Friday",
+    "from": [
+     -115.77566,
+     47.47694
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm05464.mine": {
+    "decision": "confirmed",
+    "name": "Ansil",
+    "from": [
+     -79.1164,
+     48.3542
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm05567.process": {
+    "decision": "reverted",
+    "name": "Zapoiyarnij Plant",
+    "from": [
+     30.78704,
+     69.40722
+    ],
+    "note": "The reported point is on the plant's own buildings (Zapolyarny); the nearest mining outline is a tailings area 0.7 km away, so the snap moved it off the plant."
+   },
+   "icmm.icmm05591.mine": {
+    "decision": "confirmed",
+    "name": "Boliden Area",
+    "from": [
+     20.34616,
+     64.87841
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm05779.mine": {
+    "decision": "unresolved",
+    "name": "Vares Lead and Zinc Mine",
+    "from": [
+     18.33986,
+     44.15922
+    ],
+    "note": "Could not tell from imagery which outline is this mine; left flagged."
+   },
+   "icmm.icmm06490.mine": {
+    "decision": "confirmed",
+    "name": "Hera Project, Hera Project, Far West lens, Main lens, Main South lens, 1530 lens, East lens, West lens",
+    "from": [
+     146.32507,
+     -32.10905
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm06567.mine": {
+    "decision": "confirmed",
+    "name": "MOUNT GUNSON",
+    "from": [
+     137.15962,
+     -31.44685
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm07554.mine": {
+    "decision": "confirmed",
+    "name": "Kambove West",
+    "from": [
+     26.59142,
+     -10.88006
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm07596.mine": {
+    "decision": "confirmed",
+    "name": "Madziwa",
+    "from": [
+     31.662,
+     -17.05605
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm07733.mine": {
+    "decision": "confirmed",
+    "name": "Eastern Bushveld Sector: Merensky Reef",
+    "from": [
+     29.88598,
+     -24.29339
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm07748.mine": {
+    "decision": "unresolved",
+    "name": "Eastern Bushveld: Steelpoort Sector",
+    "from": [
+     30.17686,
+     -24.76163
+    ],
+    "note": "Could not tell from imagery which outline is this mine; left flagged."
+   },
+   "icmm.icmm07748.process": {
+    "decision": "unresolved",
+    "name": "Eastern Bushveld: Steelpoort Sector",
+    "from": [
+     30.17686,
+     -24.76163
+    ],
+    "note": "Could not tell from imagery which outline is this mine; left flagged."
+   },
+   "icmm.icmm07769.mine": {
+    "decision": "confirmed",
+    "name": "Impala Platinum",
+    "from": [
+     27.19426,
+     -25.55356
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm08041.mine": {
+    "decision": "confirmed",
+    "name": "BRPM",
+    "from": [
+     27.09902,
+     -25.47151
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm08053.mine": {
+    "decision": "confirmed",
+    "name": "Bystrinsky GOK",
+    "from": [
+     118.5476,
+     51.49579
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm08082.mine": {
+    "decision": "confirmed",
+    "name": "Cerro Moro",
+    "from": [
+     -66.6552,
+     -48.11679
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm08115.mine": {
+    "decision": "unresolved",
+    "name": "Conga",
+    "from": [
+     -78.37889,
+     -6.92143
+    ],
+    "note": "Could not tell from imagery which outline is this mine; left flagged."
+   },
+   "icmm.icmm08172.mine": {
+    "decision": "confirmed",
+    "name": "Dwarsrivier",
+    "from": [
+     30.11402,
+     -24.9391
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm08326.mine": {
+    "decision": "confirmed",
+    "name": "IMMSA San Martin",
+    "from": [
+     -103.74915,
+     23.658
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm08518.process": {
+    "decision": "confirmed",
+    "name": "Miaogou and Sanguikou",
+    "from": [
+     107.07455,
+     41.11381
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm08544.mine": {
+    "decision": "confirmed",
+    "name": "Modikwa",
+    "from": [
+     30.12423,
+     -24.63383
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm08840.mine": {
+    "decision": "confirmed",
+    "name": "Storliden",
+    "from": [
+     18.88936,
+     65.22685
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm08971.process": {
+    "decision": "reverted",
+    "name": "Zhezkazgan Smelter",
+    "from": [
+     67.7276,
+     47.77967
+    ],
+    "note": "The reported point is in the industrial zone of Zhezkazgan beside the smelter; the nearest mining outline is a different site 0.75 km east, so the snap moved it off the plant."
+   },
+   "icmm.icmm08971.refine": {
+    "decision": "reverted",
+    "name": "Zhezkazgan Smelter",
+    "from": [
+     67.7276,
+     47.77967
+    ],
+    "note": "The reported point is in the industrial zone of Zhezkazgan beside the smelter; the nearest mining outline is a different site 0.75 km east, so the snap moved it off the plant."
+   },
+   "icmm.icmm12871.mine": {
+    "decision": "confirmed",
+    "name": "Shizishan Mine",
+    "from": [
+     117.88669,
+     30.90849
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm13380.mine": {
+    "decision": "confirmed",
+    "name": "Chelopech",
+    "from": [
+     24.07314,
+     42.68735
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm13550.mine": {
+    "decision": "confirmed",
+    "name": "Jaguar",
+    "from": [
+     121.14274,
+     -28.41765
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm13662.mine": {
+    "decision": "unresolved",
+    "name": "Ming",
+    "from": [
+     -56.09061,
+     49.9051
+    ],
+    "note": "Could not tell from imagery which outline is this mine; left flagged."
+   },
+   "icmm.icmm13906.mine": {
+    "decision": "confirmed",
+    "name": "Xiaotieshan",
+    "from": [
+     104.24233,
+     36.6463
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm13919.mine": {
+    "decision": "confirmed",
+    "name": "Yinan",
+    "from": [
+     118.50564,
+     35.65891
+    ],
+    "note": "Snapped outline is mining land of the right kind within the same complex as the reported point (Esri imagery, 14 November 2026). Plausible, not proof it is this named mine."
+   },
+   "icmm.icmm14251.refine": {
+    "decision": "unresolved",
+    "name": "Crocodile River",
+    "from": [
+     27.79976,
+     -25.70528
+    ],
+    "note": "Could not tell from imagery which outline is this mine; left flagged."
+   }
+  }
  }
 }

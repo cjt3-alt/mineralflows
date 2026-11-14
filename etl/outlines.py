@@ -426,6 +426,25 @@ def merge_reviewed(snapped: dict, reviewed: dict, facilities: list[dict]) -> dic
             "source_url": entry["source_url"],
         }
         snapped["review"].pop(fid, None)
+    for fid, check in reviewed.get("outline_checks", {}).get("records", {}).items():
+        here = coords.get(fid)
+        if here is None or abs(here[0] - check["from"][0]) > 1e-4:
+            continue
+        if abs(here[1] - check["from"][1]) > 1e-4:
+            continue
+        moved = snapped["positions"].get(fid)
+        if moved is None or moved["method"] != "snapped_to_outline":
+            continue
+        if check["decision"] == "confirmed" and moved.get("close_call"):
+            moved.pop("close_call")
+            moved.pop("runner_up_km", None)
+            moved["checked"] = True
+        elif check["decision"] == "reverted":
+            del snapped["positions"][fid]
+            snapped["review"][fid] = (
+                "checked on imagery: the reported point is on the plant, "
+                "and the nearest outline is not it"
+            )
     names = {f["properties"]["id"]: f["properties"].get("name") for f in facilities}
     snapped["hidden"] = {
         fid: {

@@ -217,6 +217,7 @@ describe('applySitePositions', () => {
     positions: {
       a: { lng: 10.01, lat: 20.01, from: [10, 20], moved_km: 1.5 },
       b: { lng: 11.01, lat: 21.01, from: [11, 21], moved_km: 0.4, close_call: true },
+      c: { lng: 12.01, lat: 22.01, from: [12, 22], moved_km: 0.4, checked: true },
     },
   }
 
@@ -230,6 +231,10 @@ describe('applySitePositions', () => {
     const out = applySitePositions([facility('b', 11, 21)], table)
     expect(out.repositioned.get('b')?.closeCall).toBe(true)
     expect(applySitePositions([facility('a', 10, 20)], table).repositioned.get('a')?.closeCall).toBeUndefined()
+  })
+
+  it('carries the checked flag through', () => {
+    expect(applySitePositions([facility('c', 12, 22)], table).repositioned.get('c')?.checked).toBe(true)
   })
 
   it('ignores a move once the source reports a different point', () => {

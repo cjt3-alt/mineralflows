@@ -83,6 +83,17 @@ under reduced motion. A "Replay the intro" link brings it back.
   sites and 37 with no outline within 2 km. **Limit:** the simulation always keeps the true mine
   within 3 km, so it cannot measure a dot that is wrong by more than that; the "only one outline"
   results are optimistic.
+- **The 41 close-call sites, looked at (14 November 2026).** Each was drawn on Esri imagery with the
+  snapped outline (cyan) and the runner-up (orange) over it. Decisions live in `outline_checks` in
+  `etl/reviewed_positions.json`: 29 records **confirmed** (mining land of the right kind in the same
+  complex; the flag is cleared and the card says it was checked, which is a judgement, not proof it is
+  that named mine), 3 records **reverted** (Zapolyarny plant, Zhezkazgan smelter: the reported point
+  was already on the plant and the nearest mining outline was a different place, so the snap moved
+  it off), 11 left **unresolved** and still flagged. Result: 220 snapped, 95 in review. **Lesson:**
+  Maus outlines are mining land (pits, dumps, tailings); a smelter or refinery's buildings are
+  often not inside one, so snapping a plant to the nearest outline can be wrong even when the ratio
+  test passes. 28 plant records (19 process, 9 refine) are snapped with no flag and have not been
+  looked at; the calibration covered mines only. Check them next.
 - **Refinery and smelter positions, first pass (13 November 2026).** Nominatim land use under the 302
   smelter and refinery dots flagged 53 (38 distinct points) on residential streets or in a named
   place; that check is too noisy to move dots on its own (Hoboken and Hayden are real plants beside
