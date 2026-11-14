@@ -39,8 +39,6 @@ export interface ExploreMapProps {
   lens: Lens
   /** The year on screen: each country's share of world mine and refinery output. */
   model: ChokepointModel | null
-  /** Countries worth a label in any year, so labels do not appear and vanish as the year changes. */
-  labelCountries: { iso3: string; name: string }[]
   /** Mine footprints, once loaded. */
   outlines: GeoJSON.FeatureCollection | null
   points: PointDatum[]
@@ -125,7 +123,6 @@ export const ExploreMap = forwardRef<ExploreMapHandle, ExploreMapProps>(function
   const {
     lens,
     model,
-    labelCountries,
     outlines,
     points,
     arcs,
@@ -140,12 +137,10 @@ export const ExploreMap = forwardRef<ExploreMapHandle, ExploreMapProps>(function
   const geoRef = useRef<CountryGeo | null>(null)
   const [ready, setReady] = useState(false)
   const [geoReady, setGeoReady] = useState(false)
-  // Bumped each time the country shapes (and so the labels) are replaced.
+  // Bumped each time the country shapes are replaced.
   const [geoVersion, setGeoVersion] = useState(0)
-  const [labelVersion, setLabelVersion] = useState(0)
   const tipRef = useRef<HTMLDivElement>(null)
   const readoutRef = useRef<HTMLParagraphElement>(null)
-  const labelsRef = useRef<Map<string, { el: HTMLDivElement; mine: number; refine: number }>>(new Map())
 
   // Latest props for handlers that live as long as the map does.
   const live = useRef(props)
@@ -538,17 +533,7 @@ export const ExploreMap = forwardRef<ExploreMapHandle, ExploreMapProps>(function
       if (el) el.style.opacity = '0'
     })
 
-    // Country names thin out as you close in: imagery brings its own labels.
-    const syncLabels = () => {
-      const z = map.getZoom()
-      box.classList.toggle('mf-labels-off', z > 6.2)
-    }
-    map.on('zoom', syncLabels)
-
-    const labels = labelsRef.current
     return () => {
-      for (const { el } of labels.values()) el.parentElement?.remove()
-      labels.clear()
       map.remove()
       mapRef.current = null
       setReady(false)
@@ -582,32 +567,6 @@ export const ExploreMap = forwardRef<ExploreMapHandle, ExploreMapProps>(function
     }
   }, [ready])
 
-  /* ------------------------------------------------------------- labels */
-  useEffect(() => {
-    const map = mapRef.current
-    const geo = geoRef.current
-    if (!ready || !map || !geo) return
-    const labels = labelsRef.current
-    for (const { el } of labels.values()) el.parentElement?.remove()
-    labels.clear()
-    for (const c of labelCountries) {
-      const place = geo.places[c.iso3]
-      if (!place) continue
-      // MapLibre writes its own inline opacity on a marker's element, so the
-      // look and the fading live on a child it does not touch.
-      const wrap = document.createElement('div')
-      wrap.className = 'mf-label-wrap'
-      const el = document.createElement('div')
-      el.className = 'mf-label mf-label-quiet'
-      el.innerHTML = '<span class="mf-label-name"></span><span class="mf-label-pct"></span>'
-      ;(el.children[0] as HTMLElement).textContent = c.name
-      wrap.appendChild(el)
-      new maplibregl.Marker({ element: wrap, anchor: 'center' }).setLngLat([place.lng, place.lat]).addTo(map)
-      labels.set(c.iso3, { el, mine: 0, refine: 0 })
-    }
-    setLabelVersion((v) => v + 1)
-  }, [ready, geoVersion, labelCountries])
-
   /* -------------------------------------------- shares for the year on screen */
   useEffect(() => {
     const map = mapRef.current
@@ -629,12 +588,6 @@ export const ExploreMap = forwardRef<ExploreMapHandle, ExploreMapProps>(function
         map.setFeatureState({ source: 'countries', id: iso }, v)
       }
     }
-    // The labels carry the year's number as soon as it is chosen.
-    for (const [iso, label] of labelsRef.current) {
-      const row = target.get(iso)
-      label.mine = row?.mine ?? 0
-      label.refine = row?.refine ?? 0
-    }
     if (reducedMotion) {
       put(1)
       return
@@ -648,7 +601,7 @@ export const ExploreMap = forwardRef<ExploreMapHandle, ExploreMapProps>(function
     }
     raf = requestAnimationFrame(step)
     return () => cancelAnimationFrame(raf)
-  }, [ready, geoVersion, labelVersion, model, reducedMotion])
+  }, [ready, geoVersion, model, reducedMotion])
 
   /* ---------------------------------------------------------------- sites */
   useEffect(() => {
@@ -722,12 +675,7 @@ export const ExploreMap = forwardRef<ExploreMapHandle, ExploreMapProps>(function
       map.setPaintProperty(`sites-${stage}`, 'circle-opacity', expr(['case', ['==', ['get', 'conf'], 'low'], o * 0.6, o]))
       map.setPaintProperty(`sites-${stage}`, 'circle-stroke-opacity', expr(['case', ['==', ['get', 'conf'], 'low'], o * 0.6, o]))
     }
-    for (const { el, mine, refine } of labelsRef.current.values()) {
-      const share = lens === 'mined' ? mine : lens === 'refined' ? refine : 0
-      el.classList.toggle('mf-label-quiet', lens === 'trade' || share < 0.03)
-      ;(el.children[1] as HTMLElement).textContent = lens === 'trade' ? '' : formatShare(share)
-    }
-  }, [ready, geoReady, geoVersion, labelVersion, model, lens, reducedMotion])
+  }, [ready, geoReady, geoVersion, model, lens, reducedMotion])
 
   /* ------------------------------------------------------------ satellite */
   useEffect(() => {

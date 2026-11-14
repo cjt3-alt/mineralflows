@@ -366,41 +366,6 @@ dialog::backdrop {
   transition: right 400ms var(--mf-ease-out);
 }
 
-/* Country names on the map: the share they hold, in the lens being shown. */
-.mf-label {
-  pointer-events: none;
-  text-align: center;
-  color: var(--mf-text);
-  text-shadow:
-    0 0 3px #000,
-    0 0 8px rgba(0, 0, 0, 0.9);
-  transition: opacity 600ms var(--mf-ease-inout);
-}
-.mf-label-name {
-  display: block;
-  font-family: var(--mf-font-mono);
-  font-size: 9.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--mf-text-dim);
-}
-.mf-label-pct {
-  display: block;
-  font-family: var(--mf-font-display);
-  font-stretch: 114%;
-  font-weight: 600;
-  font-size: 18px;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-.mf-label-quiet {
-  opacity: 0;
-}
-.mf-labels-off .mf-label {
-  opacity: 0;
-}
-
 .mf-tip {
   background: var(--mf-surface);
   border: 1px solid var(--mf-line-strong);
