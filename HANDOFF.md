@@ -1,7 +1,7 @@
 # MineralFlows — where things stand
 
 Written 1 September 2026, at the end of the build session that completed phases 4 and 5.
-**Updated 21 October 2026** — section 0d below is the current state. **Updated 13 September 2026** — see section 0 for what changed since; the original
+**Updated 14 November 2026** — sections 0f (dot positions) and 0e (the map) are the current state; **21 October 2026** — section 0d is the chokepoint redesign. **Updated 13 September 2026** — see section 0 for what changed since; the original
 write-up follows it unchanged as a record of that first session, with two pointers added where its
 numbers are now stale.
 
@@ -10,7 +10,87 @@ Live: <https://cjt3-alt.github.io/mineralflows/>
 
 ---
 
-## 0e. The living map, November 2026 (start here)
+## 0f. Dot positions: where the data stands (14 November 2026, start here for anything about site positions)
+
+**The problem.** ICMM's reported coordinates are not always on the mine or plant: some sit in a town
+centre (geocoded to a place name), on a hillside beside the pit, or kilometres off. We cannot fix the
+source, so we carry a correction and annotation layer beside it and say on every card how far to trust it.
+
+**How it works**
+- `public/data/facilities.geojson` is never edited (the monthly refresh regenerates it).
+- `etl/outlines.py` is a side script run by hand. With `--gpkg <Maus polygons>` it rebuilds
+  `outlines.geojson` and `site_positions.json`; without it, only `site_positions.json`.
+  `site_positions.json` has five maps: `positions` (dots moved), `review` (left as reported, with the
+  reason), `hidden` (duplicate records), `doubtful` (position looks wrong, not moved), `verified`
+  (looked at and found on the plant).
+- Hand decisions live in `etl/reviewed_positions.json`: `reviewed` (placed by hand or from published
+  coordinates, source cited), `verified_in_place`, `outline_checks` (imagery review of close calls),
+  `doubtful_positions`, `duplicates`, plus `plant_audit` notes. `merge_reviewed` overlays them.
+- The browser applies it in `applySitePositions` (`src/data/load.ts`) and `DetailPanel` writes the card
+  text. **Every decision applies only while ICMM still reports the point it was made at** (`from`), so
+  a refreshed source cannot leave a stale correction. Duplicates hide only while the record keeps its name.
+
+**The rules (constants in `etl/outlines.py`)**
+
+| Rule | Value | Why |
+|---|---|---|
+| Snap a dot onto the nearest mining outline | within `SNAP_MAX_KM` = 3 km | the calibration covers offsets up to 3 km |
+| Clear winner needed | runner-up at least `SNAP_RATIO` = 2x farther | 99% right at 2x, near a coin flip when equal |
+| Close call (ratio below 2) | snapped and flagged `close_call` within `CLOSE_CALL_MAX_KM` = 2 km | closer to the truth in 84 to 90% of trials |
+| Beyond `SNAP_CLEAR_KM` = 2 km | allowed only for a clear winner, flagged `far_snap` | optimistic for a lone outline |
+| Plants (process, refine) | only within `PLANT_SNAP_MAX_KM` = 0.8 km | outlines are pits and tailings, not buildings; tuned on 21 sites, a guess |
+| One site's mine and plant records | one claimant, not a conflict (`site_of`) | they share a point |
+
+`etl/snap_calibration.py --gpkg <file>` reproduces the calibration (477 known mines shifted 0.5 to 3 km,
+11,448 trials). Its limit: it keeps the true mine within 3 km, so it cannot measure a dot that is wrong
+by more.
+
+**Where it ended (1,051 sites, 1,229 records)**
+
+| Outcome | Sites | What the card says |
+|---|---|---|
+| Snapped to an outline | 238: 155 plain, 29 checked on imagery, 36 close calls, 18 far | moved N km; close and far say "not checked" |
+| Placed by hand or from published coordinates | 9 | the source, or "judged by eye" |
+| Verified in place | 38 | "position checked against satellite imagery" |
+| Flagged "position may be wrong" | 18 | the reason; the dot is not moved |
+| Duplicate records hidden | 4 (8 records) | gone from map, search and counts |
+| Still in review (left as reported) | 35: 18 conflicts between sites, 9 close calls beyond 2 km, 8 plants | nothing |
+| As reported, never flagged | about 700, many already inside an outline | nothing |
+
+**Evidence ladder, best first:** published coordinates corroborated by an outline or imagery; imagery
+alone where the plant or pit is unmistakable; the calibration rule (close and far snaps, unchecked);
+nothing. A hand move of more than 3 km needs a published description or coordinates.
+
+**Lessons worth keeping**
+- Round coordinates (whole arc-minutes, e.g. 51.2000, 16.2000) are place-name geocodes. All 5 sites
+  with them that were not duplicates were wrong. Cheap to test on any refreshed data.
+- Maus outlines are mining land. A smelter's buildings are often outside one, so plants need the short cap.
+- Check for **duplicates before moving**: Glogow, Legnica, Hamburg and Altonorte "refinery" records
+  repeated plants held correctly under another name.
+- A fraction-of-the-way step toward a big outline's middle once moved a dot 7 km; the step is now a
+  few tens of metres (test in `etl/test_outlines.py`).
+- Imagery review at 4 km windows cannot settle two outlines 1 to 3 km away. Do not spend tiles there.
+- **Run every deploy-workflow step locally before pushing, including `ruff`** (a lint failure blocked
+  the deploy once). There is no CI on pull requests.
+
+**Searched and not repeated:** Wikidata name search (confirms or finds nothing for these sites); web
+search gives coordinates for US mines (USGS MRDS, TopoQuest, Mindat) and usually only a town or
+direction elsewhere; sources disagree by 0.5 to 5 km. Details are in the log below.
+
+**What is left, in the order I would do it**
+1. The "how well do we know this?" layer (`ROADMAP.md` section A). All the data it needs now exists:
+   plain, checked, close, far, verified, doubtful, review. A fourth lens or a filter that colours by tier.
+2. The 18 doubtful sites and 35 review sites need company coordinates or national registers
+   (GESTIM for Quebec and the like); imagery and open web search have gone as far as they can.
+3. Spot-check some `far_snap` and wider close-call snaps against company coordinates.
+4. Real devices, tablet width, an axe pass, slow-phone performance (never tested).
+
+**The detailed log of how we got here** is under 0e below (bullets from 13 and 14 November). Its
+intermediate counts are superseded by the table above.
+
+---
+
+## 0e. The living map, November 2026 (the front door)
 
 **Why.** The chokepoint page taught well but was a two-slide deck: about 30 seconds and done. CJ wanted
 a place people can spend time in, closer to Google Maps than a presentation: free dragging up and down
@@ -59,6 +139,8 @@ under reduced motion. A "Replay the intro" link brings it back.
   2025); the plate shows the year's copper price.
 - The three scripts are side scripts: the monthly refresh does not touch their files, so it cannot drop
   them. Tests: `etl/test_outlines.py`, `etl/test_history.py` (both run in CI).
+- *The bullets from here to "Not done from the list" are the working log of the dot-position work, in
+  order; counts in them are intermediate and superseded by section 0f.*
 - **Dots snapped to outlines (13 November 2026).** 265 matched mines (and 52 smelters and refineries)
   had their reported point outside the outline they were matched to. `etl/outlines.py` now also
   writes `site_positions.json`: a dot is moved the shortest distance onto the outline when the

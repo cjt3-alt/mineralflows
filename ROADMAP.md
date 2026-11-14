@@ -7,6 +7,34 @@ zoom, click or scrub belongs here. See `HANDOFF.md` section 0e for what exists t
 Ground rules that still apply: source and cite every figure (never hard-code from memory), label
 estimates as estimates, and keep to `DESIGN.md`.
 
+## Notes for CJ, written the night of 14 November 2026
+
+**Where things stand.** The map is live with mine footprints, a year slider, price history and, new
+today, a position layer: 238 dots snapped onto their mining outline, 9 placed by hand or from
+published coordinates, 38 verified on a plant, 18 flagged "position may be wrong", 4 duplicate records
+hidden, and 35 sites left as reported. Nothing is half-built or unmerged (PRs 5 to 11). `HANDOFF.md`
+section 0f is the full account: rules, numbers, what each card says, and what was tried.
+
+**The next thing to build, and why it is ready.** Section A below (the "how well do we know this?"
+layer) is now the obvious next step. Every site already carries a tier in `site_positions.json`:
+plain snap, checked, close call, far snap, verified, doubtful, or reported. What remains is the map
+lens or filter that colours by tier, the method page, and (optionally) modelled output estimates.
+Still untouched: capacity or output figures (no site has one), which the footprint areas could feed.
+
+**Honest limits to keep in mind**
+- The far and wider close-call snaps rest on a calibration that keeps the true mine within 3 km, so it
+  is optimistic. The plant cap of 0.8 km is tuned on 21 sites.
+- 18 doubtful sites and 35 review sites need coordinates that only company reports or national
+  registers hold.
+- Phones get no year slider; tablet width, axe, slow-phone performance and real touch were never tested.
+
+**Decisions that are yours**
+- Whether the next month leans on rigour (the uncertainty layer, sourced captions) or wander-ability
+  (tours, before and after imagery), as below.
+- Whether to keep going on copper until it is excellent, or add cobalt to show the pattern generalises.
+
+(The notes from 10 November follow; the ideas in them still stand.)
+
 ## Notes for CJ, written the night of 10 November 2026
 
 **Where things stand.** Live on the site: the explorable map (three lenses, guided opening, satellite
@@ -22,8 +50,8 @@ copper price history. Nothing is half-built or uncommitted. The monthly data ref
 - The selected site's outline highlight (champagne) is subtle against satellite imagery. Worth a look.
 - Esri's tile servers are a third party. Fine for now, credited on the map; if they ever block us the
   swap is one source in `ExploreMap.tsx`.
-- 551 sites are low confidence and none has a capacity figure. This is the biggest gap and it is the
-  next thing to do (see "Where to go deeper").
+- 551 sites are low confidence and none has a capacity figure. (Position accuracy was worked on on
+  14 November: see `HANDOFF.md` 0f. Capacity is still the biggest gap.)
 - `outlines.geojson` is 952 kB and loads after the map appears. If it ever feels slow, split it by
   region and load only what is on screen.
 
@@ -94,7 +122,7 @@ Instead of hiding that, show it, and where a defensible estimate can be made, ma
 
 | # | Data | What it adds | Where from (to verify before use) |
 | --- | --- | --- | --- |
-| B1 | **Mine outlines** (done, November 2026: `etl/outlines.py`, 902 of 1,229 sites matched) | Real pit and footprint shapes on the satellite view, and a size proxy for A2 | Maus et al. global mining areas (*Scientific Data* 2020 and its update), about 45,000 polygons, open licence; match to our mines |
+| B1 | **Mine outlines** (done, November 2026: `etl/outlines.py`, 902 of 1,229 sites matched; dots snapped onto them, see `HANDOFF.md` 0f) | Real pit and footprint shapes on the satellite view, and a size proxy for A2 | Maus et al. global mining areas (*Scientific Data* 2020 and its update), about 45,000 polygons, open licence; match to our mines |
 | B2 | **Production history** (done to 2020: `etl/history.py`; deeper years still open) | A year slider: China's refining share over time | USGS Mineral Commodity Summaries back-issues, BGS World Mineral Statistics, World Mining Data |
 | B3 | **Site capacity and detail** for the top 40 to 60 mines, smelters and refineries | Output, grade, reserves, mine life, opening year, owner | Company technical reports: SEC EDGAR (S-K 1300), SEDAR+ (NI 43-101); ICSG for smelter and refinery capacity (also fills the smelting gap); Wikidata for operators and dates |
 | B4 | **Tailings dams** | A striking, visible layer | Global Tailings Portal (GRID-Arendal) |
